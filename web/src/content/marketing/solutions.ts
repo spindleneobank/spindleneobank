@@ -84,7 +84,7 @@ const PHOTOS: Record<string, Omit<Photo, 'name'>> = {
     stockW: 1600,
   },
 };
-/** Old page images: stock file plus its /assets/mobile twin in a srcset (phones pick the lighter one), same alt text. */
+/** Old page images, same alt text. Only work-circuits carried the srcset that phones actually used (measured: the others load the stock file). */
 function photo(name: string): Photo {
   return { name, ...(PHOTOS[name] as Omit<Photo, 'name'>) };
 }

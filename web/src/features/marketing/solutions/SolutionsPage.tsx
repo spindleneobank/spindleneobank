@@ -79,8 +79,12 @@ function Photo({ photo, tone }: { photo: PhotoData; tone: Palette }) {
   return (
     <img
       src={`/assets/stock/${name}-v10.webp`}
-      srcSet={`/assets/mobile/${name}-v10.webp ${photo.mobileW}w, /assets/stock/${name}-v10.webp ${photo.stockW}w`}
-      sizes="(max-width: 809px) calc(100vw - 32px), 1200px"
+      srcSet={
+        photo.mobile
+          ? `/assets/mobile/${name}-v10.webp ${photo.mobileW}w, /assets/stock/${name}-v10.webp ${photo.stockW}w`
+          : undefined
+      }
+      sizes={photo.mobile ? '(max-width: 809px) calc(100vw - 32px), 1200px' : undefined}
       alt={photo.alt}
       width={photo.width}
       height={photo.height}
