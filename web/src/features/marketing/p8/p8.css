@@ -680,6 +680,9 @@
   .p8-legal {
     padding: 60px 6px;
   }
+  .p8-legal-in {
+    padding: 0 16px;
+  }
   .p8-h4 {
     font-size: 24px;
     letter-spacing: -0.6px;
@@ -721,4 +724,9 @@
 }
 .p8-back:hover {
   background-color: #110f15;
+}
+
+.p8-container-c > h1,
+.p8-container-c > p {
+  width: 100%;
 }

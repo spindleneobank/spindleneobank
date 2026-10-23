@@ -89,7 +89,7 @@ export const ARCH_COMPONENTS: ArchComponent[] = [
     "slug": "claim-service",
     "icon": "claim",
     "title": "Claim service",
-    "lead": "The claim service builds USDG claims; Stock Token and card steps are separate.",
+    "lead": "The claim service builds USDG, Stock Token, virtual card and split-claim requests.",
     "indexLead": "The claim service builds USDG claims; Stock Token and card steps are separate.",
     "dataFlow": "A shared cumulative entitlement supports all payout routes. The service builds a claim request and presents the route-specific quote, fees or delivery conditions before the owner signs.",
     "boundary": "Card program terms and Stock Token eligibility govern their routes. Provider earnings depend on buyer demand and verified completed work.",
