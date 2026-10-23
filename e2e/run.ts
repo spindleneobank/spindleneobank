@@ -6,8 +6,10 @@ import { makeCtx, type Scenario, Skip } from './lib/harness';
 import { s01 } from './scenarios/s01';
 import { s02 } from './scenarios/s02';
 import { s03 } from './scenarios/s03';
+import { s04 } from './scenarios/s04';
+import { s05 } from './scenarios/s05';
 
-const all: Scenario[] = [s01, s02, s03];
+const all: Scenario[] = [s01, s02, s03, s04, s05];
 const only = (
   process.argv.find((a) => a.startsWith('--only='))?.slice(7) ??
   process.argv[process.argv.indexOf('--only') + 1] ??
