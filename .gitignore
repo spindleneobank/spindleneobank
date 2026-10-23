@@ -1,0 +1,14 @@
+node_modules/
+.worktrees/
+.env*
+!.env.example
+dist/
+.output/
+.vinxi/
+.tanstack/
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/4663-fork/
+*.log
+.playwright-cli/
+data/
