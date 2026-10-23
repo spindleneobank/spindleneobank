@@ -1,5 +1,5 @@
 /**
- * About / network-role copy. Verbatim from the old rendered pages (parity task P6); the only deviations are the
+ * Note: the sealed lane is in testing. About / network-role copy. Verbatim from the old rendered pages (parity task P6); the only deviations are the
  * rows approved in docs/plan/parity-text-exceptions.md (claims always land in the wallet first).
  */
 export type Role = {
