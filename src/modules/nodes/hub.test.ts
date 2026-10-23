@@ -246,7 +246,6 @@ describe('models and min stakes', () => {
       type: 'models.ready',
       models: [
         { id: 'qwen2.5:7b', digest: 'd1' },
-        { id: 'qwen2.5:32b', digest: 'd2' },
         { id: 'bogus', digest: 'd3' },
       ],
     });
