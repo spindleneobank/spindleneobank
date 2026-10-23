@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom';
 import { useBreakpoint } from '../../../components/marketing/motion';
 import { ComingDialog } from '../../../components/marketing/shell';
 import { SOCIALS } from '../../../components/marketing/shell/nav-data';
+import { applyExceptions } from './exceptions';
+import { runFaq } from './faq';
+import { runSlider } from './slider';
 import { runAppear, runBorderFade } from '../appear';
 import { useShaderHosts } from '../shaders';
 import { rootClass, trees, wrapClass } from './markup';
@@ -14,13 +17,6 @@ import './extra.css';
  * The old wrapper is `display: contents`, so its sections are direct children of the page root, as before.
  * Approved text exceptions are applied here (see docs/plan/parity-text-exceptions.md).
  */
-const EXCEPTIONS: Array<[string, string]> = [
-  ['serve AI jobs in a sealed or open lane', 'serve AI jobs in the open lane; sealed is in testing'],
-];
-
-function applyExceptions(html: string) {
-  return EXCEPTIONS.reduce((s, [a, b]) => s.split(a).join(b), html);
-}
 
 export function OldTree({ onMount }: { onMount?: (root: HTMLElement) => void | (() => void) }) {
   const bp = useBreakpoint();
@@ -30,7 +26,7 @@ export function OldTree({ onMount }: { onMount?: (root: HTMLElement) => void | (
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const stops = [runAppear(el), runBorderFade(el)];
+    const stops = [runAppear(el), runBorderFade(el), runFaq(el), runSlider(el, bp)];
     return () => {
       for (const s of stops) s();
     };
