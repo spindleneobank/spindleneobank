@@ -12,3 +12,5 @@ contracts/broadcast/*/4663-fork/
 *.log
 .playwright-cli/
 data/
+contracts/deployments/*-fork.json
+contracts/broadcast/
