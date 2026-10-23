@@ -25,7 +25,7 @@ function niceMax(v: bigint): bigint {
 }
 
 /** Stacked job/floor/slash bars (HTML, so axis text keeps its real size). Heights are bigint ratios. */
-function SeriesChart({ buckets }: { buckets: Bucket[] }) {
+export function SeriesChart({ buckets }: { buckets: Bucket[] }) {
   const [hover, setHover] = useState<number | null>(null);
   const data = useMemo(() => {
     const bars = buckets.map((b) => {
@@ -46,7 +46,8 @@ function SeriesChart({ buckets }: { buckets: Bucket[] }) {
     );
   }
   const pct = (v: bigint) => `${Number((v * 10000n) / max) / 100}%`;
-  const ticks = [4n, 3n, 2n, 1n, 0n].map((i) => (max * i) / 4n);
+  // keyed by quartile, not by value: small maxima make several tick values equal
+  const ticks = [4n, 3n, 2n, 1n, 0n].map((i) => ({ q: i, v: (max * i) / 4n }));
   const sum = (k: 'job' | 'floor' | 'slash') => bars.reduce((a, x) => a + x[k], 0n);
   const labelAt = [
     0,
@@ -60,13 +61,13 @@ function SeriesChart({ buckets }: { buckets: Bucket[] }) {
       <div className="sd-plot">
         <div className="sd-yaxis" aria-hidden="true">
           {ticks.map((t) => (
-            <span key={t.toString()}>{formatMicros(t, { fractionDigits: 0 })}</span>
+            <span key={t.q.toString()}>{formatMicros(t.v, { fractionDigits: 0 })}</span>
           ))}
         </div>
         <div className="sd-area">
           <div className="sd-grid-lines" aria-hidden="true">
             {ticks.map((t) => (
-              <i key={t.toString()} />
+              <i key={t.q.toString()} />
             ))}
           </div>
           <div className="sd-bars">
@@ -107,8 +108,10 @@ function SeriesChart({ buckets }: { buckets: Bucket[] }) {
         </div>
       </div>
       <div className="sd-xaxis" aria-hidden="true">
-        {labelAt.map((i) => (
-          <span key={i}>{day(bars[i]?.b.ts ?? '')}</span>
+        {labelAt.map((i, pos) => (
+          // positions, not bar indexes: short ranges map several labels to the same bar
+          // biome-ignore lint/suspicious/noArrayIndexKey: label slot is the stable identity
+          <span key={`${pos}-${i}`}>{day(bars[i]?.b.ts ?? '')}</span>
         ))}
       </div>
       <figcaption className="sd-legend">
@@ -283,6 +286,17 @@ function Ledger() {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const rows = q.data?.pages.flatMap((p) => p.items) ?? [];
+  // ledger ids are composite (ts|node|kind|job); two job-less rows can share one, so suffix repeats
+  const keyed = useMemo(() => {
+    const seen = new Map<string, number>();
+    const m = new Map<(typeof rows)[number], string>();
+    for (const r of rows) {
+      const n = seen.get(r.id) ?? 0;
+      seen.set(r.id, n + 1);
+      m.set(r, n === 0 ? r.id : `${r.id}#${n}`);
+    }
+    return m;
+  }, [rows]);
   let body: ReactNode;
   if (q.isPending) body = <Skeleton height={200} />;
   else if (q.isError)
@@ -302,7 +316,7 @@ function Ledger() {
           caption="Earnings ledger"
           template="1.2fr 1fr 1fr 0.8fr 1fr"
           rows={rows}
-          rowKey={(r) => r.id}
+          rowKey={(r) => keyed.get(r) ?? r.id}
           cols={[
             { key: 'ts', header: 'Time', render: (r) => fmtTime(r.ts) },
             {
