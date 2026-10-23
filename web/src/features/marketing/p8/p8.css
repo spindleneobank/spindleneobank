@@ -512,6 +512,18 @@
 }
 .p8-legal a {
   color: var(--p8-t);
+  text-decoration: underline;
+  text-decoration-color: rgba(243, 218, 205, 0.66);
+  text-underline-offset: 4px;
+  transition:
+    color 0.2s cubic-bezier(0.44, 0, 0.56, 1),
+    text-decoration-color 0.2s cubic-bezier(0.44, 0, 0.56, 1),
+    text-decoration-thickness 0.2s cubic-bezier(0.44, 0, 0.56, 1),
+    text-underline-offset 0.2s cubic-bezier(0.44, 0, 0.56, 1);
+}
+.p8-legal a:hover {
+  color: #d7cfdf;
+  text-decoration-color: #f3dacd;
 }
 
 /* 404 */
