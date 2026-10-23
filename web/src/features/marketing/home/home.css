@@ -1,0 +1,20 @@
+/* Home page: generated Framer rules live in home.generated.css; hand-written rules below. */
+/* Before hydration all three breakpoint trees are in the DOM; only the matching one shows. */
+@media (min-width: 1200px) {
+  [data-hm-tree='tablet'],
+  [data-hm-tree='phone'] {
+    display: none !important;
+  }
+}
+@media (min-width: 810px) and (max-width: 1199.98px) {
+  [data-hm-tree='desktop'],
+  [data-hm-tree='phone'] {
+    display: none !important;
+  }
+}
+@media (max-width: 809.98px) {
+  [data-hm-tree='desktop'],
+  [data-hm-tree='tablet'] {
+    display: none !important;
+  }
+}
