@@ -232,9 +232,11 @@ export function Header() {
               />
             </nav>
             <div className="sx-hcta">
-              <ButtonPrimary to="/dashboard" light={light}>
-                {CTA_LABEL}
-              </ButtonPrimary>
+              {bp === 'desktop' ? (
+                <ButtonPrimary to="/dashboard" light={light}>
+                  {CTA_LABEL}
+                </ButtonPrimary>
+              ) : null}
               <motion.button
                 type="button"
                 className="sx-ham"
