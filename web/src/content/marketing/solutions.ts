@@ -18,6 +18,8 @@ export type Photo = {
   height: number;
   mobileW: number;
   stockW: number;
+  /** Old page shipped a srcset only on these (measured on phone). */
+  mobile?: boolean;
 };
 const PHOTOS: Record<string, Omit<Photo, 'name'>> = {
   'network-core': {
@@ -26,6 +28,7 @@ const PHOTOS: Record<string, Omit<Photo, 'name'>> = {
     height: 2504,
     mobileW: 800,
     stockW: 1600,
+    mobile: true,
   },
   'work-circuits': {
     alt: 'Detailed circuit assembly for metered GPU work',
@@ -33,6 +36,7 @@ const PHOTOS: Record<string, Omit<Photo, 'name'>> = {
     height: 800,
     mobileW: 533,
     stockW: 1067,
+    mobile: true,
   },
   'receipt-connectors': {
     alt: 'Electronic connectors and traces representing verifiable work',
