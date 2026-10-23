@@ -16,11 +16,11 @@ export function CompareTable({ columns, rows }: { columns: string[]; rows: strin
             <tr key={r[0]}>
               {r.map((c, i) =>
                 i === 0 ? (
-                  <th key={c} scope="row">
+                  <th key={`${r[0]}-${c}`} scope="row">
                     {c}
                   </th>
                 ) : (
-                  <td key={c}>{c}</td>
+                  <td key={`${r[0]}-${columns[i]}`}>{c}</td>
                 ),
               )}
             </tr>
