@@ -93,6 +93,17 @@ const envSchema = z.object({
   MIN_AGENT_VERSION: z.string().default('0.1.0'),
   CANARY_RATE_BPS: nonnegativeInt(200),
   SEALED_LANE_ENABLED: boolean(false),
+  /** Availability floor start (YYYY-MM-DD, UTC). Empty = floor disabled. */
+  FLOOR_START_DATE: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+  /** Total floor budget per epoch at day 0, USDG micros (placeholder, owner approval needed). */
+  FLOOR_EPOCH_BUDGET_MICROS: intString('2000000'),
+  /** Max floor payment per node per epoch, USDG micros. */
+  FLOOR_NODE_CAP_MICROS: intString('20000'),
+  FLOOR_DAYS: positiveInt(90),
 });
 
 export type Env = z.infer<typeof envSchema>;

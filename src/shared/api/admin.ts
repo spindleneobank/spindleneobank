@@ -13,33 +13,94 @@ export const ADMIN_JOB_NAMES = [
   'canary-dispatch',
   'probe-dispatch',
   'cards-reconcile',
+  'epoch-run',
+  'floor-apply',
+  'x402-guard',
+  'gas-monitor',
+  'rates-rollover',
 ] as const;
 
 export const GetAdminOverviewReq = z.void();
+const Counts = z.object({
+  waiting: z.number().int(),
+  active: z.number().int(),
+  failed: z.number().int(),
+  delayed: z.number().int().optional(),
+});
+/** Chain/infra reads fail soft: a field is null and `errors` says why. */
 export const GetAdminOverviewRes = z.object({
+  generatedAt: IsoTime.optional(),
   balances: z.object({
-    treasuryUsdgMicros: MicrosString,
-    keeperEthWei: z.string(),
-    keeperUsdgMicros: MicrosString,
-    claimsPoolUsdgMicros: MicrosString,
-    claimsOwedMicros: MicrosString,
+    treasuryUsdgMicros: MicrosString.nullable(),
+    keeperEthWei: z.string().nullable(),
+    keeperUsdgMicros: MicrosString.nullable(),
+    claimsPoolUsdgMicros: MicrosString.nullable(),
+    claimsOwedMicros: MicrosString.nullable(),
   }),
-  killMetrics: z.object({
-    liveNodes: z.number().int(),
-    sealedNodes: z.number().int(),
-    buyerSpend30dMicros: MicrosString,
-    cardStockShareBps: z.number().int(),
-    floorShareBps: z.number().int(),
-  }),
-  queues: z.record(
-    z.string(),
-    z.object({ waiting: z.number().int(), active: z.number().int(), failed: z.number().int() }),
-  ),
+  solvency: z
+    .object({
+      claimedMicros: MicrosString,
+      earnedIncludingUnpostedMicros: MicrosString,
+      owedIncludingPendingMicros: MicrosString,
+      headroomMicros: z.string(),
+      topUpNeededMicros: MicrosString,
+      treasuryCanCover: z.boolean().nullable(),
+      claimsAddress: Address.nullable(),
+      ok: z.boolean(),
+    })
+    .nullable()
+    .optional(),
+  keeper: z
+    .object({
+      address: Address,
+      level: z.enum(['ok', 'low', 'critical']),
+      balanceWei: z.string(),
+      checkedAt: IsoTime,
+    })
+    .nullable()
+    .optional(),
+  killMetrics: z
+    .object({
+      liveNodes: z.number().int(),
+      sealedNodes: z.number().int(),
+      buyerSpend30dMicros: MicrosString,
+      cardStockShareBps: z.number().int().nullable(),
+      cardStockNote: z.string().optional(),
+      floorShareBps: z.number().int(),
+      providerPayouts30dMicros: MicrosString.optional(),
+      floorPayouts30dMicros: MicrosString.optional(),
+    })
+    .nullable(),
+  killCriteria: z
+    .array(
+      z.object({
+        id: z.string(),
+        day: z.number().int(),
+        label: z.string(),
+        value: z.string().nullable(),
+        threshold: z.string(),
+        due: z.boolean(),
+        met: z.boolean().nullable(),
+      }),
+    )
+    .nullable()
+    .optional(),
+  queues: z.record(z.string(), Counts).nullable(),
   lastEpoch: z.number().int().nullable(),
+  lastEpochDetail: z.unknown().optional(),
+  alerts: z.object({ epoch: z.unknown().nullable(), floor: z.unknown().nullable() }).optional(),
+  x402: z.unknown().optional(),
+  cards: z.object({ reviewOperations: z.number().int().nullable() }).optional(),
+  floor: z.unknown().optional(),
+  errors: z.array(z.string()).optional(),
 });
 
 export const GetAdminRateCardReq = z.void();
-export const GetAdminRateCardRes = z.object({ day: z.string(), rows: z.array(RateCardRow) });
+export const GetAdminRateCardRes = z.object({
+  day: z.string(),
+  rows: z.array(RateCardRow),
+  today: z.object({ day: z.string(), frozen: z.boolean(), rows: z.array(RateCardRow) }).optional(),
+});
 export const PutAdminRateCardReq = z.object({ rows: z.array(RateCardRow).min(1) });
 export const PutAdminRateCardRes = GetAdminRateCardRes;
 
@@ -97,9 +158,18 @@ export const PostAdminNodeUnsuspendRes = PostAdminNodeSuspendRes;
 
 export const GetAdminFloorReq = z.void();
 export const GetAdminFloorRes = z.object({
+  enabled: z.boolean().optional(),
+  startDate: z.string().nullable().optional(),
+  day: z.number().int().nullable().optional(),
+  days: z.number().int().optional(),
+  /** Current budget (base budget x decay) per epoch. */
   budgetMicros: MicrosString,
+  baseBudgetMicros: MicrosString.optional(),
+  nodeCapMicros: MicrosString.optional(),
   decayBps: z.number().int(),
+  endsAt: IsoTime.nullable().optional(),
   perEpoch: z.array(z.object({ epoch: z.number().int(), paidMicros: MicrosString, nodes: z.number().int() })),
+  alert: z.unknown().optional(),
 });
 
 export const GetAdminSlashEvidenceReq = z.void();
@@ -111,6 +181,14 @@ export const PostAdminSlashDismissReq = z.object({ reason: z.string().min(1) });
 export const PostAdminSlashDismissRes = z.object({ status: z.literal('dismissed') });
 
 export const PostAdminJobRunReq = z.void();
-export const PostAdminJobRunRes = z.object({ queued: z.literal(true), job: z.enum(ADMIN_JOB_NAMES) });
+export const PostAdminJobRunRes = z.object({
+  queued: z.literal(true),
+  job: z.enum(ADMIN_JOB_NAMES),
+  /** 'queue': enqueued for the worker; 'inline': ran in the API process (result included). */
+  mode: z.enum(['queue', 'inline']).optional(),
+  queue: z.string().optional(),
+  jobId: z.string().nullable().optional(),
+  result: z.unknown().optional(),
+});
 
 export { GpuClass };
