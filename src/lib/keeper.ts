@@ -96,7 +96,9 @@ function defaultWallet(acct: Account) {
 export function createKeeper(deps: KeeperDeps) {
   async function sendKeeperTx(input: KeeperTxInput): Promise<KeeperTxResult> {
     const acct = deps.account();
-    return withKeeperLock(deps.redis(), async () => {
+    // The lock covers nonce read -> broadcast only (pending nonce already counts in-flight txs);
+    // receipt waiting happens outside it so sends are not throttled to one per block.
+    const hash = await withKeeperLock(deps.redis(), async () => {
       const from = acct.address;
       // Legacy pricing: Orbit chains accept it and it avoids fee-history dependence.
       const [nonce, gasPrice] = await Promise.all([
@@ -127,31 +129,32 @@ export function createKeeper(deps: KeeperDeps) {
         gasPrice: price,
       } as never);
       // A failure here means nothing was broadcast, so it is safe for the caller to retry.
-      const hash = await wallet.sendRawTransaction({ serializedTransaction: serialized });
-      logger.info({ label: input.label, hash, nonce, gas: gas.toString() }, 'keeper tx broadcast');
-
-      let receipt: TransactionReceipt;
-      try {
-        receipt = await deps.client.waitForTransactionReceipt({ hash, timeout: deps.receiptTimeoutMs });
-      } catch (err) {
-        // Never re-send with a new nonce; callers poll getTransactionReceipt(hash) later.
-        logger.warn(
-          { label: input.label, hash, err: err instanceof Error ? err.name : 'error' },
-          'keeper tx outcome unknown',
-        );
-        return { hash, status: 'unknown' };
-      }
-      logger.info(
-        { label: input.label, hash, status: receipt.status, gasUsed: receipt.gasUsed.toString() },
-        'keeper tx mined',
-      );
-      return {
-        hash,
-        status: receipt.status,
-        gasUsed: receipt.gasUsed,
-        effectiveGasPrice: receipt.effectiveGasPrice,
-      };
+      const sent = await wallet.sendRawTransaction({ serializedTransaction: serialized });
+      logger.info({ label: input.label, hash: sent, nonce, gas: gas.toString() }, 'keeper tx broadcast');
+      return sent;
     });
+
+    let receipt: TransactionReceipt;
+    try {
+      receipt = await deps.client.waitForTransactionReceipt({ hash, timeout: deps.receiptTimeoutMs });
+    } catch (err) {
+      // Never re-send with a new nonce; callers poll getTransactionReceipt(hash) later.
+      logger.warn(
+        { label: input.label, hash, err: err instanceof Error ? err.name : 'error' },
+        'keeper tx outcome unknown',
+      );
+      return { hash, status: 'unknown' };
+    }
+    logger.info(
+      { label: input.label, hash, status: receipt.status, gasUsed: receipt.gasUsed.toString() },
+      'keeper tx mined',
+    );
+    return {
+      hash,
+      status: receipt.status,
+      gasUsed: receipt.gasUsed,
+      effectiveGasPrice: receipt.effectiveGasPrice,
+    };
   }
   return { sendKeeperTx };
 }

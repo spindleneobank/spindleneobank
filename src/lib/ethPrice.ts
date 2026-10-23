@@ -1,6 +1,6 @@
 import { uniswapV3PoolAbi } from '@spindle/shared/abi';
 import { KNOWN } from '@spindle/shared/chain';
-import type { Address } from 'viem';
+import type { Address, PublicClient } from 'viem';
 import { AppError } from './errors';
 import { getRedis } from './redis';
 import { publicClient } from './viem';
@@ -38,7 +38,10 @@ export function ethUsdMicrosFromSqrtPrice(args: {
   return micros;
 }
 
-async function readPool(pool: Address): Promise<bigint> {
+export async function readEthUsdMicros(
+  publicClient: Pick<PublicClient, 'readContract'>,
+  pool: Address,
+): Promise<bigint> {
   const read = (functionName: 'token0' | 'token1') =>
     publicClient.readContract({ address: pool, abi: uniswapV3PoolAbi, functionName });
   const [slot0, token0] = await Promise.all([
@@ -62,9 +65,9 @@ export async function getEthUsdMicros(): Promise<bigint> {
   }
   let value: bigint;
   try {
-    value = await readPool(KNOWN.USDG_WETH_POOL_500);
+    value = await readEthUsdMicros(publicClient, KNOWN.USDG_WETH_POOL_500);
   } catch {
-    value = await readPool(KNOWN.USDG_WETH_POOL_3000);
+    value = await readEthUsdMicros(publicClient, KNOWN.USDG_WETH_POOL_3000);
   }
   try {
     await redis.set(CACHE_KEY, value.toString(), 'EX', CACHE_TTL_S);
