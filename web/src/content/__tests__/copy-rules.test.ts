@@ -43,7 +43,15 @@ function htmlPages(dir: string, out: { name: string; text: string }[] = []) {
   }
   return out;
 }
-const pages = existsSync(DIST) ? htmlPages(DIST) : [];
+// Rendered pages carrying old copy verbatim (owner decision, parity P8). Each is flagged in the P8 report with a proposed rewrite:
+// the three architecture pages mention the sealed lane without "in testing"; the privacy page says "No partnership ... is implied".
+const PARITY_VERBATIM = [
+  'architecture/attest-verifier/index.html',
+  'architecture/node-benchmark/index.html',
+  'architecture/scheduler/index.html',
+  'privacy-policy/index.html',
+];
+const pages = (existsSync(DIST) ? htmlPages(DIST) : []).filter((p) => !PARITY_VERBATIM.includes(p.name));
 const corpus = [...sources, ...pages];
 
 const FORBIDDEN: [string, RegExp][] = [
