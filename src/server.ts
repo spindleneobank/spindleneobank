@@ -25,9 +25,17 @@ export function buildApp(): Hono<Env> {
         'x-spindle-pay',
         'x-spindle-session',
         'x-payment',
+        'x-spindle-lane',
       ],
       allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      exposeHeaders: ['x-request-id'],
+      exposeHeaders: [
+        'x-request-id',
+        'X-Spindle-Job-Id',
+        'X-Spindle-Receipt',
+        'X-Spindle-Charge-Micros',
+        'PAYMENT-REQUIRED',
+        'X-PAYMENT-RESPONSE',
+      ],
     }),
   );
   app.onError(jsonError);

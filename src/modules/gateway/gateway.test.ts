@@ -329,6 +329,7 @@ describe('chat', () => {
     expect(call?.view.outputText).toBe('hello');
     expect(call?.view.inputDigest).toMatch(/^[0-9a-f]{64}$/);
     expect(call?.view.recount?.completionTokens).toBeGreaterThan(0);
+    expect(call?.view.recountEstimated).toBe(true); // tokenizer unavailable in tests
     expect(call?.usage).toEqual({ promptTokens: 5, completionTokens: 2 });
     // the hook owns settlement now: the reservation is still held until it settles
     expect((await balance()).reserved).toBeGreaterThan(0n);
@@ -480,6 +481,40 @@ describe('release on every failure path', () => {
     await waitFor(async () => (await lastJob())?.status === 'cancelled');
     await waitFor(settled);
     expect((await lastJob())?.buyerUsdgMicros).toBe(5n); // 3 prompt + 2 completion (estimated)
+  });
+});
+
+describe('reaper', () => {
+  test('releases stuck jobs once; leaves fresh jobs and settled jobs alone', async () => {
+    const { reapStuckJobs } = await import('./service');
+    const { insertJob, newJobId } = await import('./service');
+    const mk = async () => {
+      const jobId = newJobId();
+      const { reserve } = await import('../buyers/service');
+      await reserve(buyerId, 10n);
+      const model = (await import('../../shared/catalog')).DEFAULT_CATALOG[1];
+      await insertJob({
+        jobId,
+        req: { kind: 'chat', model } as never,
+        auth: { provider: 'balance', payMode: 'balance', buyerId, jobId, reservedMicros: 10n },
+        rates: new Map(),
+      });
+      return jobId;
+    };
+    const stuck = await mk();
+    const fresh = await mk();
+    const old = new Date(Date.now() - nodeSettings.jobTimeoutMs - 120_000);
+    await t.db.update(jobs).set({ createdAt: old }).where(eq(jobs.id, stuck));
+    expect((await balance()).reserved).toBe(20n);
+    expect(await reapStuckJobs()).toBe(1);
+    expect(await reapStuckJobs()).toBe(0);
+    const [row] = await t.db.select().from(jobs).where(eq(jobs.id, stuck));
+    expect(row?.status).toBe('timeout');
+    expect((await balance()).reserved).toBe(10n);
+    // a late settle after the reap is a no-op (claim already taken)
+    const { settleJob } = await import('./service');
+    expect(await settleJob(stuck, 5n)).toBeNull();
+    expect((await t.db.select().from(jobs).where(eq(jobs.id, fresh)))[0]?.status).toBe('queued');
   });
 });
 

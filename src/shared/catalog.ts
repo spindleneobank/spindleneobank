@@ -42,7 +42,7 @@ export const DEFAULT_CATALOG: CatalogModel[] = [
     family: 'llama3.1',
     kind: 'chat',
     engineIds: { ollama: 'llama3.1:8b', vllm: 'meta-llama/Llama-3.1-8B-Instruct' },
-    hfTokenizer: 'meta-llama/Llama-3.1-8B-Instruct',
+    hfTokenizer: 'unsloth/Llama-3.1-8B-Instruct',
     minVramMb: 8192,
     sizeMb: 4900,
     lanes: ['open', 'sealed'],

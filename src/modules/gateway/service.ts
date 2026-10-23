@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, lt, sql } from 'drizzle-orm';
 import { jobs, rateCard } from '../../db/schema';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
@@ -440,7 +440,7 @@ export async function cancelRun(run: JobRun): Promise<void> {
 // ---- hand-off to B7 ----------------------------------------------------------------------------------
 
 export function gatewayView(run: JobRun, done: JobDone): GatewayView {
-  const view: GatewayView = { inputDigest: sha256Hex(canonicalJson(run.req.body)) };
+  const view: GatewayView = { inputDigest: sha256Hex(canonicalJson(run.req.body)), recountEstimated: false };
   const out = (done.output ?? {}) as { data?: { embedding?: number[]; b64_json?: string }[] };
   if (run.req.kind === 'chat') view.outputText = run.text;
   else if (run.req.kind === 'embeddings') view.embeddings = (out.data ?? []).map((d) => d.embedding ?? []);
@@ -462,9 +462,11 @@ export async function finishJob(run: JobRun, done: JobDone): Promise<void> {
           countTokens(run.req.model.id, run.text),
         ]);
         view.recount = { promptTokens: p.tokens, completionTokens: c.tokens };
+        view.recountEstimated = p.estimated || c.estimated;
       } else if (run.req.kind === 'embeddings') {
         const counts = await Promise.all((run.req.inputs ?? []).map((t) => countTokens(run.req.model.id, t)));
         view.recount = { promptTokens: counts.reduce((a, b) => a + b.tokens, 0), completionTokens: 0 };
+        view.recountEstimated = counts.some((x) => x.estimated);
       }
     }
     await finishedHandler(run.jobId, { v: 1, type: 'job.done', jobId: run.jobId, ...done }, view);
@@ -517,4 +519,35 @@ export async function listModels(): Promise<ModelListing[]> {
     out.push({ model, available, buyerMicrosPerUnit: min });
   }
   return out;
+}
+
+// ---- reaper ---------------------------------------------------------------------------------------------
+
+export const REAPER_GRACE_MS = 60_000;
+
+/**
+ * Jobs still queued/dispatched/running well past the job timeout (process crash, lost callbacks) are
+ * marked `timeout` and their reservation released. The authorization is claimed atomically, so a late
+ * settle and the reaper can never both act.
+ */
+export async function reapStuckJobs(now = Date.now()): Promise<number> {
+  const cutoff = new Date(now - nodeSettings.jobTimeoutMs - REAPER_GRACE_MS);
+  const stuck = await dbRef.db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(inArray(jobs.status, ['queued', 'dispatched', 'running']), lt(jobs.createdAt, cutoff)));
+  let n = 0;
+  for (const { id } of stuck) {
+    const rows = await dbRef.db
+      .update(jobs)
+      .set({ status: 'timeout', error: 'reaped: no result', finishedAt: new Date(now) })
+      .where(and(eq(jobs.id, id), inArray(jobs.status, ['queued', 'dispatched', 'running'])))
+      .returning({ id: jobs.id });
+    if (rows.length === 0) continue;
+    n++;
+    await releaseJob(id).catch((err) =>
+      logger.error({ err: String(err), jobId: id }, 'reaper release failed'),
+    );
+  }
+  return n;
 }
