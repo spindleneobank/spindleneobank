@@ -9,12 +9,6 @@ import { type PNode, renderNode } from './render';
  * (300ms cubic-bezier(.44,0,.56,1)); per-character typing spans reveal at 10ms + 50ms stagger.
  */
 const STEP_MS = [2500, 900, 1215, 850, 830, 1240];
-/**
- * The old sequence is anchored to page load, not to mount: its state changes land at these `performance.now()` times
- * (mean of two quiet-machine measurements of the old page: Sent, Thinking, Answered, Typing Follow-up, Follow-up Sent, Follow-up).
- * A late mount (slow hydration) jumps to the state the old page would be in, so a frozen capture sees the same state.
- */
-const AT_MS = [3300, 4630, 6300, 7400, 8650, 10330];
 const EASE = 'cubic-bezier(0.44, 0, 0.56, 1)';
 
 type Snap = { o: string; t: string };
@@ -30,13 +24,12 @@ export function ChatPanel({ states, override }: { states: PNode[]; override?: Pa
   useEffect(() => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     started.current = true;
-    setI(AT_MS.filter((t) => t <= performance.now()).length);
+    setI(0);
   }, []);
 
   useEffect(() => {
     if (!started.current || i >= last) return;
-    const wait = Math.max(0, (AT_MS[i] ?? 0) - performance.now());
-    const t = setTimeout(() => setI(i + 1), wait || (STEP_MS[i] ?? 1000));
+    const t = setTimeout(() => setI(i + 1), STEP_MS[i] ?? 1000);
     return () => clearTimeout(t);
   }, [i, last]);
 

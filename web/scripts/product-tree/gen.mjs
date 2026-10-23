@@ -20,7 +20,7 @@ const TEXT = {
   'Sealed jobs require eligible confidential GPUs and attestation. Open jobs are non-sensitive workloads.': 'Sealed jobs (in testing) need confidential GPUs and attestation. Open jobs are non-sensitive workloads.',
 };
 // per-instance ids (React useId: r18 vs r1k per breakpoint) are made equal so the instances merge
-const fixIds = (s) => s.replace(/(workflow-(?:halo|signal-square|flow))-r[0-9a-z]+/g, '$1-p3');
+const fixIds = (s) => s.replace(/(workflow-(?:halo|signal-square))-r[0-9a-z]+/g, '$1-p3');
 function norm(n, anc = []) {
   if (typeof n === 'string') n = fixIds(n);
   if (typeof n === 'string' && n === '16%') return '84%'; // workflow pill label is set live; the snapshot value is arbitrary
