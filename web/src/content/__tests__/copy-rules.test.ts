@@ -21,8 +21,7 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 // Allowlist (path fragment -> why). The icon sprite names a "passkey" glyph; it is never rendered as copy.
-// features/marketing/p8/data.ts holds the old legal copy verbatim (owner decision); its only hit is the disclaimer "No partnership ... is implied".
-const ALLOW_FILES = ['components/pixelIcons.data.ts', 'features/marketing/p8/data.ts'];
+const ALLOW_FILES = ['components/pixelIcons.data.ts'];
 const sourceFiles = ['content', 'components', 'routes', 'dashboard', 'features']
   .flatMap((d) => walk(join(SRC, d)))
   .filter((f) => !ALLOW_FILES.some((a) => f.endsWith(a)));
@@ -43,15 +42,7 @@ function htmlPages(dir: string, out: { name: string; text: string }[] = []) {
   }
   return out;
 }
-// Rendered pages carrying old copy verbatim (owner decision, parity P8). Each is flagged in the P8 report with a proposed rewrite:
-// the three architecture pages mention the sealed lane without "in testing"; the privacy page says "No partnership ... is implied".
-const PARITY_VERBATIM = [
-  'architecture/attest-verifier/index.html',
-  'architecture/node-benchmark/index.html',
-  'architecture/scheduler/index.html',
-  'privacy-policy/index.html',
-];
-const pages = (existsSync(DIST) ? htmlPages(DIST) : []).filter((p) => !PARITY_VERBATIM.includes(p.name));
+const pages = existsSync(DIST) ? htmlPages(DIST) : [];
 const corpus = [...sources, ...pages];
 
 const FORBIDDEN: [string, RegExp][] = [

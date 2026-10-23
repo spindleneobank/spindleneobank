@@ -63,7 +63,7 @@ export const ARCH_COMPONENTS: ArchComponent[] = [
     "title": "Scheduler",
     "lead": "The scheduler matches accepted AI jobs to suitable nodes in the intended compute lane.",
     "indexLead": "The scheduler matches accepted AI jobs to suitable nodes in the intended compute lane.",
-    "dataFlow": "Routing uses compute lane, VRAM fit, stake weight, latency and reputation. The same scheduler design connects buyer demand to open-lane or eligible sealed-lane GPU supply.",
+    "dataFlow": "Routing uses compute lane, VRAM fit, stake weight, latency and reputation. The same scheduler design connects buyer demand to open-lane GPU supply; sealed-lane supply is in testing.",
     "boundary": "Open-lane jobs must be non-sensitive. Sealed-lane work requires the eligible confidential-compute stack and attestation.",
     "fits": "A request arrives through the gateway. The scheduler checks its lane and requirements before assigning a suitable node.",
     "lifecycle": "The same cumulative claimed balance prevents consuming one entitlement again through a different route.",
@@ -78,7 +78,7 @@ export const ARCH_COMPONENTS: ArchComponent[] = [
     "lead": "The agent checks GPU class, available VRAM and confidential-compute capability.",
     "indexLead": "The agent checks GPU class, available VRAM and confidential-compute capability.",
     "dataFlow": "Onboarding benchmarks the hardware and detects confidential-compute capability. Periodic benchmark and VRAM probes compare the node with its claimed GPU class.",
-    "boundary": "Consumer GPUs are not confidential. Only eligible attested hardware can serve sealed-lane jobs in the design.",
+    "boundary": "Consumer GPUs are not confidential. Only eligible attested hardware can serve sealed-lane jobs (in testing).",
     "fits": "Install the Docker agent on suitable hardware. Benchmark results help register the node and choose its compute lane.",
     "lifecycle": "The same cumulative claimed balance prevents consuming one entitlement again through a different route.",
     "category": "Node hardware",
@@ -89,7 +89,7 @@ export const ARCH_COMPONENTS: ArchComponent[] = [
     "slug": "claim-service",
     "icon": "claim",
     "title": "Claim service",
-    "lead": "The claim service builds USDG, Stock Token, virtual card and split-claim requests.",
+    "lead": "The claim service builds USDG claims; Stock Token and card steps are separate.",
     "indexLead": "The claim service builds USDG claims; Stock Token and card steps are separate.",
     "dataFlow": "A shared cumulative entitlement supports all payout routes. The service builds a claim request and presents the route-specific quote, fees or delivery conditions before the owner signs.",
     "boundary": "Card program terms and Stock Token eligibility govern their routes. Provider earnings depend on buyer demand and verified completed work.",
@@ -133,7 +133,7 @@ export const ARCH_COMPONENTS: ArchComponent[] = [
     "title": "Attest verifier",
     "lead": "Attestation checks the eligible environment, GPU evidence and measured model stack.",
     "indexLead": "Attestation checks the eligible environment, GPU evidence and measured model stack.",
-    "dataFlow": "The verifier checks the TDX quote, GPU evidence and allowlisted image or model measurements for sealed-lane nodes. The design requires fresh attestation for private jobs.",
+    "dataFlow": "The verifier checks the TDX quote, GPU evidence and allowlisted image or model measurements for sealed-lane nodes (in testing). The design requires fresh attestation for private jobs.",
     "boundary": "Attestation is a defined execution boundary. The specification discloses absent TDISP binding and physical attacks outside its scope.",
     "fits": "Eligible confidential nodes attach environment and GPU evidence to the sealed job’s work record.",
     "lifecycle": "The same cumulative claimed balance prevents consuming one entitlement again through a different route.",
@@ -207,11 +207,11 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
       },
       {
         "heading": "Compute privacy boundaries",
-        "body": "The sealed lane is designed for eligible confidential GPUs and attested execution, with encrypted prompts inside a defined TDX environment. The open lane is not private from the operator. Attestation has disclosed limits, and receipts evidence execution rather than output correctness."
+        "body": "The sealed lane (in testing) is designed for confidential GPUs and attested execution, with encrypted prompts inside a defined TDX environment. The open lane is not private from the operator. Attestation has disclosed limits, and receipts evidence execution rather than output correctness."
       },
       {
         "heading": "Third-party payout programs",
-        "body": "The payout design includes a third-party virtual card program and canonical Stock Tokens. Their availability, regions, eligibility and program conditions apply independently of this website preview. No partnership or completed production integration is implied."
+        "body": "The payout design includes a third-party virtual card program and canonical Stock Tokens. Their availability, regions, eligibility and program conditions apply independently of this website preview. No affiliation or completed production integration is implied."
       },
       {
         "heading": "Future policy publication",
