@@ -58,12 +58,12 @@ function Edges({ top, bottom, right }: { top?: boolean; bottom?: boolean; right?
   );
 }
 
-/** Old "Section Label" (White): liquid-metal rim (angle 70, distortion .01, softness .1, speed 1.4) around a gradient plate. */
+/** Old "Section Label" (White): liquid-metal rim (angle 70, distortion .01, softness .1, speed 1.4, scale 1) around a gradient plate. */
 function SectionLabel({ children }: { children: string }) {
   return (
     <div className="s4-pill">
       <div className="s4-pill-metal" aria-hidden="true">
-        <LiquidMetal angle={70} distortion={0.01} softness={0.1} speed={1.4} />
+        <LiquidMetal angle={70} distortion={0.01} softness={0.1} speed={1.4} scale={1} />
       </div>
       <div className="s4-pill-plate">
         <img src="/assets/pixel/sunrise.svg" alt="" width={18} height={18} decoding="async" />
