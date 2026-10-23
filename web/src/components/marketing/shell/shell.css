@@ -61,7 +61,7 @@
     #d44001 96.6%,
     #fbd9c8 100%
   );
-  animation: sx-line-down 24s linear infinite;
+  animation: sx-line-down var(--sx-dur, 130s) linear infinite;
 }
 .sx-line-r i {
   background: linear-gradient(
