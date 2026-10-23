@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { pageHead } from '../../components/marketing/F0n';
-import { LegalPage } from '../../components/marketing/LegalPage';
+import { LegalBody } from '../../features/marketing/p8/pages';
 
 export const Route = createFileRoute('/(marketing)/privacy-policy')({
   head: () =>
@@ -9,5 +9,5 @@ export const Route = createFileRoute('/(marketing)/privacy-policy')({
       'How the Spindle preview handles information, and what a production policy must cover.',
       '/privacy-policy',
     ),
-  component: () => <LegalPage slug="privacy-policy" />,
+  component: () => <LegalBody slug="privacy-policy" />,
 });
