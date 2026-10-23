@@ -34,7 +34,9 @@ export function exportAbis(build = true): void {
   }
   // Keep `biome check` green on the generated files.
   const files = ABI_CONTRACTS.map((n) => `src/shared/abi/${n}.ts`);
-  spawnSync('bunx', ['biome', 'check', '--write', ...files], { cwd: new URL('../..', import.meta.url).pathname });
+  spawnSync('bunx', ['biome', 'check', '--write', ...files], {
+    cwd: new URL('../..', import.meta.url).pathname,
+  });
 }
 
 if (import.meta.main) exportAbis(process.env.SKIP_FORGE_BUILD !== '1');
