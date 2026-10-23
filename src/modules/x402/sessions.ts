@@ -28,7 +28,7 @@ export const hashToken = (t: string) => createHash('sha256').update(t).digest('h
 // reservation, -1 when exhausted, -2 when the session is closed.
 const RESERVE_LUA = `
 if redis.call('exists', KEYS[1]) == 0 then
-  redis.call('hset', KEYS[1], 'used', ARGV[3], 'reserved', 0, 'closed', 0)
+  redis.call('hset', KEYS[1], 'used', ARGV[3], 'reserved', ARGV[5], 'closed', 0)
 end
 redis.call('pexpire', KEYS[1], ARGV[4])
 if redis.call('hget', KEYS[1], 'closed') == '1' then return -2 end
@@ -49,7 +49,10 @@ return tonumber(redis.call('hget', KEYS[1], 'used'))`;
 export type Reservation = { remaining: bigint } | { exhausted: true } | { closed: true };
 
 export async function reserveSession(
-  row: Pick<X402Payment, 'id' | 'paymentId' | 'capMicros' | 'surchargeMicros' | 'usedMicros'>,
+  row: Pick<
+    X402Payment,
+    'id' | 'paymentId' | 'capMicros' | 'surchargeMicros' | 'usedMicros' | 'reservedMicros'
+  >,
   amount: bigint,
   ttlMs: number,
   redis: Redis = getRedis(),
@@ -64,6 +67,7 @@ export async function reserveSession(
       amount.toString(),
       row.usedMicros.toString(),
       String(Math.max(ttlMs, 60_000)),
+      row.reservedMicros.toString(),
     ),
   );
   if (r === -1) return { exhausted: true };

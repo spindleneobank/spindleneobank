@@ -22,12 +22,15 @@ export const EXPIRY_MARGIN_SEC = 60;
 const SETTLE_LOCK = 'x402:settle-lock';
 const MAX_REVERTS = 3;
 const STUCK_SEC = 300;
+const DROPPED_SEC = 1800;
 
 export type SettleDeps = {
   now: () => number; // unix seconds
   redis: () => Redis;
   send: (input: KeeperTxInput) => Promise<KeeperTxResult>;
   receipt: (hash: Hex) => Promise<TransactionReceipt | null>;
+  /** False only when the chain positively does not know the tx (dropped); RPC errors count as known. */
+  txKnown: (hash: Hex) => Promise<boolean>;
   nonceUsed: (payer: Address, nonce: bigint) => Promise<boolean>;
   keeperBalanceWei: () => Promise<bigint>;
   vault: () => Address;
@@ -38,6 +41,14 @@ export const defaultSettleDeps: SettleDeps = {
   redis: getRedis,
   send: sendKeeperTx,
   receipt: (hash) => publicClient.getTransactionReceipt({ hash }).catch(() => null),
+  txKnown: async (hash) => {
+    try {
+      await publicClient.getTransaction({ hash });
+      return true;
+    } catch (err) {
+      return !(err instanceof Error && err.name === 'TransactionNotFoundError');
+    }
+  },
   nonceUsed: (p, n) => chainDeps.nonceUsed(p, n),
   keeperBalanceWei: keeperBalance,
   vault: () => requireAddress('vault'),
@@ -119,7 +130,16 @@ async function reconcileSettling(deps: SettleDeps): Promise<void> {
         await applyReceipt([r], rc, deps);
         continue;
       }
-      continue; // still pending/unknown: never re-send
+      // No receipt. After 30 min, a tx the chain does not know at all was dropped: re-queue (the Permit2 nonce
+      // prevents a double spend). A pending/known tx keeps waiting; we never re-send while it may still land.
+      if (
+        (r.closedAt?.getTime() ?? 0) <= (deps.now() - DROPPED_SEC) * 1000 &&
+        !(await deps.txKnown(r.settleTx as Hex))
+      ) {
+        await dbRef.db.update(x402Payments).set({ settleTx: null }).where(eq(x402Payments.id, r.id));
+        await requeue([r.id], deps);
+      }
+      continue;
     }
     // claimed but never sent (crash) or send outcome unknown: if the nonce is spent the indexer will deliver the event
     const spent = await deps.nonceUsed(r.payer as Address, BigInt(r.nonce as string)).catch(() => true);
@@ -170,7 +190,7 @@ export async function applyReceipt(
         .where(and(eq(x402Payments.id, row.id), eq(x402Payments.status, 'settling')));
       out.settled++;
     } else {
-      await dbRef.db
+      const upd = await dbRef.db
         .update(x402Payments)
         .set({
           status: 'failed',
@@ -178,13 +198,17 @@ export async function applyReceipt(
           settleTx: rc.transactionHash,
           closedAt: new Date(),
         })
-        .where(and(eq(x402Payments.id, row.id), eq(x402Payments.status, 'settling')));
-      await bar(row.payer, deps);
-      out.failed++;
-      logger.warn(
-        { paymentId: row.paymentId, payer: row.payer, reason: args.reason },
-        'x402: settlement failed; payer barred',
-      );
+        .where(and(eq(x402Payments.id, row.id), eq(x402Payments.status, 'settling')))
+        .returning({ id: x402Payments.id });
+      // never bar a payer whose payment was already settled (indexer got there first)
+      if (upd.length > 0) {
+        await bar(row.payer, deps);
+        out.failed++;
+        logger.warn(
+          { paymentId: row.paymentId, payer: row.payer, reason: args.reason },
+          'x402: settlement failed; payer barred',
+        );
+      }
     }
   }
   const missing = rows.filter((r) => !seen.has(r.id));

@@ -454,6 +454,15 @@ describe('sessions', () => {
     expect(JSON.stringify(r.body)).toContain('SESSION_EXHAUSTED'); // only 93k left in the DB
   });
 
+  test('rebuilt Redis counters keep the DB reserved amount', async () => {
+    const { o } = await open();
+    const a = (await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(900_000n))) as Authorization;
+    expect(a.reservedMicros).toBe(900_000n);
+    for (const k of await getRedis().keys('x402:session:*')) await getRedis().del(k);
+    const r = (await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(100_000n))) as Challenge;
+    expect(JSON.stringify(r.body)).toContain('SESSION_EXHAUSTED'); // 993k - 900k reserved < 100k
+  });
+
   test('close: unused session expires without settling; used one goes closing', async () => {
     const a = await open();
     const [r1] = await rows();
@@ -548,6 +557,7 @@ describe('settlement', () => {
       return { hash: `0x${'cc'.repeat(32)}`, status: 'success', gasUsed: 1n, effectiveGasPrice: 1n };
     },
     receipt: async () => null,
+    txKnown: async () => true,
     nonceUsed: async () => false,
     keeperBalanceWei: async () => 10n ** 17n,
     vault: () => A.vault,
@@ -667,6 +677,33 @@ describe('settlement', () => {
       }),
     );
     expect((await rows()).every((r) => r.status === 'settled')).toBe(true);
+  });
+
+  test('settling rows with no receipt: after 30 min a dropped tx is re-queued, a pending one keeps waiting', async () => {
+    await seedClosing(1);
+    await runSettle(mkDeps({ send: async () => ({ hash: `0x${'ab'.repeat(32)}`, status: 'unknown' }) }));
+    const old = () => dbRef.db.update(x402Payments).set({ closedAt: new Date(Date.now() - 2 * 3600_000) });
+    await old();
+    await runSettle(mkDeps({ txKnown: async () => true, keeperBalanceWei: async () => 0n }));
+    expect((await rows())[0]).toMatchObject({ status: 'settling', settleTx: `0x${'ab'.repeat(32)}` });
+    await runSettle(mkDeps({ txKnown: async () => false, keeperBalanceWei: async () => 0n }));
+    expect((await rows())[0]).toMatchObject({ status: 'closing', settleTx: null });
+  });
+
+  test('a SettleFailed for an already-settled row neither changes it nor bars the payer', async () => {
+    const [a] = await seedClosing(1);
+    await dbRef.db
+      .update(x402Payments)
+      .set({ status: 'settled' })
+      .where(eq(x402Payments.id, (a as X402Payment).id));
+    const r = await applyReceipt(
+      [a as X402Payment],
+      receiptFor(`0x${'ee'.repeat(32)}`, [{ ok: false, r: a as X402Payment }]),
+      mkDeps(),
+    );
+    expect(r.failed).toBe(0);
+    expect((await rows())[0]?.status).toBe('settled');
+    expect(await getRedis().sismember(BARRED_KEY, payer.address.toLowerCase())).toBe(0);
   });
 
   test('a reverted batch is retried, then failed after 3 attempts without barring anyone', async () => {
