@@ -40,7 +40,11 @@ beforeAll(async () => {
   const u = new URL(
     process.env.TEST_DATABASE_URL ?? 'postgres://spindle:spindle@127.0.0.1:7232/spindle_test',
   );
-  u.pathname = '/spindle_test_indexer';
+  if (u.hostname === 'postgres') {
+    u.hostname = '127.0.0.1';
+    u.port = '7232';
+  }
+  u.pathname = '/spindle_test_b6';
   process.env.TEST_DATABASE_URL = u.toString();
   const { setupTestDb } = await import('../../../test/db-setup');
   t = await setupTestDb();
@@ -188,7 +192,7 @@ describe('indexer', () => {
     const m = mockClient({ head: 1100, events: [deposit(120, 3n)], maxRange: 100 });
     await runIndexOnce(deps(m.client, fakeRedis(), 5000));
     expect(await balance()).toBe(3n);
-    expect(m.calls[0]).toEqual([100, 5099 > 1088 ? 1088 : 5099]);
+    expect(m.calls[0]).toEqual([100, 1088]);
     expect(m.calls.some(([a, b]) => b - a + 1 <= 100)).toBe(true);
     await t.reset();
     const bad = mockClient({ head: 1100, events: [], maxRange: 5 });
@@ -368,7 +372,7 @@ describe('indexer', () => {
     expect(row?.owner).toBe(owner.toLowerCase());
     expect(row?.stakeSpdl).toBe('700');
     expect(row?.stakePending).toBe('300');
-    expect((row?.benchmark as { identity: string }).identity).toBe('77');
+    expect((row?.benchmark as { identity: string } | null)?.identity).toBe('77');
     expect(r.published.map((p) => JSON.parse(p))).toContainEqual({ type: 'eligibility', nodeId: n!.id });
     const warns = await t.db.select().from(auditLog).where(eq(auditLog.action, 'indexer.unknown_node'));
     expect(warns.length).toBe(1);
