@@ -8,6 +8,7 @@ import { JobRunner } from './jobs';
 import { loadOrCreateKey } from './key';
 import { createLogger, type Logger } from './log';
 import { ModelSync } from './models';
+import { ProbeRunner } from './probes';
 
 export const AGENT_VERSION: string = pkg.version;
 
@@ -72,6 +73,14 @@ async function main(): Promise<void> {
     lazy: config.devLazy,
   });
   const sync = new ModelSync({ engine, send, log });
+  const probes = new ProbeRunner({
+    engine,
+    send,
+    log,
+    idle: () => runner.idle(),
+    busy: () => runner.busy,
+    hardware: () => detectHardware(config.devFakeGpu),
+  });
 
   const buildHello = async (): Promise<HelloBody> => {
     const hardware = await detectHardware(config.devFakeGpu);
@@ -127,6 +136,7 @@ async function main(): Promise<void> {
     onFatal: (code) => void shutdown(code),
     handlers: {
       onWelcome: (w) => {
+        void Bun.write('/tmp/spindle-ready', new Date().toISOString()); // docker HEALTHCHECK
         const wanted = config.models
           ? w.catalog.filter((m) => config.models?.includes(m.engineModel))
           : w.catalog;
@@ -135,7 +145,7 @@ async function main(): Promise<void> {
       onModelsEnsure: (m) => void sync.ensure(m.models),
       onJobStart: (m) => void runner.start(m),
       onJobCancel: (m) => runner.cancel(m.jobId),
-      onProbeStart: () => log.debug('probe.start ignored (not implemented in N1)'),
+      onProbeStart: (m) => void probes.handle(m),
     },
   });
 
