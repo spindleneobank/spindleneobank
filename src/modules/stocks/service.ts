@@ -8,7 +8,32 @@ import { type VerifyResult, verifyStockToken } from './verify';
 
 /** Dev bootstrap seed (X1 imports this). Pool fee/address are filled by verification. */
 export const DEFAULT_STOCKS: readonly { address: string; symbol: string; name: string; decimals: number }[] =
-  [{ address: KNOWN.NVDA.toLowerCase(), symbol: 'NVDA', name: 'NVIDIA', decimals: 18 }];
+  [
+    { address: KNOWN.NVDA.toLowerCase(), symbol: 'NVDA', name: 'NVIDIA', decimals: 18 },
+    { address: '0x322f0929c4625ed5bad873c95208d54e1c003b2d', symbol: 'TSLA', name: 'Tesla', decimals: 18 },
+    { address: '0xaf3d76f1834a1d425780943c99ea8a608f8a93f9', symbol: 'AAPL', name: 'Apple', decimals: 18 },
+    {
+      address: '0xe93237c50d904957cf27e7b1133b510c669c2e74',
+      symbol: 'MSFT',
+      name: 'Microsoft',
+      decimals: 18,
+    },
+    { address: '0x12f190a9f9d7d37a250758b26824b97ce941bf54', symbol: 'AMZN', name: 'Amazon', decimals: 18 },
+    { address: '0x4ea005168d7f09a7a0ba9d1def21a479950e44c2', symbol: 'COST', name: 'Costco', decimals: 18 },
+    { address: '0xdf0992e440dd0be65bd8439b609d6d4366bf1cb5', symbol: 'CRCL', name: 'Circle', decimals: 18 },
+    {
+      address: '0xd5f3879160bc7c32ebb4dc785f8a4f505888de68',
+      symbol: 'QQQ',
+      name: 'Invesco QQQ',
+      decimals: 18,
+    },
+    {
+      address: '0x117cc2133c37b721f49de2a7a74833232b3b4c0c',
+      symbol: 'SPY',
+      name: 'SPDR S&P 500 ETF',
+      decimals: 18,
+    },
+  ];
 
 export async function getStock(address: string): Promise<StockRow | undefined> {
   const [row] = await db.select().from(stockTokens).where(eq(stockTokens.address, address.toLowerCase()));
