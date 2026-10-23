@@ -218,3 +218,29 @@
   font: 40px var(--sp-font-mono);
   letter-spacing: 0.2em;
 }
+.cd-banner span {
+  font-size: 13px;
+}
+.cd-card .sd-actions-row .sp-cta {
+  min-height: 40px;
+}
+.cd-pay {
+  justify-items: start;
+}
+
+/* dialogs are dark: lift muted text and tiles */
+.sp-dialog .cd-field > span,
+.sp-dialog .cd-field small,
+.sp-dialog .cd-fee,
+.sp-dialog .cd-reveal-row small {
+  color: rgb(255 255 255 / 0.72);
+}
+.sp-dialog .cd-field .cd-bad,
+.sp-dialog .cd-error {
+  color: #ff9aa5;
+}
+.sp-dialog .cd-reveal-row,
+.sp-dialog .cd-otp {
+  background: rgb(255 255 255 / 0.08);
+  color: inherit;
+}

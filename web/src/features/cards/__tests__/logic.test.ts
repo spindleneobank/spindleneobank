@@ -28,6 +28,9 @@ describe('describeOp', () => {
       title: 'Card ready',
     });
   });
+  it('an issue with an unknown card still follows the backend completed', () => {
+    expect(describeOp(op('completed'), relay('success'), undefined, NOW).phase).toBe('completed');
+  });
   it('top-up completes on backend completed', () => {
     expect(describeOp(op('completed', 'topup'), relay('success'), 'issued', NOW).title).toBe(
       'Top-up complete',

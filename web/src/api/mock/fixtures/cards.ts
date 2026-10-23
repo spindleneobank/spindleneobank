@@ -48,6 +48,8 @@ interface Op {
   /** Live ops created through the mock advance with time after the deposit. */
   live?: { t0: number; depositAt: number | null };
   credited?: boolean;
+  /** Shown as the card's pendingOperation in the list. */
+  listed?: boolean;
 }
 interface Card {
   id: string;
@@ -80,7 +82,7 @@ const mkOp = (
 const SEEDED: Op[] = [
   mkOp('op_created', 'issue', 'card_pending', 'created'),
   mkOp('op_submitting', 'issue', 'card_pending', 'submitting'),
-  mkOp('op_awaiting_payment', 'issue', 'card_pending', 'awaiting_payment'),
+  mkOp('op_awaiting_payment', 'issue', 'card_pending', 'awaiting_payment', { listed: true }),
   mkOp('op_bridging', 'topup', 'card_issued', 'awaiting_payment', {
     relay: { status: 'pending', depositTx: hex('d') },
   }),
@@ -214,6 +216,7 @@ const relayView = (op: Op) =>
 const cardView = (c: Card) => {
   const pending = ops.find(
     (o) =>
+      o.listed &&
       o.cardId === c.id &&
       ['created', 'submitting', 'awaiting_payment', 'processing', 'review'].includes(tick(o).status),
   );
@@ -276,6 +279,7 @@ export const cardFixtures: MockFixtures = {
     const op = mkOp(`op_${id}`, 'issue', id, 'created', {
       live: { t0: Date.now(), depositAt: null },
       invoice: false,
+      listed: true,
     });
     ops.push(op);
     return { card: cardView(card), operation: opView(op) };
@@ -298,6 +302,7 @@ export const cardFixtures: MockFixtures = {
         amountUsdCents: cents,
         live: { t0: Date.now(), depositAt: null },
         invoice: false,
+        listed: true,
       },
     );
     if (cents === '66666') {

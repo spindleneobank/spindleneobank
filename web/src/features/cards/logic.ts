@@ -166,7 +166,7 @@ export function describeOp(
         canPay: false,
       };
     case 'completed':
-      if (issue && cardStatus !== 'issued') {
+      if (issue && cardStatus !== undefined && cardStatus !== 'issued') {
         return {
           phase: 'confirming',
           tone: 'info',

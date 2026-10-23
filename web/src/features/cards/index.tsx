@@ -19,8 +19,9 @@ export default function CardsTab() {
   const cards = useCardList();
   const me = useMe();
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { op?: string };
+  const search = useSearch({ strict: false }) as { op?: string; card?: string };
   const opId = typeof search.op === 'string' ? search.op : null;
+  const opCard = typeof search.card === 'string' ? search.card : null;
   const [creating, setCreating] = useState(false);
   const [topup, setTopup] = useState<string | null>(null);
   const [reveal, setReveal] = useState<string | null>(null);
@@ -28,9 +29,13 @@ export default function CardsTab() {
   const [txOpen, setTxOpen] = useState<string | null>(null);
   const defaultFinish = me.data?.prefs.cardFinish ?? 'orchid';
 
-  const openOp = (id: string | null) =>
-    void navigate({ to: '/dashboard/$tab', params: { tab: 'cards' }, search: id ? { op: id } : {} } as never);
-  const trackedCard = cards.data?.find((c) => c.pendingOperation?.id === opId);
+  const openOp = (id: string | null, cardId?: string) =>
+    void navigate({
+      to: '/dashboard/$tab',
+      params: { tab: 'cards' },
+      search: id ? { op: id, ...(cardId ? { card: cardId } : {}) } : {},
+    } as never);
+  const trackedCard = cards.data?.find((c) => (opCard ? c.id === opCard : c.pendingOperation?.id === opId));
 
   return (
     <div className="sd-overview">
@@ -64,7 +69,7 @@ export default function CardsTab() {
                       onTopup={() => setTopup(c.id)}
                       onReveal={() => setReveal(c.id)}
                       onApple={() => setApple(c.id)}
-                      onTrack={openOp}
+                      onTrack={(id) => openOp(id, c.id)}
                     />
                   </li>
                 ))}

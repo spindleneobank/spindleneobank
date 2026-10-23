@@ -20,7 +20,7 @@ export function CreateCardDialog({
   open: boolean;
   onClose: () => void;
   defaultFinish: string;
-  onCreated: (opId: string) => void;
+  onCreated: (opId: string, cardId: string) => void;
 }) {
   return (
     <Dialog open={open} onClose={onClose} title="Create your virtual card">
@@ -35,7 +35,7 @@ function CreateForm({
   onClose,
 }: {
   defaultFinish: string;
-  onCreated: (opId: string) => void;
+  onCreated: (opId: string, cardId: string) => void;
   onClose: () => void;
 }) {
   const pricing = useCardPricing();
@@ -58,7 +58,7 @@ function CreateForm({
       {
         onSuccess: (r) => {
           onClose();
-          onCreated(r.operation.id);
+          onCreated(r.operation.id, r.card.id);
         },
       },
     );
@@ -152,7 +152,7 @@ export function TopupDialog({
 }: {
   cardId: string | null;
   onClose: () => void;
-  onCreated: (opId: string) => void;
+  onCreated: (opId: string, cardId: string) => void;
 }) {
   return (
     <Dialog open={!!cardId} onClose={onClose} title="Top up your card">
@@ -168,7 +168,7 @@ function TopupForm({
 }: {
   cardId: string;
   onClose: () => void;
-  onCreated: (id: string) => void;
+  onCreated: (id: string, cardId: string) => void;
 }) {
   const pricing = useCardPricing();
   const topup = useTopup(cardId);
@@ -195,7 +195,7 @@ function TopupForm({
     topup.mutate(cents.toString(), {
       onSuccess: (r) => {
         onClose();
-        onCreated(r.operation.id);
+        onCreated(r.operation.id, cardId);
       },
     });
   };
