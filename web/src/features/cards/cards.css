@@ -1,0 +1,255 @@
+.cd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.cd-head h2 {
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -0.6px;
+  color: var(--d-head);
+  margin: 0;
+}
+.cd-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+}
+.cd-grid > li {
+  min-width: 0;
+  display: grid;
+}
+.cd-preview .sp-card-face {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+}
+.cd-card .sd-card-art .sp-card-face {
+  width: 100%;
+  height: auto;
+}
+.cd-banner {
+  border-color: #d9bfca;
+}
+.cd-empty {
+  align-items: center;
+  max-width: 560px;
+  justify-self: center;
+  width: 100%;
+}
+.cd-tracker {
+  gap: 18px;
+}
+.cd-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  font: 10px var(--sp-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a7a85;
+}
+.cd-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.cd-steps i {
+  width: 10px;
+  height: 10px;
+  border: 1px solid #c9b3be;
+  background: transparent;
+}
+.cd-steps [data-state="done"] {
+  color: #5a7a55;
+}
+.cd-steps [data-state="done"] i {
+  background: #7ea678;
+  border-color: #7ea678;
+}
+.cd-steps [data-state="current"] {
+  color: #8a5f7a;
+}
+.cd-steps [data-state="current"] i {
+  background: #e2a8a2;
+  border-color: #e2a8a2;
+}
+.cd-status {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.cd-status p {
+  margin: 0;
+  color: #6f5a69;
+  max-width: 62ch;
+}
+.cd-support {
+  font: 11px var(--sp-font-mono);
+  color: #7d6978;
+  overflow-wrap: anywhere;
+}
+.cd-pay {
+  display: grid;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--d-line);
+}
+.cd-txsteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.cd-txsteps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.cd-txn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  background: #f1dce5;
+  color: #8a5f7a;
+  font: 11px var(--sp-font-mono);
+}
+.cd-stale {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.cd-error,
+.cd-bad {
+  color: var(--sp-danger);
+}
+.cd-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.cd-form {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.cd-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.cd-field > span {
+  font: 10px var(--sp-font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sp-ink-muted);
+}
+.cd-field input,
+.cd-field select {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #dcc9d4;
+  background: #fffbf6;
+  font: 14px var(--sp-font-body, inherit);
+  color: var(--d-ink, inherit);
+  width: 100%;
+  min-width: 0;
+}
+.cd-field input[aria-invalid="true"] {
+  border-color: var(--sp-danger);
+}
+.cd-field small,
+.cd-fee {
+  font-size: 12px;
+  color: #7d6978;
+  margin: 0;
+}
+.cd-howto {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+.cd-reveal {
+  display: grid;
+  gap: 12px;
+}
+.cd-reveal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--sp-paper-3);
+}
+.cd-reveal-row > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.cd-reveal-row small {
+  font: 10px var(--sp-font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sp-ink-muted);
+}
+.cd-reveal-row code {
+  font: 16px var(--sp-font-mono);
+  overflow-wrap: anywhere;
+}
+.cd-otp {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  text-align: center;
+  padding: 18px;
+  background: var(--sp-paper-3);
+}
+.cd-otp code {
+  font: 40px var(--sp-font-mono);
+  letter-spacing: 0.2em;
+}
+.cd-banner span {
+  font-size: 13px;
+}
+.cd-card .sd-actions-row .sp-cta {
+  min-height: 40px;
+}
+.cd-pay {
+  justify-items: start;
+}
+
+/* dialogs are dark: lift muted text and tiles */
+.sp-dialog .cd-field > span,
+.sp-dialog .cd-field small,
+.sp-dialog .cd-fee,
+.sp-dialog .cd-reveal-row small {
+  color: rgb(255 255 255 / 0.72);
+}
+.sp-dialog .cd-field .cd-bad,
+.sp-dialog .cd-error {
+  color: #ff9aa5;
+}
+.sp-dialog .cd-reveal-row,
+.sp-dialog .cd-otp {
+  background: rgb(255 255 255 / 0.08);
+  color: inherit;
+}
+.cd-pay .sd-kv {
+  justify-self: stretch;
+  width: 100%;
+}
+.cd-form [role="status"] {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}

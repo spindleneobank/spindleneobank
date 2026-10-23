@@ -1,6 +1,7 @@
 import type { MockFixtures } from '../mock';
 import { authFixtures } from './auth';
 import { buyerFixtures } from './buyer';
+import { cardFixtures } from './cards';
 import { claimFixtures } from './claims';
 import { earningsFixtures } from './earnings';
 import { meFixtures } from './me';
@@ -18,4 +19,5 @@ export const fixtures: MockFixtures = {
   ...claimFixtures,
   ...buyerFixtures,
   ...nodeFixtures,
+  ...cardFixtures,
 };
