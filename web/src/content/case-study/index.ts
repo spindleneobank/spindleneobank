@@ -182,7 +182,7 @@ export const FLOWS: Flow[] = [
       },
       {
         t: 'p',
-        text: 'The claim service builds the selected route against the provider’s cumulative Merkle entitlement. The stock route checks the canonical registry and shows price impact before signing. The card step spends claimed USDG on-chain before issuance, tracks the request by claim ID and is designed to refund USDG after issuance failure. A split claim can combine routes.',
+        text: 'The claim service builds the selected route against the provider’s cumulative Merkle entitlement. The stock route checks the curated stock list and shows price impact before signing. The card step spends claimed USDG on-chain before issuance, tracks the request by claim ID and is designed to refund USDG after issuance failure. A split claim can combine routes.',
       },
       {
         t: 'h4',
@@ -273,7 +273,7 @@ export const FLOWS: Flow[] = [
       },
       {
         t: 'p',
-        text: 'The builder will select the sealed lane in the API request. The OHTTP relay passes the encrypted body to the gateway and the eligible node decrypts it within the confidential environment. The completed job returns a response and a signed receipt linked to environment, model and GPU evidence. The design leaves the host operator with ciphertext.',
+        text: 'The builder will select the sealed lane (in testing) in the API request. The OHTTP relay passes the encrypted body to the gateway and the eligible node decrypts it within the confidential environment. The completed job returns a response and a signed receipt linked to environment, model and GPU evidence. The design leaves the host operator with ciphertext.',
       },
       {
         t: 'h4',

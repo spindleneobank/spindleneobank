@@ -68,7 +68,7 @@ export const RELEASES: Release[] = [
       filter: 'amber',
     },
     heading: 'Compute lanes',
-    summary: 'Match suitable workloads to sealed or open GPUs.',
+    summary: 'Match suitable workloads to sealed (in testing) or open GPUs.',
     items: [
       'Docker node agent and GPU benchmark',
       'Confidential-compute capability detection',

@@ -246,7 +246,7 @@ export const POSTS: Post[] = [
       },
       {
         t: 'p',
-        text: 'The stock route checks the canonical registry before execution. The claim flow shows a quote and price impact, with minimum-output protection. If price impact is too high, the design suggests a smaller claim or the USDG route rather than hiding the tradeoff.',
+        text: 'The stock route checks the curated stock list before execution. The claim flow shows a quote and price impact, with minimum-output protection. If price impact is too high, the design suggests a smaller claim or the USDG route rather than hiding the tradeoff.',
       },
       {
         t: 'h4',
