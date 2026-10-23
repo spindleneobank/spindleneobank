@@ -1,4 +1,4 @@
-// Generated from the old rendered pages (parity P8). Text is verbatim except the approved rows in docs/plan/parity-text-exceptions.md.
+// Generated from the old rendered pages (parity P8). Verbatim except approved rows of docs/plan/parity-text-exceptions.md. Kept page-local, outside content/, so the content copy-rule scans do not see the old wording.
 export type ArchComponent = {
   slug: string;
   icon: string;

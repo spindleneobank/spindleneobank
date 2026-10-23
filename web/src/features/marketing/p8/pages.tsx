@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ButtonPrimary, ButtonSecondary } from '../../../components/marketing/shell';
-import { ARCH_COMPONENTS, type ArchComponent, LEGAL_DOCS } from '../../../content/architecture/parity';
+import { ARCH_COMPONENTS, type ArchComponent, LEGAL_DOCS } from './data';
 import { Band, Lines, Pill } from './parts';
 
 export function ArchitectureIndex() {

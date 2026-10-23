@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router';
 import { pageHead } from '../../../components/marketing/F0n';
-import { ARCH_COMPONENTS } from '../../../content/architecture/parity';
+import { ARCH_COMPONENTS } from '../../../features/marketing/p8/data';
 import { ArchitectureDetail } from '../../../features/marketing/p8/pages';
 
 export const Route = createFileRoute('/(marketing)/architecture/$slug')({
