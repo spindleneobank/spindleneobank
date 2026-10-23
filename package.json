@@ -3,7 +3,10 @@
   "version": "0.0.0",
   "type": "module",
   "private": true,
-  "workspaces": ["node", "web"],
+  "workspaces": [
+    "node",
+    "web"
+  ],
   "scripts": {
     "dev": "bun --watch src/server.ts",
     "dev:worker": "bun --watch src/worker.ts",

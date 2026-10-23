@@ -13,8 +13,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "baseUrl": ".",
-    "paths": { "@spindle/shared/*": ["src/shared/*"] }
+    "paths": { "@spindle/shared/*": ["./src/shared/*"] }
   },
   "include": ["src", "dev", "drizzle.config.ts"],
   "exclude": ["static", "web", "node", "contracts", "node_modules"]

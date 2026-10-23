@@ -1,1 +1,6 @@
-{ "name": "@spindle/node", "version": "0.0.0", "private": true, "type": "module" }
+{
+  "name": "@spindle/node",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module"
+}
