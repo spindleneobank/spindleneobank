@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { ContractFunctionRevertedError } from 'viem';
 import { AppError } from '../../lib/errors';
 import { PINNED } from './abi';
 import { minOutFor, priceImpactBps, Q96, type QuoteDeps, quote, type StockRow } from './quote';
@@ -169,15 +170,37 @@ describe('quote', () => {
     expect((await quote(deps(), { ...req, slippageBps: 5000 }).catch((e) => e)).status).toBe(400);
   });
 
-  test('quoter revert maps to INSUFFICIENT_LIQUIDITY', async () => {
-    const err = await quote(
+  test('quoter revert maps to 409 INSUFFICIENT_LIQUIDITY', async () => {
+    const revert = async () => {
+      throw new Error('execution reverted');
+    };
+    const err = await quote(deps({ quoteExactIn: revert }), req).catch((e) => e);
+    expect(err.code).toBe('INSUFFICIENT_LIQUIDITY');
+    expect(err.status).toBe(409);
+    const viemRevert = await quote(
       deps({
         quoteExactIn: async () => {
-          throw new Error('revert');
+          throw new ContractFunctionRevertedError({ abi: [], functionName: 'quoteExactInputSingle' });
         },
       }),
       req,
     ).catch((e) => e);
-    expect(err.code).toBe('INSUFFICIENT_LIQUIDITY');
+    expect(viemRevert.code).toBe('INSUFFICIENT_LIQUIDITY');
+  });
+
+  test('rpc/transport failures map to 502 UPSTREAM_UNAVAILABLE (quoter, pool, allowance)', async () => {
+    const boom = (m: string) => async () => {
+      throw new Error(m);
+    };
+    for (const over of [
+      { quoteExactIn: boom('historical state not available') },
+      { quoteExactIn: boom('request timed out') },
+      { readPool: boom('fetch failed') },
+      { allowance: boom('The network is not responding') },
+    ]) {
+      const err = await quote(deps(over), req).catch((e) => e);
+      expect(err.code).toBe('UPSTREAM_UNAVAILABLE');
+      expect(err.status).toBe(502);
+    }
   });
 });

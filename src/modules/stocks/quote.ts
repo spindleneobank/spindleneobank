@@ -1,4 +1,4 @@
-import type { Address } from 'viem';
+import { type Address, BaseError, ContractFunctionRevertedError } from 'viem';
 import { AppError } from '../../lib/errors';
 import { publicClient } from '../../lib/viem';
 import { erc20Abi, quoterV2Abi, stockAddresses, uniswapV3PoolAbi } from './abi';
@@ -29,6 +29,15 @@ export function priceImpactBps(args: {
   const diff = expected - amountOut;
   if (diff <= 0n) return 0;
   return Number((diff * 10_000n) / expected);
+}
+
+/** True for an EVM execution revert (viem ContractFunctionRevertedError or a node "execution reverted"). */
+export function isRevert(err: unknown): boolean {
+  if (err instanceof BaseError) {
+    if (err.walk((e) => e instanceof ContractFunctionRevertedError)) return true;
+  }
+  const msg = err instanceof Error ? err.message : '';
+  return /execution reverted/i.test(msg);
 }
 
 export const minOutFor = (amountOut: bigint, slippageBps: number) =>
@@ -107,23 +116,26 @@ export async function quote(
   const pool = row.poolAddress as Address;
   const user = input.user.toLowerCase() as Address;
 
-  let amountOut: bigint;
-  let poolState: Awaited<ReturnType<QuoteDeps['readPool']>>;
-  let allowance: bigint;
-  try {
-    [amountOut, poolState, allowance] = await Promise.all([
-      deps.quoteExactIn({ tokenOut, amountIn, fee: row.poolFee }),
-      deps.readPool(pool),
-      deps.allowance(user, a.router),
-    ]);
-  } catch (err) {
-    if (err instanceof AppError) throw err;
-    // Quoter reverts when the pool cannot fill the size.
-    throw new AppError(
-      'INSUFFICIENT_LIQUIDITY',
-      'quote unavailable: not enough pool liquidity for this amount',
-    );
-  }
+  const upstream =
+    (what: string) =>
+    (err: unknown): never => {
+      if (err instanceof AppError) throw err;
+      throw new AppError('UPSTREAM_UNAVAILABLE', `${what} unavailable, try again shortly`);
+    };
+  const [amountOut, poolState, allowance] = await Promise.all([
+    deps.quoteExactIn({ tokenOut, amountIn, fee: row.poolFee }).catch((err: unknown) => {
+      // Only a quoter revert means the pool cannot fill this size; anything else is an RPC problem.
+      if (isRevert(err)) {
+        throw new AppError(
+          'INSUFFICIENT_LIQUIDITY',
+          'quote unavailable: not enough pool liquidity for this amount',
+        );
+      }
+      return upstream('quote')(err);
+    }),
+    deps.readPool(pool).catch(upstream('pool state')),
+    deps.allowance(user, a.router).catch(upstream('allowance read')),
+  ]);
   if (amountOut <= 0n) throw new AppError('INSUFFICIENT_LIQUIDITY', 'quote returned zero output');
 
   const impact = priceImpactBps({
