@@ -170,6 +170,22 @@ describe('ledger', () => {
   });
 });
 
+describe('ledger cursor validation', () => {
+  test('malformed cursors are rejected with VALIDATION', async () => {
+    const enc = (v: unknown) => Buffer.from(JSON.stringify(v)).toString('base64url');
+    const bad = [
+      enc(['2020-01-01T00:00:00.000000Z', 'not-uuid', 'job', 'not-uuid']),
+      enc(['yesterday', NODE, 'job', '']),
+      enc(['2020-01-01T00:00:00.000000Z', NODE, 'bogus', '']),
+      '!!!',
+    ];
+    for (const c of bad)
+      await expect(earningsLedger(OWNER, { limit: 5, cursor: c })).rejects.toMatchObject({
+        code: 'VALIDATION',
+      });
+  });
+});
+
 describe('statement csv', () => {
   test('csvCell escapes quotes/commas/newlines and neutralizes formulas', () => {
     expect(csvCell('plain')).toBe('plain');

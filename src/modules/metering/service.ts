@@ -2,6 +2,7 @@ import { and, desc, eq, lte, sql } from 'drizzle-orm';
 import { config } from '../../config';
 import { claims, earningEvents, epochBalances, epochs, nodes } from '../../db/schema';
 import { AppError } from '../../lib/errors';
+import { EarningKind } from '../../shared/enums';
 import { dbRef } from '../auth/constants';
 
 /** A posted root becomes claimable this long after posting (contracts-spec: 1 h). */
@@ -119,7 +120,13 @@ function parseLedgerCursor(cursor: string | undefined): [string, string, string,
   try {
     const v = JSON.parse(Buffer.from(cursor, 'base64url').toString()) as unknown;
     if (!Array.isArray(v) || v.length !== 4 || v.some((x) => typeof x !== 'string')) throw new Error();
-    return v as [string, string, string, string];
+    const [ts, node, kind, job] = v as [string, string, string, string];
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/;
+    if (!iso.test(ts) || Number.isNaN(Date.parse(ts))) throw new Error();
+    if (!uuid.test(node) || !(job === '' || uuid.test(job))) throw new Error();
+    if (!(EarningKind as readonly string[]).includes(kind)) throw new Error();
+    return [ts, node, kind, job];
   } catch {
     throw new AppError('VALIDATION', 'Invalid cursor.');
   }
