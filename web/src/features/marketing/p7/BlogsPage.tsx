@@ -14,22 +14,24 @@ export function PostCard({ post, img }: { post: Post; img: Post['cardImg'] }) {
       onPointerEnter={hover.onPointerEnter}
       onPointerLeave={hover.onPointerLeave}
     >
-      <div className="pg-card-in" ref={hover.ref}>
-        <Edge side="b" />
-        <Edge side="r" />
-        <div className="pg-card-img">
-          <Photo img={img} className="pg-photo" />
-        </div>
-        <div className="pg-card-text">
-          <div>
-            <p className="pg-label-14">{post.category}</p>
+      <div className="pg-card-wrap">
+        <div className="pg-card-in" ref={hover.ref}>
+          <Edge side="b" />
+          <Edge side="r" />
+          <div className="pg-card-img">
+            <Photo img={img} className="pg-photo" />
           </div>
-          <div className="pg-card-text-in">
+          <div className="pg-card-text">
             <div>
-              <p className="pg-card-bold">{post.bold}</p>
+              <p className="pg-label-14">{post.category}</p>
             </div>
-            <div>
-              <p className="pg-card-dim">{post.dim}</p>
+            <div className="pg-card-text-in">
+              <div>
+                <p className="pg-card-bold">{post.bold}</p>
+              </div>
+              <div>
+                <p className="pg-card-dim">{post.dim}</p>
+              </div>
             </div>
           </div>
         </div>

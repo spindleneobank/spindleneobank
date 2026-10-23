@@ -18,8 +18,8 @@ export function ArchitectureIndex() {
             <Pill>Architecture</Pill>
             <h1 className="p8-h1">Explore the compute architecture</h1>
             <p className="p8-lead">
-              The components behind node registration, AI requests, signed receipts and payout routing. Specification
-              preview.
+              The components behind node registration, AI requests, signed receipts and payout routing.
+              Specification preview.
             </p>
           </div>
         </div>

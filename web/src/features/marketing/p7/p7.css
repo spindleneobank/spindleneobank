@@ -1650,3 +1650,8 @@
 .pg-cp-imgwrap .pg-photo img {
   object-position: 50% 0%;
 }
+
+.pg-card-wrap {
+  position: relative;
+  width: 100%;
+}

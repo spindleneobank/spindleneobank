@@ -10,10 +10,12 @@ const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 export function initOrbit(tree: HTMLElement): () => void {
   const orbit = tree.querySelector<HTMLElement>('[data-framer-name="Rotating Orbit"]');
   if (!orbit) return () => {};
-  const arms = Array.from(orbit.querySelectorAll<HTMLElement>('[data-framer-name^="Orbit Arm"]')).map((arm) => {
-    const m = /rotate\((-?[\d.]+)deg\)/.exec(arm.style.transform);
-    return { badge: arm.firstElementChild as HTMLElement | null, angle: m ? Number(m[1]) : 0 };
-  });
+  const arms = Array.from(orbit.querySelectorAll<HTMLElement>('[data-framer-name^="Orbit Arm"]')).map(
+    (arm) => {
+      const m = /rotate\((-?[\d.]+)deg\)/.exec(arm.style.transform);
+      return { badge: arm.firstElementChild as HTMLElement | null, angle: m ? Number(m[1]) : 0 };
+    },
+  );
   const base = Number(/rotate\((-?[\d.]+)deg\)/.exec(orbit.style.transform)?.[1] ?? 0);
   let raf = 0;
   let t0 = 0;
@@ -42,10 +44,30 @@ export function initOrbit(tree: HTMLElement): () => void {
 }
 
 const API_STAGES = [
-  { name: 'Request accepted', status: '01 / REQUEST', detail: 'POST /v1/chat/completions', output: 'X-Spindle-Lane: open' },
-  { name: 'Eligible GPU selected', status: '02 / ROUTE', detail: 'Open lane GPU matched to the request.', output: 'Open-lane prompts → eligible compute' },
-  { name: 'Work recorded', status: '03 / RECEIPT', detail: 'The node signs a COSE receipt for the job.', output: 'receipt.cose → verification → USDG ledger' },
-  { name: 'Epoch recorded', status: '04 / CLAIM', detail: 'Verified work enters the hourly Merkle root.', output: 'USDG · Stock Tokens · Virtual Card' },
+  {
+    name: 'Request accepted',
+    status: '01 / REQUEST',
+    detail: 'POST /v1/chat/completions',
+    output: 'X-Spindle-Lane: open',
+  },
+  {
+    name: 'Eligible GPU selected',
+    status: '02 / ROUTE',
+    detail: 'Open lane GPU matched to the request.',
+    output: 'Open-lane prompts → eligible compute',
+  },
+  {
+    name: 'Work recorded',
+    status: '03 / RECEIPT',
+    detail: 'The node signs a COSE receipt for the job.',
+    output: 'receipt.cose → verification → USDG ledger',
+  },
+  {
+    name: 'Epoch recorded',
+    status: '04 / CLAIM',
+    detail: 'Verified work enters the hourly Merkle root.',
+    output: 'USDG · Stock Tokens · Virtual Card',
+  },
 ];
 
 /** Port of api-console.js: request -> GPU -> receipt -> claim, a stage every 2.4s while visible. */
@@ -86,11 +108,14 @@ export function initApiConsole(tree: HTMLElement): () => void {
       draw();
     }, 2400);
   };
-  const io = new IntersectionObserver((e) => {
-    visible = e[0]?.isIntersecting === true;
-    if (visible) play();
-    else stop();
-  }, { threshold: 0.1 });
+  const io = new IntersectionObserver(
+    (e) => {
+      visible = e[0]?.isIntersecting === true;
+      if (visible) play();
+      else stop();
+    },
+    { threshold: 0.1 },
+  );
   io.observe(el.parentElement ?? el);
   const rm = matchMedia('(prefers-reduced-motion: reduce)');
   document.addEventListener('visibilitychange', play);
@@ -107,11 +132,19 @@ export function initApiConsole(tree: HTMLElement): () => void {
 /** Capability nav: the link of the block past 60% of the viewport is active (opacity 0.4 <-> 1, spring 0.4s). */
 export function initCapabilityNav(tree: HTMLElement): () => void {
   const ids = ['ai-analysis', 'realtime-dashboards', 'flow-automation', 'smart-integrations'];
-  const links = Array.from(tree.querySelectorAll<HTMLElement>('a.framer-JhBcR')).filter((a) => /(^|\/|\.)#?(ai-analysis|realtime-dashboards|flow-automation|smart-integrations)$/.test(a.getAttribute('href') ?? ''));
+  const links = Array.from(tree.querySelectorAll<HTMLElement>('a.framer-JhBcR')).filter((a) =>
+    /(^|\/|\.)#?(ai-analysis|realtime-dashboards|flow-automation|smart-integrations)$/.test(
+      a.getAttribute('href') ?? '',
+    ),
+  );
   if (links.length !== ids.length) return () => {};
-  let current = Math.max(0, links.findIndex((a) => a.dataset.framerName === 'Active'));
+  let current = Math.max(
+    0,
+    links.findIndex((a) => a.dataset.framerName === 'Active'),
+  );
   // Inline styles of the link's descendants differ between the Active and Inactive variants (the bar, the text colour).
-  const kidStyles = (a: HTMLElement) => Array.from(a.querySelectorAll<HTMLElement>('*')).map((k) => k.getAttribute('style') ?? '');
+  const kidStyles = (a: HTMLElement) =>
+    Array.from(a.querySelectorAll<HTMLElement>('*')).map((k) => k.getAttribute('style') ?? '');
   const activeStyles = kidStyles(links[current] as HTMLElement);
   const inactiveStyles = kidStyles(links.find((a) => a.dataset.framerName !== 'Active') as HTMLElement);
   const set = (i: number, animate: boolean) => {
@@ -129,7 +162,8 @@ export function initCapabilityNav(tree: HTMLElement): () => void {
         if (st) k.setAttribute('style', st);
         else k.removeAttribute('style');
       });
-      if (animate && !reduced()) a.animate({ opacity: on ? [0.4, 1] : [1, 0.4] }, { duration: 400, easing: NAV_EASING, fill: 'both' });
+      if (animate && !reduced())
+        a.animate({ opacity: on ? [0.4, 1] : [1, 0.4] }, { duration: 400, easing: NAV_EASING, fill: 'both' });
     });
     current = i;
   };
@@ -175,20 +209,34 @@ export function initReceiptReveals(tree: HTMLElement): () => void {
   const root = textP(tree, 'epoch.root');
   // [element, from, duration, delay] measured on the old page: spring-like settle, staggered one after another.
   const items: Array<[HTMLElement | null, Keyframe, number, number]> = [
-    [ancestorWith(verified, 'receipt.cose'), { opacity: 0, transform: 'translateY(16px) scale(0.97)' }, 784, 0],
+    [
+      ancestorWith(verified, 'receipt.cose'),
+      { opacity: 0, transform: 'translateY(16px) scale(0.97)' },
+      784,
+      0,
+    ],
     [verified?.parentElement ?? null, { opacity: 0, transform: 'translateY(6px)' }, 471, 150],
     [ancestorWith(cose, 'Job proof'), { opacity: 0, transform: 'translateX(-12px)' }, 523, 300],
     [ancestorWith(root, 'Merkle proof'), { opacity: 0, transform: 'translateX(-12px)' }, 461, 460],
   ];
   const cfg = new Map<Element, [Keyframe, number, number]>();
-  const io = new IntersectionObserver((entries) => {
-    for (const e of entries) {
-      if (!e.isIntersecting) continue;
-      io.unobserve(e.target);
-      const c = cfg.get(e.target);
-      if (c) (e.target as HTMLElement).animate([c[0], { opacity: 1, transform: 'none' }], { duration: c[1], delay: c[2], easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' });
-    }
-  }, { threshold: 0.2 });
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        io.unobserve(e.target);
+        const c = cfg.get(e.target);
+        if (c)
+          (e.target as HTMLElement).animate([c[0], { opacity: 1, transform: 'none' }], {
+            duration: c[1],
+            delay: c[2],
+            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            fill: 'backwards',
+          });
+      }
+    },
+    { threshold: 0.2 },
+  );
   for (const [el, from, ms, delay] of items) {
     if (!el) continue;
     cfg.set(el, [from, ms, delay]);
@@ -199,7 +247,9 @@ export function initReceiptReveals(tree: HTMLElement): () => void {
 
 /** Framer Ticker (compute-stack icons): drifts left at ~80px/s, jumping back one set width when it runs out. */
 export function initTicker(tree: HTMLElement): () => void {
-  const ul = Array.from(tree.querySelectorAll<HTMLElement>('ul')).find((u) => u.children.length > 6 && u.style.transform.includes('translateX'));
+  const ul = Array.from(tree.querySelectorAll<HTMLElement>('ul')).find(
+    (u) => u.children.length > 6 && u.style.transform.includes('translateX'),
+  );
   if (!ul || reduced()) return () => {};
   const imgs = Array.from(ul.children).map((li) => li.querySelector('img')?.getAttribute('src') ?? '');
   const k = imgs.indexOf(imgs[0] ?? '', 1);
@@ -243,7 +293,9 @@ export function initTicker(tree: HTMLElement): () => void {
 
 /** Framer appear of the quote block: held at opacity .001, then 0.6s linear fade (0.2s delay) once it scrolls into view. */
 export function initQuoteAppear(tree: HTMLElement): () => void {
-  const p = Array.from(tree.querySelectorAll<HTMLElement>('p')).find((x) => x.textContent?.trim().startsWith('“Install a node'));
+  const p = Array.from(tree.querySelectorAll<HTMLElement>('p')).find((x) =>
+    x.textContent?.trim().startsWith('“Install a node'),
+  );
   const el = p?.closest<HTMLElement>('[data-framer-component-type="RichTextContainer"]') ?? p?.parentElement;
   if (!el || reduced()) return () => {};
   const hold = el.animate([{ opacity: 0.001 }, { opacity: 0.001 }], { duration: 10000, fill: 'both' });
@@ -251,7 +303,13 @@ export function initQuoteAppear(tree: HTMLElement): () => void {
     if (e[0]?.isIntersecting !== true) return;
     io.disconnect();
     hold.cancel();
-    el.animate([{ opacity: 0.001, transform: 'none' }, { opacity: 1, transform: 'none' }], { duration: 600, delay: 200, easing: 'linear', fill: 'backwards' });
+    el.animate(
+      [
+        { opacity: 0.001, transform: 'none' },
+        { opacity: 1, transform: 'none' },
+      ],
+      { duration: 600, delay: 200, easing: 'linear', fill: 'backwards' },
+    );
   });
   io.observe(el);
   return () => {
