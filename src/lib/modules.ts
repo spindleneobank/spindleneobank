@@ -12,7 +12,9 @@ import gatewayJobs from '../modules/gateway/jobs';
 import gateway from '../modules/gateway/routes';
 import health from '../modules/health/routes';
 import indexerJobs from '../modules/indexer/jobs';
+import meRoutes from '../modules/me/routes';
 import meteringJobs from '../modules/metering/jobs';
+import networkRoutes from '../modules/network/routes';
 import nodesRoutes from '../modules/nodes/routes';
 import probeJobs from '../modules/probes/jobs';
 import ratesJobs from '../modules/rates/jobs';
@@ -43,6 +45,8 @@ export const routeModules: readonly RouteModule[] = [
   receipts,
   epochRoutes,
   slashing,
+  meRoutes,
+  networkRoutes,
 ] as const;
 export const jobModules: readonly JobModule[] = [
   chainJobs,

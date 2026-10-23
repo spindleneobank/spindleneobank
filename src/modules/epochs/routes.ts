@@ -3,12 +3,20 @@ import { Readable } from 'node:stream';
 import type { Hono } from 'hono';
 import { AppError } from '../../lib/errors';
 import type { Env } from '../../lib/http';
+import { GetEpochsReq } from '../../shared/api/public';
 import claimsRoutes from '../claims/routes';
-import { epochTreePath, latestEpochView } from './service';
+import { epochTreePath, latestEpochView, listEpochs } from './service';
 
 /** Mounts the public epoch routes and the claims routes (`/v1/app/claim/proof`, `/v1/app/claims`). */
 export default function epochRoutes(app: Hono<Env>): void {
   claimsRoutes(app);
+
+  app.get('/v1/epochs', async (c) => {
+    const parsed = GetEpochsReq.safeParse(c.req.query());
+    if (!parsed.success) throw new AppError('VALIDATION', 'Invalid query.', 400, parsed.error.issues);
+    c.header('cache-control', 'public, max-age=15');
+    return c.json(await listEpochs(parsed.data));
+  });
 
   app.get('/v1/epochs/latest', async (c) => {
     c.header('cache-control', 'public, max-age=30');

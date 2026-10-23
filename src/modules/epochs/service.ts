@@ -1,10 +1,11 @@
 import { existsSync } from 'node:fs';
 import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, lt } from 'drizzle-orm';
 import { config } from '../../config';
 import { epochs } from '../../db/schema';
 import { AppError } from '../../lib/errors';
+import type { EpochStatus } from '../../shared/enums';
 import { dbRef } from '../auth/constants';
 import { CLAIM_DELAY_MS } from '../metering/service';
 
@@ -77,4 +78,29 @@ export async function epochTreePath(epoch: bigint): Promise<string> {
   const p = treePathOf(row.treePath);
   if (!existsSync(p)) throw new AppError('NOT_FOUND', 'Tree file missing.', 404);
   return p;
+}
+
+/** Epochs newest first. Cursor is the last epoch number of the previous page. */
+export async function listEpochs(q: { cursor?: string; limit: number }) {
+  const rows = await dbRef.db
+    .select()
+    .from(epochs)
+    .where(q.cursor ? lt(epochs.epoch, BigInt(q.cursor)) : undefined)
+    .orderBy(desc(epochs.epoch))
+    .limit(q.limit + 1);
+  const page = rows.slice(0, q.limit);
+  const last = page[page.length - 1];
+  return {
+    items: page.map((r) => ({
+      epoch: Number(r.epoch),
+      root: r.root,
+      totalEarned: r.totalEarnedUsdgMicros.toString(),
+      owners: r.owners,
+      status: r.status as EpochStatus,
+      postedAt: r.postedAt ? r.postedAt.toISOString() : null,
+      txHash: r.txHash,
+      claimableAt: r.postedAt ? new Date(r.postedAt.getTime() + CLAIM_DELAY_MS).toISOString() : null,
+    })),
+    nextCursor: rows.length > q.limit && last ? last.epoch.toString() : null,
+  };
 }
