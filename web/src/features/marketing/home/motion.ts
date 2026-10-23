@@ -216,3 +216,46 @@ export function initReceiptReveals(tree: HTMLElement): () => void {
   }
   return () => io.disconnect();
 }
+
+/** Framer Ticker (compute-stack icons): drifts left at ~80px/s, jumping back one set width when it runs out. */
+export function initTicker(tree: HTMLElement): () => void {
+  const ul = Array.from(tree.querySelectorAll<HTMLElement>('ul')).find((u) => u.children.length > 6 && u.style.transform.includes('translateX'));
+  if (!ul || reduced()) return () => {};
+  const imgs = Array.from(ul.children).map((li) => li.querySelector('img')?.getAttribute('src') ?? '');
+  const k = imgs.indexOf(imgs[0] ?? '', 1);
+  const first = (ul.children[0] as HTMLElement).getBoundingClientRect();
+  const second = (ul.children[1] as HTMLElement).getBoundingClientRect();
+  const setW = k > 0 ? k * Math.abs(second.x - first.x) : 0;
+  if (!setW) return () => {};
+  let x = Number(/translateX\((-?[\d.]+)/.exec(ul.style.transform)?.[1] ?? 0);
+  let raf = 0;
+  let last = 0;
+  let visible = false;
+  const frame = (now: number) => {
+    raf = 0;
+    if (!visible || document.hidden) return;
+    const dt = last ? Math.min((now - last) / 1000, 0.1) : 0;
+    last = now;
+    x -= 80 * dt;
+    while (x < -2 * setW) x += setW;
+    ul.style.transform = `translateX(${x}px)`;
+    raf = requestAnimationFrame(frame);
+  };
+  const wake = () => {
+    if (!raf && visible && !document.hidden) {
+      last = 0;
+      raf = requestAnimationFrame(frame);
+    }
+  };
+  const io = new IntersectionObserver((e) => {
+    visible = e[0]?.isIntersecting === true;
+    if (visible) wake();
+  });
+  io.observe(ul);
+  document.addEventListener('visibilitychange', wake);
+  return () => {
+    io.disconnect();
+    cancelAnimationFrame(raf);
+    document.removeEventListener('visibilitychange', wake);
+  };
+}
