@@ -20,6 +20,7 @@ export const PostStocksQuoteReq = z.object({
 export const PostStocksQuoteRes = z.object({
   amountOut: z.string().regex(/^\d+$/).describe('token base units'),
   priceImpactBps: z.number().int(),
+  feeBps: z.number().int().describe('pool fee tier in bps (excluded from priceImpactBps)'),
   minOut: z.string().regex(/^\d+$/),
   warnImpact: z.boolean(),
   approve: ContractCall.optional(),
