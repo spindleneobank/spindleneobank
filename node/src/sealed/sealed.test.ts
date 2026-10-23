@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { canonicalJson, sha256Hex } from '@spindle/shared/canonical-json';
 import { expectedReportData, replayRtmr3 } from '@spindle/shared/dstack';
 import type { JobStartMsg, NodeToServer } from '@spindle/shared/node-protocol';
-import { decodeReceipt, receiptFromBase64, verifyReceipt } from '@spindle/shared/receipt';
+import { decodeReceipt, outputDigest, receiptFromBase64, verifyReceipt } from '@spindle/shared/receipt';
 import { sealRequest } from '@spindle/shared/sealed';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { installSyntheticEnv, REAL_QUOTE, syntheticEventLog } from '../../../src/modules/attest/testkit';
@@ -205,6 +205,7 @@ describe('sealed job through the JobRunner', () => {
       'sj1',
     );
     expect(out.usage.promptTokens).toBe(5);
+    await req.openResponse.close((done.output as { end: string }).end, 'sj1'); // chunks + output precede the end frame
     const cose = receiptFromBase64(done.receipt);
     expect(verifyReceipt(cose, account.publicKey)).toBe(true);
     const p = decodeReceipt(cose).payload;
@@ -212,6 +213,10 @@ describe('sealed job through the JobRunner', () => {
     expect(p.attestation?.hpkeKeyHash).toMatch(/^[0-9a-f]{64}$/);
     expect(p.inputDigest).toBe(sha256Hex(canonicalJson(env)));
     expect(p.usage).toEqual({ p: 0, c: 0 });
+    // output digest covers the sealed chunk frames (ciphertext), not the plaintext
+    expect(p.outputDigest).toBe(
+      outputDigest('chat', chunks.map((c) => (c.type === 'job.chunk' ? c.delta.content : '')).join('\n')),
+    );
     // order: all chunks precede the done message
     expect(sent.findIndex((m) => m.type === 'job.done')).toBe(sent.length - 1);
   });

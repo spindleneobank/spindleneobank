@@ -73,6 +73,7 @@ export async function verifyNvidia(raw: unknown): Promise<NvidiaResult> {
   try {
     ({ payload: claims } = await jwtVerify(token, nvidiaDeps.jwks(), {
       issuer: attestSettings.nrasIssuer,
+      algorithms: ['ES384'], // NRAS signs with ES384; never accept alg=none or an HMAC downgrade
       currentDate: nvidiaDeps.now(),
     }));
   } catch (e) {

@@ -3,12 +3,13 @@
  * Used by the buyer helper (examples/sealed-client.ts), the node (inside the CVM) and the tests. The
  * gateway never imports this file: it relays the opaque strings produced here.
  *
- * Request:  buyer seals `{ request, ephemeralPub }` to the node's attested HPKE key. AAD binds the
- *           node key and the model so the (untrusted) gateway cannot re-target a ciphertext.
- * Response: the node opens ONE HPKE sender context towards the buyer's ephemeral key and seals every
- *           frame (chunks, then the final output) with it, in order. The first frame carries `enc`.
- *           A dropped, reordered or replayed frame fails AEAD decryption (the sequence number is
- *           part of the nonce).
+ * Request:  buyer seals `{ request }` to the node's attested HPKE key. AAD binds the node key and the model so
+ *           the (untrusted) gateway cannot re-target a ciphertext.
+ * Response: keyed from the REQUEST's HPKE context (RFC 9180 secret export -> AES-128-GCM key + base nonce), so only
+ *           the holder of the node's attested private key can produce valid frames; the gateway cannot forge them.
+ *           Frame i is sealed with nonce = baseNonce xor i and AAD (jobId, i): a dropped, reordered, replayed or
+ *           injected frame fails. The stream ends with a sealed end frame carrying the frame count, so a truncated
+ *           stream is detected by the buyer.
  */
 import { AeadId, Aes128Gcm, CipherSuite, HkdfSha256, KdfId } from '@hpke/core';
 import { DhkemX25519HkdfSha256 } from '@hpke/dhkem-x25519';
@@ -41,13 +42,11 @@ export async function generateKeyPair(): Promise<SealedKeyPair> {
 const requestAad = (nodeKey: string, model: string): Uint8Array =>
   enc8.encode(`${SEALED_VERSION}|${nodeKey.toLowerCase()}|${model}`);
 
-/** The `sealed` object a buyer sends to the gateway (all fields opaque or public routing data). */
+/** The `sealed` object a buyer sends to the gateway (opaque ciphertext plus public routing data). */
 export interface SealedEnvelope {
   nodeKey: string;
   enc: string;
   ciphertext: string;
-  /** Redundant routing copy of the buyer's response key; the node only trusts the copy inside the ciphertext. */
-  ephemeralPub: string;
 }
 
 export interface SealedRequest {
@@ -55,6 +54,8 @@ export interface SealedRequest {
   /** Opens the sealed response frames, in order. */
   openResponse: ResponseOpener;
 }
+
+const EXPORT_CONTEXT = enc8.encode(`${SEALED_VERSION}/response-secret`);
 
 /** Buyer: seal an OpenAI-style request to the node's attested HPKE public key. */
 export async function sealRequest(p: {
@@ -64,22 +65,23 @@ export async function sealRequest(p: {
   request: unknown;
 }): Promise<SealedRequest> {
   const s = suite();
-  const eph = await generateKeyPair();
   const pk = await s.kem.deserializePublicKey(unb64(p.nodePublicKey));
   const sender = await s.createSenderContext({
     recipientPublicKey: pk,
     info: enc8.encode(`${SEALED_VERSION}/request`),
   });
-  const plaintext = enc8.encode(JSON.stringify({ request: p.request, ephemeralPub: eph.publicKey }));
-  const ct = await sender.seal(plaintext, requestAad(p.nodeKey, p.model));
+  const ct = await sender.seal(
+    enc8.encode(JSON.stringify({ request: p.request })),
+    requestAad(p.nodeKey, p.model),
+  );
+  const secret = new Uint8Array(await sender.export(EXPORT_CONTEXT, 28));
   return {
     envelope: {
       nodeKey: p.nodeKey,
       enc: b64(new Uint8Array(sender.enc)),
       ciphertext: b64(new Uint8Array(ct)),
-      ephemeralPub: eph.publicKey,
     },
-    openResponse: new ResponseOpener(eph.privateKey),
+    openResponse: new ResponseOpener(secret),
   };
 }
 
@@ -89,7 +91,7 @@ export async function openRequest(
   sealed: { enc: string; ciphertext: string },
   nodeKey: string,
   model: string,
-): Promise<{ request: Record<string, unknown>; ephemeralPub: string }> {
+): Promise<{ request: Record<string, unknown>; responseSecret: Uint8Array }> {
   const s = suite();
   const ctx = await s.createRecipientContext({
     recipientKey: privateKey,
@@ -97,59 +99,95 @@ export async function openRequest(
     info: enc8.encode(`${SEALED_VERSION}/request`),
   });
   const pt = await ctx.open(unb64(sealed.ciphertext), requestAad(nodeKey, model));
-  const j = JSON.parse(dec8.decode(pt)) as { request?: Record<string, unknown>; ephemeralPub?: string };
-  if (!j.request || typeof j.ephemeralPub !== 'string') throw new Error('malformed sealed request');
-  return { request: j.request, ephemeralPub: j.ephemeralPub };
+  const j = JSON.parse(dec8.decode(pt)) as { request?: Record<string, unknown> };
+  if (!j.request) throw new Error('malformed sealed request');
+  return { request: j.request, responseSecret: new Uint8Array(await ctx.export(EXPORT_CONTEXT, 28)) };
 }
 
-const respAad = (jobId: string): Uint8Array => enc8.encode(`${SEALED_VERSION}/response|${jobId}`);
+// ---- response frames --------------------------------------------------------------------------------------
 
-/** Node: seals response frames to the buyer's ephemeral key with one sender context. */
-export class ResponseSealer {
-  private first = true;
-  private constructor(
-    private readonly ctx: Awaited<ReturnType<CipherSuite['createSenderContext']>>,
+class FrameCipher {
+  private key: Promise<CryptoKey>;
+  private base: Uint8Array<ArrayBuffer>;
+  constructor(
+    secret: Uint8Array,
     private readonly jobId: string,
-  ) {}
-
-  static async create(buyerEphemeralPub: string, jobId: string): Promise<ResponseSealer> {
-    const s = suite();
-    const pk = await s.kem.deserializePublicKey(unb64(buyerEphemeralPub));
-    const ctx = await s.createSenderContext({
-      recipientPublicKey: pk,
-      info: enc8.encode(`${SEALED_VERSION}/response`),
-    });
-    return new ResponseSealer(ctx, jobId);
+  ) {
+    this.key = crypto.subtle.importKey('raw', new Uint8Array(secret.slice(0, 16)), 'AES-GCM', false, [
+      'encrypt',
+      'decrypt',
+    ]);
+    this.base = new Uint8Array(secret.slice(16, 28));
   }
-
-  /** Returns an opaque string: `<b64 enc>:<b64 ct>` for the first frame, `<b64 ct>` afterwards. */
-  async seal(frame: unknown): Promise<string> {
-    const ct = b64(
-      new Uint8Array(await this.ctx.seal(enc8.encode(JSON.stringify(frame)), respAad(this.jobId))),
-    );
-    if (!this.first) return ct;
-    this.first = false;
-    return `${b64(new Uint8Array(this.ctx.enc))}:${ct}`;
+  private params(i: number) {
+    const iv = this.base.slice();
+    const v = new DataView(iv.buffer);
+    v.setUint32(8, (v.getUint32(8) ^ i) >>> 0);
+    return {
+      name: 'AES-GCM',
+      iv,
+      additionalData: enc8.encode(`${SEALED_VERSION}/response|${this.jobId}|${i}`) as Uint8Array<ArrayBuffer>,
+    };
+  }
+  async encrypt(i: number, plaintext: Uint8Array<ArrayBuffer>): Promise<string> {
+    return b64(new Uint8Array(await crypto.subtle.encrypt(this.params(i), await this.key, plaintext)));
+  }
+  async decrypt(i: number, frame: string): Promise<Uint8Array> {
+    return new Uint8Array(await crypto.subtle.decrypt(this.params(i), await this.key, unb64(frame)));
   }
 }
 
-/** Buyer: opens response frames in the order they arrive. */
+/** Node: seals response frames, in order, with keys derived from the request's HPKE context. */
+export class ResponseSealer {
+  private n = 0;
+  private cipher: FrameCipher;
+  constructor(responseSecret: Uint8Array, jobId: string) {
+    this.cipher = new FrameCipher(responseSecret, jobId);
+  }
+  static create(responseSecret: Uint8Array, jobId: string): Promise<ResponseSealer> {
+    return Promise.resolve(new ResponseSealer(responseSecret, jobId));
+  }
+  /** Opaque base64 string. Frames must be delivered in the order they were sealed. */
+  seal(frame: unknown): Promise<string> {
+    return this.cipher.encrypt(this.n++, enc8.encode(JSON.stringify(frame)));
+  }
+  /** The end-of-stream frame: carries the number of frames sealed before it. Call exactly once, last. */
+  end(): Promise<string> {
+    const count = this.n;
+    return this.cipher.encrypt(this.n++, enc8.encode(JSON.stringify({ end: true, count })));
+  }
+}
+
+/** Buyer: opens response frames in the order they arrive and verifies the end frame. */
 export class ResponseOpener {
-  private ctx: Awaited<ReturnType<CipherSuite['createRecipientContext']>> | null = null;
-  constructor(private readonly privateKey: CryptoKey) {}
+  private n = 0;
+  private cipher: FrameCipher | null = null;
+  private ended = false;
+  constructor(private readonly secret: Uint8Array) {}
+
+  private c(jobId: string): FrameCipher {
+    this.cipher ??= new FrameCipher(this.secret, jobId);
+    return this.cipher;
+  }
 
   async open<T = unknown>(frame: string, jobId: string): Promise<T> {
-    let body = frame;
-    if (!this.ctx) {
-      const i = frame.indexOf(':');
-      if (i < 0) throw new Error('first sealed frame must carry enc');
-      this.ctx = await suite().createRecipientContext({
-        recipientKey: this.privateKey,
-        enc: unb64(frame.slice(0, i)),
-        info: enc8.encode(`${SEALED_VERSION}/response`),
-      });
-      body = frame.slice(i + 1);
+    if (this.ended) throw new Error('frame after the end of the stream');
+    const v = JSON.parse(dec8.decode(await this.c(jobId).decrypt(this.n, frame))) as T;
+    this.n++;
+    return v;
+  }
+
+  /** Opens the end frame and checks the count; throws if the stream was truncated or padded. */
+  async close(frame: string | null | undefined, jobId: string): Promise<void> {
+    if (!frame) throw new Error('sealed stream truncated: no end frame');
+    let v: { end?: boolean; count?: number };
+    try {
+      v = JSON.parse(dec8.decode(await this.c(jobId).decrypt(this.n, frame)));
+    } catch {
+      throw new Error('sealed stream truncated: end frame does not authenticate at this position');
     }
-    return JSON.parse(dec8.decode(await this.ctx.open(unb64(body), respAad(jobId)))) as T;
+    if (v.end !== true || v.count !== this.n)
+      throw new Error('sealed stream truncated: frame count mismatch');
+    this.ended = true;
   }
 }

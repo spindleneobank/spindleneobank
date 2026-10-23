@@ -2,7 +2,7 @@
  * Sealed lane relay (S1). Everything here is behind SEALED_LANE_ENABLED (default false).
  *
  * The gateway handles `X-Spindle-Lane: sealed` requests whose body is
- *   { model, stream?, sealed: { nodeKey, enc, ciphertext, ephemeralPub? } }
+ *   { model, stream?, sealed: { nodeKey, enc, ciphertext } }
  * and relays `enc` + `ciphertext` to the attested node the buyer chose. It cannot decrypt anything: the
  * request is HPKE-sealed to the node's attested key, the response frames are HPKE-sealed to the buyer's
  * ephemeral key. The request/response bodies are never parsed, logged or stored here (only their lengths
@@ -68,7 +68,6 @@ export const SealedChatBody = z.object({
     nodeKey: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
     enc: z.string().min(1).max(512),
     ciphertext: z.string().min(1).max(4_000_000),
-    ephemeralPub: z.string().optional(),
   }),
 });
 export type SealedChatBody = z.infer<typeof SealedChatBody>;
@@ -102,6 +101,12 @@ class SealedRun extends JobRun {
     }
     const engineModel = this.req.model.engineIds.vllm;
     if (!engineModel) throw new AppError('NO_CAPACITY', 'No sealed node can serve this model.');
+    // The billing cap (gateway-observed duration) needs dispatchedAt: write it BEFORE dispatching, and fail the
+    // dispatch if it cannot be written.
+    await updateJob(this.jobId, { nodeId: node.nodeId, status: 'dispatched', dispatchedAt: new Date() }, [
+      'queued',
+      'dispatched',
+    ]);
     const handle = gatewayDeps.dispatch(node.nodeId, {
       jobId: this.jobId,
       kind: 'chat',
@@ -116,10 +121,6 @@ class SealedRun extends JobRun {
     this.node = node;
     this.handle = handle;
     if (this.aborted) handle.cancel();
-    await updateJob(this.jobId, { nodeId: node.nodeId, status: 'dispatched', dispatchedAt: new Date() }, [
-      'queued',
-      'dispatched',
-    ]).catch(() => {});
     void handle.accepted.then((ok) => {
       if (ok) void updateJob(this.jobId, { status: 'running' }, ['queued', 'dispatched']).catch(() => {});
     });
@@ -255,10 +256,10 @@ async function respondJson(c: Context<Env>, run: SealedRun): Promise<Response> {
   const charge = await complete(run, done, started);
   for (const [k, v] of Object.entries(headersFor(run.jobId))) c.header(k, v);
   c.header(HEADER_CHARGE_MICROS, charge.toString());
-  const out = (done.output ?? {}) as { sealed?: string };
+  const out = (done.output ?? {}) as { sealed?: string; end?: string };
   return c.json({
     id: `sealed-${run.jobId}`,
-    sealed: { frames, output: out.sealed ?? null },
+    sealed: { frames, output: out.sealed ?? null, end: out.end ?? null },
     spindle: { jobId: run.jobId, chargeMicros: charge.toString(), receiptUrl: receiptUrl(run.jobId) },
   });
 }
@@ -307,10 +308,11 @@ async function respondStream(c: Context<Env>, run: SealedRun): Promise<Response>
           }
           const done = step.value;
           const charge = await complete(run, done, started);
-          const out = (done.output ?? {}) as { sealed?: string };
+          const out = (done.output ?? {}) as { sealed?: string; end?: string };
           send(
             sseData({
               sealed: out.sealed ?? null,
+              end: out.end ?? null,
               final: true,
               spindle: {
                 jobId: run.jobId,

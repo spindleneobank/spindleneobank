@@ -2,10 +2,11 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } fr
 import { eq } from 'drizzle-orm';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
-import { nodeAttestations, nodes, users } from '../../db/schema';
+import { jobs, nodeAttestations, nodes, users } from '../../db/schema';
 import { closeRedis } from '../../lib/redis';
 import type { ReceiptPayload } from '../../shared/receipt';
 import { dbRef } from '../auth/constants';
+import { buyerIdForAddress } from '../buyers/service';
 import type { VerifyJob } from '../receipts/verify';
 import { nvidiaDeps } from './nvidia';
 import { installSyntheticEnv, SYN, type SyntheticEnv } from './testkit';
@@ -189,9 +190,63 @@ describe('recordAttestation + freshness', () => {
   });
 });
 
+describe('transient outages and uniqueness', () => {
+  test('a PCS/NRAS outage keeps the node eligible; a real failure evicts it', async () => {
+    await recordAttestation(nodeId, nodeKey, (await env.makeBundle(nodeKey)).bundle);
+    const { bundle } = await env.makeBundle(nodeKey);
+    nvidiaDeps.nras = async () => {
+      throw new Error('503');
+    };
+    expect(await recordAttestation(nodeId, nodeKey, bundle)).toMatchObject({
+      ok: false,
+      reason: 'NVIDIA_NRAS_UNAVAILABLE',
+    });
+    const [n] = await t.db.select().from(nodes).where(eq(nodes.id, nodeId));
+    expect(n?.lastAttestAt).toBeInstanceOf(Date);
+  });
+
+  test('the hook retries a transient failure with backoff and succeeds', async () => {
+    const { onNodeAttestation, retryDelaysMs, hookDeps } = await import('./hooks');
+    const { bundle } = await env.makeBundle(nodeKey);
+    const real = nvidiaDeps.nras;
+    let calls = 0;
+    nvidiaDeps.nras = async (ev) => {
+      if (calls++ === 0) throw new Error('503');
+      return real(ev);
+    };
+    const savedDelays = retryDelaysMs.value;
+    retryDelaysMs.value = [20];
+    hookDeps.enabled = () => true;
+    try {
+      await onNodeAttestation(nodeId, nodeKey, bundle);
+      for (let i = 0; i < 100 && calls < 2; i++) await Bun.sleep(20);
+      await Bun.sleep(100);
+      expect(calls).toBe(2);
+      expect(await latestAttestation(nodeId)).not.toBeNull();
+    } finally {
+      retryDelaysMs.value = savedDelays;
+      hookDeps.enabled = () => false;
+    }
+  });
+
+  test('the database refuses two verified rows with the same quote hash', async () => {
+    const { bundle } = await env.makeBundle(nodeKey);
+    const r = await recordAttestation(nodeId, nodeKey, bundle);
+    if (!r.ok) throw new Error('setup');
+    await expect(
+      (async () => {
+        await t.db
+          .insert(nodeAttestations)
+          .values({ nodeId, quoteHash: r.evidence.quoteHash, verified: true });
+      })(),
+    ).rejects.toThrow();
+  });
+});
+
 describe('verifyReceiptAttestation (receipt rule 6)', () => {
+  const JOB = '11111111-1111-4111-8111-111111111111';
   const job = (): VerifyJob => ({
-    id: 'j1',
+    id: JOB,
     model: 'm',
     kind: 'chat',
     lane: 'sealed',
@@ -203,7 +258,7 @@ describe('verifyReceiptAttestation (receipt rule 6)', () => {
     over: Partial<ReceiptPayload> = {},
   ): ReceiptPayload => ({
     v: 1,
-    jobId: 'j1',
+    jobId: JOB,
     nodeKey,
     model: 'm',
     modelDigest: 'x',
@@ -244,9 +299,28 @@ describe('verifyReceiptAttestation (receipt rule 6)', () => {
     expect(await verifyReceiptAttestation(job(), payload({ ...good, rtmr3: 'cd'.repeat(48) }))).toMatchObject(
       { ok: false, reason: 'ATTESTATION_MISMATCH' },
     );
+    // node-claimed times are irrelevant: a far-future claim does not matter ...
     expect(
       await verifyReceiptAttestation(job(), payload(good, { finishedAt: Date.now() + 2 * 3600_000 })),
-    ).toMatchObject({ ok: false, reason: 'ATTESTATION_STALE' });
+    ).toMatchObject({ ok: true });
+    // ... the gateway-observed finish time is what counts
+    const buyerId = await buyerIdForAddress(`0x${'7'.repeat(40)}`);
+    await t.db.insert(jobs).values({
+      id: JOB,
+      buyerId,
+      lane: 'sealed',
+      model: 'm',
+      kind: 'chat',
+      unitKind: 'gpu_hour',
+      payMode: 'balance',
+      status: 'completed',
+      dispatchedAt: new Date(),
+      finishedAt: new Date(Date.now() + 2 * 3600_000),
+    });
+    expect(await verifyReceiptAttestation(job(), payload(good))).toMatchObject({
+      ok: false,
+      reason: 'ATTESTATION_STALE',
+    });
     // another node cannot present this attestation
     const other = privateKeyToAccount(generatePrivateKey()).address.toLowerCase();
     expect(await verifyReceiptAttestation({ ...job(), nodeKey: other }, payload(good))).toMatchObject({

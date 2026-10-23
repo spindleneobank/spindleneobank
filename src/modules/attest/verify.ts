@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, isNotNull } from 'drizzle-orm';
-import { nodeAttestations, nodes } from '../../db/schema';
+import { jobs, nodeAttestations, nodes } from '../../db/schema';
 import { logger } from '../../lib/logger';
 import { canonicalJson, sha256Hex } from '../../shared/canonical-json';
 import type { AttestationBundle } from '../../shared/node-protocol';
@@ -122,6 +122,9 @@ export async function verifyAttestation(bundle: AttestationBundle, nodeKey: stri
 
 // ---- persistence ------------------------------------------------------------------------------------------
 
+/** Failures of the verifier's own dependencies (Intel PCS, NRAS): the evidence itself was not judged. */
+export const TRANSIENT_REASONS = new Set(['TDX_COLLATERAL_UNAVAILABLE', 'NVIDIA_NRAS_UNAVAILABLE']);
+
 /**
  * Verifies and records an attestation for a node. Success: row with `verified` and a 1 h expiry,
  * `nodes.last_attest_at = now`, `cc_capable = true`. Failure: the reason is stored and `last_attest_at` is
@@ -145,19 +148,33 @@ export async function recordAttestation(
   }
   const now = new Date();
   // the stored bundle is for audit; the raw quote can be large but stays bounded by the WS frame limit
-  await db.insert(nodeAttestations).values({
-    nodeId,
-    quoteHash: out.ok ? out.evidence.quoteHash : sha256Hex(Buffer.from(bundle.tdxQuote, 'base64')),
-    bundle,
-    verified: out.ok,
-    reason: out.ok ? null : `${out.reason}${out.detail ? `: ${out.detail}` : ''}`.slice(0, 500),
-    measurements: out.ok ? out.evidence : null,
-    expiresAt: out.ok ? new Date(now.getTime() + attestSettings.ttlMs) : null,
-  });
-  await db
-    .update(nodes)
-    .set(out.ok ? { lastAttestAt: now, ccCapable: true } : { lastAttestAt: null })
-    .where(eq(nodes.id, nodeId));
+  try {
+    await db.insert(nodeAttestations).values({
+      nodeId,
+      quoteHash: out.ok ? out.evidence.quoteHash : sha256Hex(Buffer.from(bundle.tdxQuote, 'base64')),
+      bundle,
+      verified: out.ok,
+      reason: out.ok ? null : `${out.reason}${out.detail ? `: ${out.detail}` : ''}`.slice(0, 500),
+      measurements: out.ok ? out.evidence : null,
+      expiresAt: out.ok ? new Date(now.getTime() + attestSettings.ttlMs) : null,
+    });
+  } catch (e) {
+    // unique index on verified quote_hash: a concurrent duplicate loses
+    if (
+      (e as { code?: string; cause?: { code?: string } }).code === '23505' ||
+      (e as { cause?: { code?: string } }).cause?.code === '23505'
+    )
+      out = { ok: false, reason: 'REPLAY', detail: 'quote was already used' };
+    else throw e;
+  }
+  // A transient PCS/NRAS outage must not evict a node that still holds a valid attestation.
+  const transient = !out.ok && TRANSIENT_REASONS.has(out.reason);
+  if (out.ok || !transient) {
+    await db
+      .update(nodes)
+      .set(out.ok ? { lastAttestAt: now, ccCapable: true } : { lastAttestAt: null })
+      .where(eq(nodes.id, nodeId));
+  }
   if (!out.ok) logger.warn({ nodeId, reason: out.reason }, 'sealed attestation rejected');
   return out;
 }
@@ -242,8 +259,16 @@ export async function verifyReceiptAttestation(
   const m = a.measurements as AttestationEvidence;
   if (m.rtmr3 !== att.rtmr3 || m.gpuEvidenceHash !== att.gpuEvidenceHash || m.hpkeKeyHash !== att.hpkeKeyHash)
     return { ok: false, reason: 'ATTESTATION_MISMATCH' };
-  if (payload.finishedAt > a.expiresAt.getTime()) return { ok: false, reason: 'ATTESTATION_STALE' };
-  if (payload.startedAt < a.createdAt.getTime() - attestSettings.ttlMs)
+  // Freshness uses the gateway-observed job times, never the node-claimed ones.
+  const [obs] = await dbRef.db
+    .select({ dispatchedAt: jobs.dispatchedAt, finishedAt: jobs.finishedAt })
+    .from(jobs)
+    .where(eq(jobs.id, job.id))
+    .limit(1);
+  const finished = (obs?.finishedAt ?? new Date()).getTime();
+  const dispatched = (obs?.dispatchedAt ?? new Date()).getTime();
+  if (finished > a.expiresAt.getTime()) return { ok: false, reason: 'ATTESTATION_STALE' };
+  if (dispatched < a.createdAt.getTime() - attestSettings.ttlMs)
     return { ok: false, reason: 'ATTESTATION_STALE' };
   return { ok: true, ref: a.id };
 }

@@ -151,19 +151,26 @@ export const nodes = pgTable(
   ],
 );
 
-export const nodeAttestations = pgTable('node_attestations', {
-  id: id(),
-  nodeId: uuid('node_id')
-    .notNull()
-    .references(() => nodes.id),
-  quoteHash: text('quote_hash'),
-  bundle: jsonb('bundle'),
-  verified: boolean('verified').notNull().default(false),
-  reason: text('reason'),
-  measurements: jsonb('measurements'),
-  createdAt: createdAt(),
-  expiresAt: ts('expires_at'),
-});
+export const nodeAttestations = pgTable(
+  'node_attestations',
+  {
+    id: id(),
+    nodeId: uuid('node_id')
+      .notNull()
+      .references(() => nodes.id),
+    quoteHash: text('quote_hash'),
+    bundle: jsonb('bundle'),
+    verified: boolean('verified').notNull().default(false),
+    reason: text('reason'),
+    measurements: jsonb('measurements'),
+    createdAt: createdAt(),
+    expiresAt: ts('expires_at'),
+  },
+  (t) => [
+    // S1: a verified quote can be used once (replay protection that also holds under concurrency)
+    uniqueIndex('node_attestations_quote_verified_uq').on(t.quoteHash).where(sql`${t.verified}`),
+  ],
+);
 
 // ------------------------------------------------------- buyers & payments
 

@@ -18,6 +18,9 @@ export interface SealedJobCtx {
   receiptJob: JobStartMsg;
   /** Wraps the node connection: seals `job.chunk` deltas and the `job.done` output to the buyer, in order. */
   send: SendFn;
+  /** Waits until every queued chunk is sealed and sent; returns the text the receipt's output digest covers
+   *  (the sealed chunk frames, i.e. ciphertext: a verifier can recompute it from what the gateway relayed). */
+  settle(): Promise<string>;
   attestation: ReceiptAttestation;
 }
 
@@ -71,7 +74,10 @@ export class SealedRuntime {
     this.timer = null;
   }
 
-  async refreshNow(): Promise<boolean> {
+  /** Retry delays after a failed local collection (dstack / GPU tools hiccup); the next scheduled refresh is 50 min away. */
+  retryDelaysMs = [60_000, 120_000, 300_000];
+
+  async refreshNow(attempt = 0): Promise<boolean> {
     try {
       const c = await this.collect();
       const ok = this.o.send({ v: 1, type: 'attest.refresh', attestation: c.bundle });
@@ -80,6 +86,11 @@ export class SealedRuntime {
       return ok;
     } catch (e) {
       this.o.log.warn(`attestation refresh failed: ${(e as Error).message}`);
+      const delay = this.retryDelaysMs[attempt];
+      if (delay !== undefined) {
+        const t = setTimeout(() => void this.refreshNow(attempt + 1), delay);
+        t.unref?.();
+      }
       return false;
     }
   }
@@ -88,27 +99,31 @@ export class SealedRuntime {
   async open(job: JobStartMsg): Promise<SealedJobCtx> {
     if (!job.sealed) throw new Error('not a sealed job');
     if (!this.current) throw new Error('node has no attestation yet');
-    const { request, ephemeralPub } = await this.hpke.open(
+    const { request, responseSecret } = await this.hpke.open(
       job.sealed.enc,
       job.sealed.ciphertext,
       this.o.nodeKey,
       job.model,
     );
-    const sealer = await this.hpke.sealer(ephemeralPub, job.jobId);
+    const sealer = await this.hpke.sealer(responseSecret, job.jobId);
     // Frames are sealed asynchronously but must reach the wire in order: chain them.
     let chain: Promise<unknown> = Promise.resolve();
+    const chunkFrames: string[] = [];
     const raw = this.o.send;
     const send: SendFn = (msg) => {
       chain = chain
         .then(async () => {
           if (msg.type === 'job.chunk') {
-            raw({ ...msg, delta: { content: await sealer.seal({ delta: msg.delta }) }, sealed: true });
+            const frame = await sealer.seal({ delta: msg.delta });
+            chunkFrames.push(frame);
+            raw({ ...msg, delta: { content: frame }, sealed: true });
           } else if (msg.type === 'job.done') {
             const frame = await sealer.seal({ output: msg.output, usage: msg.usage });
+            const end = await sealer.end(); // frame count lets the buyer detect truncation
             // token counts stay inside the ciphertext: billing is per GPU-hour
             raw({
               ...msg,
-              output: { sealed: frame },
+              output: { sealed: frame, end },
               usage: { promptTokens: 0, completionTokens: 0 },
               sealed: true,
             });
@@ -124,6 +139,10 @@ export class SealedRuntime {
       plain: { ...job, request: { ...request, model: job.model }, sealed: undefined },
       receiptJob: { ...job, request: envelope },
       send,
+      settle: async () => {
+        await chain;
+        return chunkFrames.join('\n');
+      },
       attestation: this.current,
     };
   }

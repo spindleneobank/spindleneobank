@@ -67,6 +67,7 @@ export async function sealedChat(opts: {
   const jobId = res.headers.get('X-Spindle-Job-Id') ?? '';
   let text = '';
   let charge = '0';
+  let ended = false;
   const decoder = new TextDecoder();
   let buf = '';
   for await (const part of res.body as unknown as AsyncIterable<Uint8Array>) {
@@ -77,6 +78,7 @@ export async function sealedChat(opts: {
       if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
       const ev = JSON.parse(line.slice(6)) as {
         sealed?: string | null;
+        end?: string | null;
         final?: boolean;
         spindle?: { chargeMicros: string };
         error?: { message: string };
@@ -89,9 +91,15 @@ export async function sealedChat(opts: {
           opts.onToken?.(frame.delta.content);
         }
       }
-      if (ev.final) charge = ev.spindle?.chargeMicros ?? charge;
+      if (ev.final) {
+        // the sealed end frame proves the stream was not truncated (frame count is authenticated)
+        await sealed.openResponse.close(ev.end, jobId);
+        ended = true;
+        charge = ev.spindle?.chargeMicros ?? charge;
+      }
     }
   }
+  if (!ended) throw new Error('sealed stream truncated: no final frame');
   return { text, jobId, chargeMicros: charge };
 }
 

@@ -127,9 +127,11 @@ export class JobRunner {
       if (active.reason) throw new Error('aborted');
       const finishedAt = now();
       const sc = this.sealedCtx;
+      // sealed: input digest covers the envelope the gateway relayed, output digest the sealed chunk frames
+      const sealedOut = sc ? await sc.settle() : null;
       const payload = buildReceiptPayload(
-        sc ? sc.receiptJob : job, // sealed: the input digest covers the envelope the gateway relayed
-        result.output,
+        sc ? sc.receiptJob : job,
+        sealedOut ?? result.output,
         sc ? { promptTokens: 0, completionTokens: 0 } : result.usage,
         { startedAt, finishedAt },
         this.o.key,

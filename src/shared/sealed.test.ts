@@ -12,16 +12,17 @@ async function setup() {
     model: 'm',
     request: req,
   });
-  return { node, req, sealed };
+  const opened = await openRequest(node.privateKey, sealed.envelope, NODE, 'm');
+  const sealer = await ResponseSealer.create(opened.responseSecret, 'job-1');
+  return { node, req, sealed, opened, sealer };
 }
 
 describe('sealed HPKE (real crypto, no hardware needed)', () => {
   test('request round-trip and the envelope hides the plaintext', async () => {
-    const { node, req, sealed } = await setup();
+    const { req, sealed, opened } = await setup();
     expect(JSON.stringify(sealed.envelope)).not.toContain('secret prompt');
-    const opened = await openRequest(node.privateKey, sealed.envelope, NODE, 'm');
+    expect(Object.keys(sealed.envelope).sort()).toEqual(['ciphertext', 'enc', 'nodeKey']);
     expect(opened.request).toEqual(req);
-    expect(opened.ephemeralPub).toBe(sealed.envelope.ephemeralPub);
   });
 
   test('wrong node key, wrong model or wrong recipient fail', async () => {
@@ -43,37 +44,51 @@ describe('sealed HPKE (real crypto, no hardware needed)', () => {
     ).rejects.toThrow();
   });
 
-  test('response frames round-trip in order; drop/reorder/replay and a wrong job id are detected', async () => {
-    const { node, sealed } = await setup();
-    const { ephemeralPub } = await openRequest(node.privateKey, sealed.envelope, NODE, 'm');
-    const mk = async () => ResponseSealer.create(ephemeralPub, 'job-1');
-    const s = await mk();
+  test('response frames round-trip in order and end with a verified end frame', async () => {
+    const { sealed, sealer } = await setup();
     const f = [
-      await s.seal({ delta: { content: 'he' } }),
-      await s.seal({ delta: { content: 'llo' } }),
-      await s.seal({ output: { done: true } }),
+      await sealer.seal({ delta: 'he' }),
+      await sealer.seal({ delta: 'llo' }),
+      await sealer.seal({ output: 1 }),
     ];
-    expect(f[0]).toContain(':');
-    expect(f[1]).not.toContain(':');
+    const end = await sealer.end();
     const r = sealed.openResponse;
-    expect(await r.open(f[0] as string, 'job-1')).toEqual({ delta: { content: 'he' } });
-    expect(await r.open(f[1] as string, 'job-1')).toEqual({ delta: { content: 'llo' } });
-    expect(await r.open(f[2] as string, 'job-1')).toEqual({ output: { done: true } });
-    // skipping a frame, reordering or the wrong job id breaks the AEAD chain
-    for (const run of ['skip', 'reorder', 'job'] as const) {
-      const fresh = await setup();
-      const e = (await openRequest(fresh.node.privateKey, fresh.sealed.envelope, NODE, 'm')).ephemeralPub;
-      const ss = await ResponseSealer.create(e, 'job-1');
-      const g = [await ss.seal({ a: 1 }), await ss.seal({ a: 2 }), await ss.seal({ a: 3 })] as string[];
-      const o = fresh.sealed.openResponse;
+    expect(await r.open(f[0] as string, 'job-1')).toEqual({ delta: 'he' });
+    expect(await r.open(f[1] as string, 'job-1')).toEqual({ delta: 'llo' });
+    expect(await r.open(f[2] as string, 'job-1')).toEqual({ output: 1 });
+    await r.close(end, 'job-1');
+  });
+
+  test('a gateway-forged frame is rejected (it cannot derive the response key)', async () => {
+    const { sealed } = await setup();
+    // the gateway knows enc + ciphertext only; it seals "its own" frames with a key it can make up
+    const forger = await ResponseSealer.create(new Uint8Array(28).fill(7), 'job-1');
+    const forged = await forger.seal({ delta: 'attacker text' });
+    await expect(sealed.openResponse.open(forged, 'job-1')).rejects.toThrow();
+  });
+
+  test('skip, reorder, replay, wrong job id and truncation are detected', async () => {
+    for (const run of ['skip', 'replay', 'job', 'truncate', 'padded'] as const) {
+      const { sealed, sealer } = await setup();
+      const g = [await sealer.seal({ a: 1 }), await sealer.seal({ a: 2 })] as string[];
+      const end = await sealer.end();
+      const o = sealed.openResponse;
       if (run === 'skip') {
+        await expect(o.open(g[1] as string, 'job-1')).rejects.toThrow();
+      } else if (run === 'replay') {
         await o.open(g[0] as string, 'job-1');
-        await expect(o.open(g[2] as string, 'job-1')).rejects.toThrow();
-      } else if (run === 'reorder') {
-        await o.open(g[0] as string, 'job-1');
-        await expect(o.open(g[2] as string, 'job-1')).rejects.toThrow();
-      } else {
+        await expect(o.open(g[0] as string, 'job-1')).rejects.toThrow();
+      } else if (run === 'job') {
         await expect(o.open(g[0] as string, 'job-2')).rejects.toThrow();
+      } else if (run === 'truncate') {
+        await o.open(g[0] as string, 'job-1');
+        await expect(o.close(null, 'job-1')).rejects.toThrow(/truncated/);
+        await expect(o.close(end, 'job-1')).rejects.toThrow(/truncated/); // end frame count says 2, only 1 opened
+      } else {
+        await o.open(g[0] as string, 'job-1');
+        await o.open(g[1] as string, 'job-1');
+        await o.close(end, 'job-1');
+        await expect(o.open(g[0] as string, 'job-1')).rejects.toThrow();
       }
     }
   });

@@ -21,8 +21,8 @@ export class CvmHpke {
     return openRequest(this.kp.privateKey, { enc, ciphertext }, nodeKey, model);
   }
 
-  /** `sealResponse(buyerEphemeralPub, ...)`: one sender context per job, frames sealed in order. */
-  sealer(buyerEphemeralPub: string, jobId: string): Promise<ResponseSealer> {
-    return ResponseSealer.create(buyerEphemeralPub, jobId);
+  /** `sealResponse`: frames are keyed from the request's HPKE context, so only this key's holder can produce them. */
+  sealer(responseSecret: Uint8Array, jobId: string): Promise<ResponseSealer> {
+    return ResponseSealer.create(responseSecret, jobId);
   }
 }

@@ -88,19 +88,16 @@ function fakeCvm(nodeId_: string, input: Parameters<typeof origDispatch>[1]): Jo
     const sealed = input.sealed as { enc: string; ciphertext: string };
     const opened = await openRequest(hpke, sealed, nodeKey, input.model);
     plaintextSeenByNode = opened.request;
-    const sealer = await ResponseSealer.create(opened.ephemeralPub, input.jobId);
+    const sealer = await ResponseSealer.create(opened.responseSecret, input.jobId);
     const startedAt = Date.now();
-    chunks.push({
-      seq: 0,
-      delta: { content: await sealer.seal({ delta: { content: 'Hel' } }) },
-      sealed: true,
-    });
-    chunks.push({
-      seq: 1,
-      delta: { content: await sealer.seal({ delta: { content: 'lo' } }) },
-      sealed: true,
-    });
+    const chunkFrames = [
+      await sealer.seal({ delta: { content: 'Hel' } }),
+      await sealer.seal({ delta: { content: 'lo' } }),
+    ];
+    chunks.push({ seq: 0, delta: { content: chunkFrames[0] as string }, sealed: true });
+    chunks.push({ seq: 1, delta: { content: chunkFrames[1] as string }, sealed: true });
     const output = await sealer.seal({ output: { choices: [{ message: { content: 'Hello' } }] } });
+    const end = await sealer.end();
     chunks.close();
     const receipt = receiptToBase64(
       signReceipt(
@@ -114,7 +111,7 @@ function fakeCvm(nodeId_: string, input: Parameters<typeof origDispatch>[1]): Jo
           lane: 'sealed',
           usage: { p: 0, c: 0 },
           inputDigest: sha256Hex(canonicalJson({ enc: sealed.enc, ciphertext: sealed.ciphertext })),
-          outputDigest: '0'.repeat(64),
+          outputDigest: sha256Hex(chunkFrames.join('\n')), // digest of the sealed chunk frames
           startedAt,
           finishedAt: startedAt + 2000,
           agentVersion: 'test',
@@ -124,7 +121,7 @@ function fakeCvm(nodeId_: string, input: Parameters<typeof origDispatch>[1]): Jo
       ),
     );
     resolve({
-      output: { sealed: output },
+      output: { sealed: output, end },
       usage: { promptTokens: 0, completionTokens: 0 },
       receipt,
       sealed: true,
@@ -277,7 +274,7 @@ describe('sealed relay', () => {
     expect(text).not.toContain('TOP SECRET');
     expect(text).not.toContain('Hello');
     const j = JSON.parse(text) as {
-      sealed: { frames: string[]; output: string };
+      sealed: { frames: string[]; output: string; end: string };
       spindle: { jobId: string; chargeMicros: string };
     };
 
@@ -298,6 +295,7 @@ describe('sealed relay', () => {
       jobId,
     );
     expect(out.output.choices[0]?.message.content).toBe('Hello');
+    await s.openResponse.close(j.sealed.end, jobId); // 3 data frames then the end frame
 
     // settlement by B7: receipt verified incl. attestation, charged 2 s of GPU time = 20_000 micros
     for (let i = 0; i < 100; i++) {
