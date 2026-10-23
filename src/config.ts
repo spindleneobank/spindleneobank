@@ -88,6 +88,8 @@ const envSchema = z.object({
   TOKENIZER_CACHE_DIR: z.string().default('data/tokenizers'),
   ADMIN_ADDRESSES: addressList,
   JOB_TIMEOUT_MS: positiveInt(120000),
+  NODE_IMAGE: z.string().default('spindle/node'),
+  MIN_AGENT_VERSION: z.string().default('0.1.0'),
   CANARY_RATE_BPS: nonnegativeInt(200),
   SEALED_LANE_ENABLED: boolean(false),
 });

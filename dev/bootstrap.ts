@@ -155,6 +155,17 @@ async function main() {
     log(`NVDA token lookup failed, stock_tokens not seeded: ${(e as Error).message.split('\n')[0]}`);
   }
   const s = await seed({ stock });
+  // Curated stock list: verified against the fork's real pools; idempotent upsert.
+  process.env.RPC_URLS = ANVIL_URL;
+  process.env.DATABASE_URL ??= 'postgres://spindle:spindle@127.0.0.1:7232/spindle';
+  const { DEFAULT_STOCKS, upsertVerified } = await import('../src/modules/stocks/service');
+  let stocksOk = 0;
+  for (const st of DEFAULT_STOCKS) {
+    const v = await upsertVerified(st.address, true).catch(() => undefined);
+    if (v?.ok) stocksOk++;
+    else log(`stock ${st.symbol} not seeded: ${v && !v.ok ? v.reason : 'error'}`);
+  }
+  log(`stock_tokens: ${stocksOk}/${DEFAULT_STOCKS.length} verified and enabled`);
   log(
     `db seed: +${s.rateCard} rate_card, +${s.models} models, +${s.stockTokens} stock_tokens, +${s.admin} admin users`,
   );
@@ -188,7 +199,9 @@ function summary(a: Record<string, Address>, deployBlock: number) {
   );
 }
 
-main().catch((e) => {
-  console.error(`[bootstrap] FAILED: ${e instanceof Error ? e.message : e}`);
-  process.exit(1);
-});
+main()
+  .then(() => process.exit(0)) // the stock seeding opens a pooled DB client
+  .catch((e) => {
+    console.error(`[bootstrap] FAILED: ${e instanceof Error ? e.message : e}`);
+    process.exit(1);
+  });

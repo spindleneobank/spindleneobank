@@ -18,11 +18,9 @@ export class ProviderError extends Error {
   }
 }
 
-export const LIVE_WRITES_DISABLED = 'LIVE_WRITES_DISABLED';
 export function liveWritesDisabledError(): AppError {
-  // The code is part of the card-flows contract (409 LIVE_WRITES_DISABLED); the shared union does not list it.
   return new AppError(
-    LIVE_WRITES_DISABLED as 'CONFLICT',
+    'LIVE_WRITES_DISABLED',
     'Card issuing and top-ups are disabled in this environment (IZIPAY_LIVE_WRITES=false).',
     409,
   );
