@@ -3,6 +3,7 @@ import type { Context, Hono, MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 import { AppError } from '../../lib/errors';
 import type { Env } from '../../lib/http';
+import { requireAdmin, requireSession } from '../auth/middleware';
 import { chainQuoteDeps, quote } from './quote';
 import { getStock, listAll, listEnabled, upsertVerified } from './service';
 
@@ -10,11 +11,6 @@ export type StockAuth = {
   /** Session required; also enforces CSRF on unsafe methods. */
   session: MiddlewareHandler<Env>;
   admin: MiddlewareHandler<Env>;
-};
-
-/** Fail-closed placeholder until the auth module is wired in (see lib/modules.ts). */
-const denied: MiddlewareHandler<Env> = async () => {
-  throw new AppError('UNAUTHENTICATED', 'authentication not configured');
 };
 
 const sessionAddress = (c: Context<Env>): string => {
@@ -57,4 +53,4 @@ export function stockRoutes(auth: StockAuth) {
   };
 }
 
-export default stockRoutes({ session: denied, admin: denied });
+export default stockRoutes({ session: requireSession, admin: requireAdmin });

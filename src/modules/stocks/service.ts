@@ -1,10 +1,13 @@
 import { KNOWN } from '@spindle/shared/chain';
 import { eq } from 'drizzle-orm';
-import { db } from '../../db/client';
+import { db as defaultDb } from '../../db/client';
 import { stockTokens } from '../../db/schema';
 import { logger } from '../../lib/logger';
 import type { StockRow } from './quote';
 import { type VerifyResult, verifyStockToken } from './verify';
+
+/** Test seam: tests point this at the throwaway test database. */
+export const stockDb: { db: typeof defaultDb } = { db: defaultDb };
 
 /** Dev bootstrap seed (X1 imports this). Pool fee/address are filled by verification. */
 export const DEFAULT_STOCKS: readonly { address: string; symbol: string; name: string; decimals: number }[] =
@@ -36,12 +39,15 @@ export const DEFAULT_STOCKS: readonly { address: string; symbol: string; name: s
   ];
 
 export async function getStock(address: string): Promise<StockRow | undefined> {
-  const [row] = await db.select().from(stockTokens).where(eq(stockTokens.address, address.toLowerCase()));
+  const [row] = await stockDb.db
+    .select()
+    .from(stockTokens)
+    .where(eq(stockTokens.address, address.toLowerCase()));
   return row;
 }
 
 export async function listEnabled() {
-  const rows = await db.select().from(stockTokens).where(eq(stockTokens.enabled, true));
+  const rows = await stockDb.db.select().from(stockTokens).where(eq(stockTokens.enabled, true));
   return rows
     .filter((r) => r.poolFee != null)
     .map((r) => ({
@@ -53,7 +59,7 @@ export async function listEnabled() {
     }));
 }
 
-export const listAll = () => db.select().from(stockTokens);
+export const listAll = () => stockDb.db.select().from(stockTokens);
 
 /**
  * Admin upsert: metadata, pool and fee always come from on-chain verification, never the caller.
@@ -64,7 +70,7 @@ export async function upsertVerified(address: string, enabled: boolean) {
   if (!v.ok) {
     if (enabled) return v;
     // Disabling a token that now fails verification is always allowed.
-    await db
+    await stockDb.db
       .update(stockTokens)
       .set({ enabled: false })
       .where(eq(stockTokens.address, address.toLowerCase()));
@@ -80,7 +86,7 @@ export async function upsertVerified(address: string, enabled: boolean) {
     verifiedAt: new Date(),
     enabled,
   };
-  await db
+  await stockDb.db
     .insert(stockTokens)
     .values(values)
     .onConflictDoUpdate({ target: stockTokens.address, set: values });
@@ -94,14 +100,17 @@ export async function reverifyAll(): Promise<{ checked: number; disabled: string
   for (const row of rows) {
     const v: VerifyResult = await verifyStockToken(row.address);
     if (v.ok) {
-      await db
+      await stockDb.db
         .update(stockTokens)
         .set({ poolFee: v.poolFee, poolAddress: v.poolAddress, verifiedAt: new Date() })
         .where(eq(stockTokens.address, row.address));
     } else if (row.enabled) {
       // A transient RPC failure must not silently delist a token: only disable on definite failures.
       if (v.reason.startsWith('chain read failed')) continue;
-      await db.update(stockTokens).set({ enabled: false }).where(eq(stockTokens.address, row.address));
+      await stockDb.db
+        .update(stockTokens)
+        .set({ enabled: false })
+        .where(eq(stockTokens.address, row.address));
       disabled.push(row.address);
       logger.warn({ token: row.address, reason: v.reason }, 'stock token disabled by re-verify');
     }

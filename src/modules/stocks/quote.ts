@@ -141,6 +141,8 @@ export async function quote(
     priceImpactBps: impact,
     minOut: minOut.toString(),
     warnImpact: impact > WARN_IMPACT_BPS,
+    /** Pool LP fee in bps (fee tier / 100); excluded from priceImpactBps. */
+    feeBps: row.poolFee / 100,
     ...(allowance < amountIn
       ? {
           approve: {
