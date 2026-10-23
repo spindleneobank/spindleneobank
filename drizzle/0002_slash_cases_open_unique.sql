@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "slash_cases_open_uq" ON "slash_cases" USING btree ("node_id","reason") WHERE "slash_cases"."status" = 'open';

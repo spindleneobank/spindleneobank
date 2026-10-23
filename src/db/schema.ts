@@ -610,7 +610,10 @@ export const slashCases = pgTable(
     txHash: text('tx_hash'),
     createdAt: createdAt(),
   },
-  (t) => [check('slash_cases_status_chk', inList(t.status, SlashStatus))],
+  (t) => [
+    check('slash_cases_status_chk', inList(t.status, SlashStatus)),
+    uniqueIndex('slash_cases_open_uq').on(t.nodeId, t.reason).where(sql`${t.status} = 'open'`),
+  ],
 );
 
 export const floorPayments = pgTable(

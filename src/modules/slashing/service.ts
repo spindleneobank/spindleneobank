@@ -129,8 +129,10 @@ export async function buildEvidence(nodeId: string, reason: SlashReason): Promis
 export type SlashCaseRow = typeof slashCases.$inferSelect;
 
 /**
- * Opens a case for a node (idempotent per node + reason while one is still open). `evidence` defaults to
- * the node's recent canary/probe rows and failed-canary receipts.
+ * Opens a case for a node. At most one case per node + reason is open at a time (partial unique index),
+ * so concurrent callers get the same row. A case that predates the node's last unsuspend is superseded
+ * (dismissed, audited) and a fresh one with fresh evidence is opened. `evidence` defaults to the node's
+ * recent canary/probe rows and failed-canary receipts.
  */
 export async function openCase(
   nodeId: string,
@@ -139,25 +141,42 @@ export async function openCase(
   proposedBps: number = slashSettings[reason],
 ): Promise<SlashCaseRow> {
   const db = dbRef.db;
-  const [existing] = await db
-    .select()
-    .from(slashCases)
-    .where(and(eq(slashCases.nodeId, nodeId), eq(slashCases.reason, reason), eq(slashCases.status, 'open')))
-    .limit(1);
-  if (existing) return existing;
+  const findOpen = async () => {
+    const [row] = await db
+      .select()
+      .from(slashCases)
+      .where(and(eq(slashCases.nodeId, nodeId), eq(slashCases.reason, reason), eq(slashCases.status, 'open')))
+      .limit(1);
+    return row;
+  };
+  const existing = await findOpen();
+  if (existing) {
+    const cleared = await sinceUnsuspend(nodeId, new Date(0));
+    if (existing.createdAt >= cleared) return existing;
+    const dismissed = await db
+      .update(slashCases)
+      .set({ status: 'dismissed' })
+      .where(and(eq(slashCases.id, existing.id), eq(slashCases.status, 'open')))
+      .returning({ id: slashCases.id });
+    if (dismissed.length > 0)
+      await db.insert(auditLog).values({
+        actor: 'system',
+        action: 'slash_case.dismiss',
+        subject: existing.id,
+        details: { reason: 'superseded by a new offence after unsuspend', nodeId },
+      });
+  }
   const body = JSON.parse(JSON.stringify(evidence ?? (await buildEvidence(nodeId, reason)))) as unknown;
   const [row] = await db
     .insert(slashCases)
-    .values({
-      nodeId,
-      reason,
-      evidence: body,
-      evidenceHash: evidenceHash(body),
-      proposedBps,
-      status: 'open',
-    })
+    .values({ nodeId, reason, evidence: body, evidenceHash: evidenceHash(body), proposedBps, status: 'open' })
+    .onConflictDoNothing()
     .returning();
-  if (!row) throw new Error('slash case insert failed');
+  if (!row) {
+    const raced = await findOpen(); // another caller opened it between our check and insert
+    if (!raced) throw new Error('slash case insert failed');
+    return raced;
+  }
   await db.insert(auditLog).values({
     actor: 'system',
     action: 'slash_case.open',
@@ -220,10 +239,21 @@ export async function caseEvidence(id: string): Promise<unknown> {
   return (await getCase(id)).evidence;
 }
 
+/** Open -> `status`, atomically. A case that is not open (or does not exist) cannot be transitioned. */
+async function transition(id: string, set: Partial<typeof slashCases.$inferInsert>): Promise<SlashCaseRow> {
+  if (!UUID_RE.test(id)) throw new AppError('NOT_FOUND', 'Slash case not found.');
+  const [row] = await dbRef.db
+    .update(slashCases)
+    .set(set)
+    .where(and(eq(slashCases.id, id), eq(slashCases.status, 'open')))
+    .returning();
+  if (row) return row;
+  const c = await getCase(id); // 404 if missing
+  throw new AppError('CONFLICT', `Case is ${c.status}, not open.`);
+}
+
 export async function markSubmitted(id: string, txHash: string, actor: string) {
-  const c = await getCase(id);
-  if (c.status !== 'open') throw new AppError('CONFLICT', `Case is ${c.status}, not open.`);
-  await dbRef.db.update(slashCases).set({ status: 'submitted', txHash }).where(eq(slashCases.id, id));
+  const c = await transition(id, { status: 'submitted', txHash });
   await dbRef.db.insert(auditLog).values({
     actor,
     action: 'slash_case.submitted',
@@ -234,9 +264,7 @@ export async function markSubmitted(id: string, txHash: string, actor: string) {
 }
 
 export async function dismissCase(id: string, reason: string, actor: string) {
-  const c = await getCase(id);
-  if (c.status !== 'open') throw new AppError('CONFLICT', `Case is ${c.status}, not open.`);
-  await dbRef.db.update(slashCases).set({ status: 'dismissed' }).where(eq(slashCases.id, id));
+  const c = await transition(id, { status: 'dismissed' });
   await dbRef.db.insert(auditLog).values({
     actor,
     action: 'slash_case.dismiss',
