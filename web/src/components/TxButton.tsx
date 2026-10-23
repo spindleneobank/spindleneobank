@@ -16,14 +16,14 @@ export type TxRequest = {
 };
 
 export function isUserRejection(error: unknown): boolean {
-  const e = error as { code?: number; name?: string; cause?: { code?: number; name?: string } } | null;
-  return (
-    !!e &&
-    (e.code === 4001 ||
-      e.cause?.code === 4001 ||
-      e.name === 'UserRejectedRequestError' ||
-      e.cause?.name === 'UserRejectedRequestError')
-  );
+  // viem nests the wallet error several `cause` levels deep (e.g. ContractFunctionExecutionError →
+  // TransactionExecutionError → UserRejectedRequestError), so walk the whole chain.
+  let e = error as { code?: number; name?: string; cause?: unknown } | null | undefined;
+  for (let depth = 0; e && depth < 8; depth++) {
+    if (e.code === 4001 || e.name === 'UserRejectedRequestError') return true;
+    e = e.cause as typeof e;
+  }
+  return false;
 }
 
 export type TxInputs = {
