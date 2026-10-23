@@ -1,0 +1,149 @@
+.dv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.dv-balance,
+.dv-keys,
+.dv-usage,
+.dv-ledger,
+.dv-x402,
+.dv-quick,
+.dv-rates {
+  min-width: 0;
+}
+.dv-keys,
+.dv-rates {
+  grid-column: 1 / -1;
+}
+.dv-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 14px;
+  margin: 0;
+}
+.dv-stats dt {
+  font: 10px var(--sp-font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7d6473;
+}
+.dv-stats dd {
+  margin: 4px 0 0;
+}
+.dv-note,
+.dv-help {
+  font: 11px / 1.7 var(--sp-font-mono);
+  color: var(--d-mute);
+  margin: 0;
+}
+.dv-deposit {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--d-line);
+  padding-top: 14px;
+}
+.dv-input {
+  display: grid;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.dv-input input {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #dcc9d4;
+  background: #fffdf9;
+  font: 14px var(--sp-font-mono);
+  color: var(--d-ink);
+  width: 100%;
+  min-width: 0;
+}
+.dv-input input[aria-invalid="true"] {
+  border-color: var(--sp-danger);
+}
+.dv-inline {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.dv-tx {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.dv-error,
+.dv-warn {
+  margin: 0;
+  font: 12px / 1.6 var(--sp-font-mono);
+  color: var(--sp-danger);
+}
+.dv-warn {
+  padding: 10px 12px;
+  border: 1px solid var(--sp-danger);
+  background: #fffbf6;
+}
+.dv-ok {
+  margin: 0;
+  font: 12px var(--sp-font-mono);
+  color: #4d7a5a;
+}
+.dv-status {
+  margin: 0;
+  font: 12px / 1.6 var(--sp-font-mono);
+  color: var(--d-mute);
+}
+.dv-key-actions {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.dv-chart {
+  width: 100%;
+  height: 120px;
+  fill: #d9a8bb;
+  background: #fbf3ef;
+}
+.dv-x402-head {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  font: 12px var(--sp-font-mono);
+}
+.dv-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.dv-permit {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--d-line);
+  padding-top: 14px;
+  font-size: 13px;
+}
+.dv-permit p {
+  margin: 0;
+}
+.dv-code {
+  margin: 0;
+  padding: 14px;
+  overflow-x: auto;
+  max-width: 100%;
+  background: #3c333c;
+  color: #f5ece6;
+  font: 12px / 1.6 var(--sp-font-mono);
+}
+@media (max-width: 900px) {
+  .dv-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
