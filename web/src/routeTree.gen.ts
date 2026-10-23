@@ -11,6 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as marketingIndexRouteImport } from './routes/(marketing)/index'
+import { Route as marketingComputeLanesRouteImport } from './routes/(marketing)/compute-lanes'
+import { Route as marketingProductRouteImport } from './routes/(marketing)/product'
+import { Route as marketingSolutionsRouteImport } from './routes/(marketing)/solutions'
+import { Route as marketingVerificationRouteImport } from './routes/(marketing)/verification'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardTabRouteImport } from './routes/dashboard/$tab'
 
@@ -22,6 +26,26 @@ const DashboardRouteRoute = DashboardRouteRouteImport.update({
 const marketingIndexRoute = marketingIndexRouteImport.update({
   id: '/(marketing)/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingComputeLanesRoute = marketingComputeLanesRouteImport.update({
+  id: '/(marketing)/compute-lanes',
+  path: '/compute-lanes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingProductRoute = marketingProductRouteImport.update({
+  id: '/(marketing)/product',
+  path: '/product',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingSolutionsRoute = marketingSolutionsRouteImport.update({
+  id: '/(marketing)/solutions',
+  path: '/solutions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingVerificationRoute = marketingVerificationRouteImport.update({
+  id: '/(marketing)/verification',
+  path: '/verification',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
@@ -37,11 +61,19 @@ const DashboardTabRoute = DashboardTabRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/compute-lanes': typeof marketingComputeLanesRoute
+  '/product': typeof marketingProductRoute
+  '/solutions': typeof marketingSolutionsRoute
+  '/verification': typeof marketingVerificationRoute
   '/dashboard/$tab': typeof DashboardTabRoute
   '/': typeof marketingIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRoutesByTo {
+  '/compute-lanes': typeof marketingComputeLanesRoute
+  '/product': typeof marketingProductRoute
+  '/solutions': typeof marketingSolutionsRoute
+  '/verification': typeof marketingVerificationRoute
   '/dashboard/$tab': typeof DashboardTabRoute
   '/': typeof marketingIndexRoute
   '/dashboard': typeof DashboardIndexRoute
@@ -49,18 +81,41 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/(marketing)/compute-lanes': typeof marketingComputeLanesRoute
+  '/(marketing)/product': typeof marketingProductRoute
+  '/(marketing)/solutions': typeof marketingSolutionsRoute
+  '/(marketing)/verification': typeof marketingVerificationRoute
   '/dashboard/$tab': typeof DashboardTabRoute
   '/(marketing)/': typeof marketingIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/dashboard' | '/dashboard/$tab' | '/' | '/dashboard/'
+  fullPaths:
+    | '/dashboard'
+    | '/compute-lanes'
+    | '/product'
+    | '/solutions'
+    | '/verification'
+    | '/dashboard/$tab'
+    | '/'
+    | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/dashboard/$tab' | '/' | '/dashboard'
+  to:
+    | '/compute-lanes'
+    | '/product'
+    | '/solutions'
+    | '/verification'
+    | '/dashboard/$tab'
+    | '/'
+    | '/dashboard'
   id:
     | '__root__'
     | '/dashboard'
+    | '/(marketing)/compute-lanes'
+    | '/(marketing)/product'
+    | '/(marketing)/solutions'
+    | '/(marketing)/verification'
     | '/dashboard/$tab'
     | '/(marketing)/'
     | '/dashboard/'
@@ -68,6 +123,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
+  marketingComputeLanesRoute: typeof marketingComputeLanesRoute
+  marketingProductRoute: typeof marketingProductRoute
+  marketingSolutionsRoute: typeof marketingSolutionsRoute
+  marketingVerificationRoute: typeof marketingVerificationRoute
   marketingIndexRoute: typeof marketingIndexRoute
 }
 
@@ -85,6 +144,34 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof marketingIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/compute-lanes': {
+      id: '/(marketing)/compute-lanes'
+      path: '/compute-lanes'
+      fullPath: '/compute-lanes'
+      preLoaderRoute: typeof marketingComputeLanesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/product': {
+      id: '/(marketing)/product'
+      path: '/product'
+      fullPath: '/product'
+      preLoaderRoute: typeof marketingProductRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/solutions': {
+      id: '/(marketing)/solutions'
+      path: '/solutions'
+      fullPath: '/solutions'
+      preLoaderRoute: typeof marketingSolutionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/verification': {
+      id: '/(marketing)/verification'
+      path: '/verification'
+      fullPath: '/verification'
+      preLoaderRoute: typeof marketingVerificationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/': {
@@ -120,6 +207,10 @@ const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
+  marketingComputeLanesRoute: marketingComputeLanesRoute,
+  marketingProductRoute: marketingProductRoute,
+  marketingSolutionsRoute: marketingSolutionsRoute,
+  marketingVerificationRoute: marketingVerificationRoute,
   marketingIndexRoute: marketingIndexRoute,
 }
 export const routeTree = rootRouteImport
