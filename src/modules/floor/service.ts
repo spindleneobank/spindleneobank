@@ -18,6 +18,7 @@ import { getRedis } from '../../lib/redis';
 import { publicClient } from '../../lib/viem';
 import { dbRef } from '../auth/constants';
 import { closedEpochAt, epochEnd, epochSettings } from '../epochs/service';
+import { onlineMinutes } from './availability';
 
 const DAY_MS = 86_400_000;
 const BPS = 10_000n;
@@ -60,30 +61,7 @@ export function epochBudget(epochStart: Date, s = floorSettings): bigint {
 export const epochStartOf = (epoch: bigint): Date =>
   new Date(Number(epoch) * epochSettings.epochSeconds * 1000);
 
-// ---- availability bitmap --------------------------------------------------------------------------
-
-export const availKey = (nodeId: string, epoch: bigint | number) => `floor:avail:${epoch}:${nodeId}`;
-
-/** Records that `nodeId` was seen online at `ts` (one bit per minute of the epoch). Fire-and-forget safe. */
-export async function markAvailable(
-  nodeId: string,
-  ts: number | Date = Date.now(),
-  redis: Redis = getRedis(),
-): Promise<void> {
-  const sec = Math.floor((typeof ts === 'number' ? ts : ts.getTime()) / 1000);
-  const epoch = Math.floor(sec / epochSettings.epochSeconds);
-  const minute = Math.floor((sec % epochSettings.epochSeconds) / 60);
-  const key = availKey(nodeId, epoch);
-  await redis.multi().setbit(key, minute, 1).expire(key, AVAIL_TTL_S).exec();
-}
-
-export async function onlineMinutes(
-  nodeId: string,
-  epoch: bigint,
-  redis: Redis = getRedis(),
-): Promise<number> {
-  return redis.bitcount(availKey(nodeId, epoch));
-}
+export { availKey, markAvailable, onlineMinutes } from './availability';
 
 /** Minutes required in an epoch of the configured length (50 of 60 by default). */
 export function requiredMinutes(s = floorSettings): number {

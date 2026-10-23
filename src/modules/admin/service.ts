@@ -33,6 +33,7 @@ export interface AdminDeps {
   >;
   barredPayers(): Promise<string[]>;
   refreshCatalog(): Promise<void>;
+  addresses(): { claims?: Address; treasury?: Address };
   now(): Date;
 }
 
@@ -61,6 +62,10 @@ export const defaultAdminDeps: AdminDeps = {
   },
   barredPayers: () => getRedis().smembers(BARRED_KEY),
   refreshCatalog: () => nodeHub.refreshCatalog(),
+  addresses: () => ({
+    claims: config.CLAIMS_ADDRESS as Address | undefined,
+    treasury: config.TREASURY_ADDRESS as Address | undefined,
+  }),
   now: () => new Date(),
 };
 
@@ -83,8 +88,7 @@ const kvValue = async (key: string) =>
 export async function overview(deps: AdminDeps = defaultAdminDeps) {
   const now = deps.now();
   const errors: string[] = [];
-  const claims = config.CLAIMS_ADDRESS as Address | undefined;
-  const treasury = config.TREASURY_ADDRESS as Address | undefined;
+  const { claims, treasury } = deps.addresses();
 
   const [treasuryUsdg, keeper, pool, claimed, sol, queues, barred, review, metrics, lastEpoch, x402, floor] =
     await Promise.all([

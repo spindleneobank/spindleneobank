@@ -53,7 +53,7 @@ export async function computeKillMetrics(now = new Date()): Promise<KillMetrics>
     .where(
       and(
         eq(x402Payments.status, 'settled'),
-        gte(sql`coalesce(${x402Payments.closedAt}, ${x402Payments.createdAt})`, since30),
+        sql`coalesce(${x402Payments.closedAt}, ${x402Payments.createdAt}) >= ${since30.toISOString()}::timestamptz`,
       ),
     );
 

@@ -27,7 +27,7 @@ import {
   type WelcomeMsg,
 } from '../../shared/node-protocol';
 import { dbRef } from '../auth/constants';
-import { markAvailable } from '../floor/service';
+import { markAvailable } from '../floor/availability';
 import {
   consumeTokenTx,
   createPairing,
