@@ -1,60 +1,93 @@
+/**
+ * Build notes (/changelog). Copy is the old site's rendered text, verbatim (docs/plan/parity-1to1.md), except the
+ * approved rows in docs/plan/parity-text-exceptions.md. The sealed lane named here is in testing, not live.
+ */
+export type Img = { src: string; alt: string; filter: 'ember' | 'orchid' | 'amber' | null };
 export type Release = {
-  id: string;
+  title: string;
   tag: string;
   date: string;
-  title: string;
+  img: Img;
+  heading: string;
   summary: string;
   items: string[];
 };
 
+export const CHANGELOG_HERO = {
+  badge: 'Build note',
+  title: 'Build notes',
+  lead: 'Specification: October 10, 2026',
+} as const;
+
 export const RELEASES: Release[] = [
   {
-    id: 'claims',
+    title: 'Receipt & claim design',
     tag: 'Spec: Claims',
     date: 'Oct 10, 2026',
-    title: 'Claims and payout',
-    summary: 'Claim USDG to your wallet, then fund a card or swap.',
+    img: {
+      src: '/assets/stock/notes-routing-v10.webp',
+      alt: 'Macro microchip and circuitry for routing build notes',
+      filter: 'ember',
+    },
+    heading: 'Payout routing',
+    summary: 'Compare USDG, Stock Tokens and a virtual card.',
     items: [
-      'USDG claim to the owner wallet with a Merkle proof',
-      'Swap to a stock token from the curated stock list, with quote and price impact shown first',
-      'Card funding from the wallet through izipay and a Relay route',
-      'One cumulative claimed balance per owner',
+      'USDG wallet claim route',
+      'Canonical Stock Token quote flow',
+      'Price and impact displayed before claim',
+      'Virtual card adapter and delivery design',
+      'Shared entitlement across split claims',
     ],
   },
   {
-    id: 'receipts',
+    title: 'Receipt & claim design',
     tag: 'Spec: Metering',
-    date: 'Oct 10, 2026',
-    title: 'Signed receipts',
+    date: 'v1.1 / Claims',
+    img: {
+      src: '/assets/stock/notes-privacy-v10.webp',
+      alt: 'Diffused light through glass for sealed-lane privacy',
+      filter: 'orchid',
+    },
+    heading: 'Signed receipts',
     summary: 'Each job links its metering to a signed receipt.',
     items: [
       'Signed COSE receipt per completed job',
       'Signature and billing-match verification',
-      'USDG metering for verified work, split 80/20 between provider and treasury',
-      'Hourly cumulative Merkle roots with a guardian veto window',
+      'USDG metering for verified work',
+      'Hourly cumulative Merkle roots',
       'Receipt proof retrievable by job ID',
     ],
   },
   {
-    id: 'nodes',
+    title: 'Node & lane design',
     tag: 'Spec: Node registry',
-    date: 'Oct 10, 2026',
-    title: 'Node and lane design',
-    summary: 'Match suitable workloads to open or sealed GPUs.',
+    date: 'v1.1 / Receipts',
+    img: {
+      src: '/assets/stock/notes-epoch-v10.webp',
+      alt: 'Warm light layers representing receipt epochs',
+      filter: 'amber',
+    },
+    heading: 'Compute lanes',
+    summary: 'Match suitable workloads to sealed or open GPUs.',
     items: [
       'Docker node agent and GPU benchmark',
       'Confidential-compute capability detection',
-      'Wallet registration of the node key (required before serving)',
-      'ERC-8004 node identity',
-      'Optional staking for a routing priority tier',
+      'Wallet-signed node registration',
+      'Bonded ERC-8004 node identity',
+      'Stake and reputation in routing design',
     ],
   },
   {
-    id: 'sealed',
+    title: 'Node & lane design',
     tag: 'Spec: Sealed lane',
-    date: 'Oct 10, 2026',
-    title: 'Sealed lane (in testing)',
-    summary: 'Attested confidential execution for private jobs.',
+    date: 'v1.1 / Nodes',
+    img: {
+      src: '/assets/stock/notes-node-v10.webp',
+      alt: 'Illuminated computer cooling system for node operation notes',
+      filter: 'orchid',
+    },
+    heading: 'Bonded identity',
+    summary: 'Node identity, stake and reputation guide routing.',
     items: [
       'Eligible TDX confidential GPU stack',
       'OHTTP relay for sealed requests',
