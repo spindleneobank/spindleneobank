@@ -25,13 +25,12 @@ const send = async (hash: `0x${string}`) => pub.waitForTransactionReceipt({ hash
 
 beforeAll(async () => {
   const u = new URL(
-    process.env.TEST_DATABASE_URL ?? 'postgres://spindle:spindle@127.0.0.1:7232/spindle_test',
+    process.env.TEST_DATABASE_URL ?? 'postgres://spindle:spindle@127.0.0.1:7232/spindle_test_b6',
   );
   if (u.hostname === 'postgres') {
     u.hostname = '127.0.0.1';
     u.port = '7232';
   }
-  u.pathname = '/spindle_test_b6';
   process.env.TEST_DATABASE_URL = u.toString();
   const { setupTestDb } = await import('../../../test/db-setup');
   t = await setupTestDb();

@@ -26,6 +26,7 @@ import {
 import { buyerAbis } from './abis';
 import { readCursor } from './cursor';
 import { type IndexerClient, type IndexerDeps, runIndexOnce } from './indexer';
+import { readResync } from './pending';
 
 const REG = '0x00000000000000000000000000000000000000a1' as Address;
 const STK = '0x00000000000000000000000000000000000000a2' as Address;
@@ -38,13 +39,12 @@ let t: TestDb;
 beforeAll(async () => {
   // Own database: other test files truncate the shared spindle_test concurrently.
   const u = new URL(
-    process.env.TEST_DATABASE_URL ?? 'postgres://spindle:spindle@127.0.0.1:7232/spindle_test',
+    process.env.TEST_DATABASE_URL ?? 'postgres://spindle:spindle@127.0.0.1:7232/spindle_test_b6',
   );
   if (u.hostname === 'postgres') {
     u.hostname = '127.0.0.1';
     u.port = '7232';
   }
-  u.pathname = '/spindle_test_b6';
   process.env.TEST_DATABASE_URL = u.toString();
   const { setupTestDb } = await import('../../../test/db-setup');
   t = await setupTestDb();
@@ -82,12 +82,19 @@ function encode(e: Ev): Log {
 
 function mockClient(opts: { head: number; events: Ev[]; hashSalt?: () => number; maxRange?: number }) {
   const calls: Array<[number, number]> = [];
-  const state = { head: opts.head, events: opts.events, salt: 0, maxRange: opts.maxRange ?? Infinity };
+  const state: {
+    head: number;
+    events: Ev[];
+    salt: number;
+    forkAt: number;
+    maxRange: number;
+    stakeOf?: (id: bigint, block: bigint) => Promise<{ active: bigint; pending: bigint }>;
+  } = { head: opts.head, events: opts.events, salt: 0, forkAt: 0, maxRange: opts.maxRange ?? Infinity };
   const client: IndexerClient = {
     getBlockNumber: async () => BigInt(state.head),
     getBlock: async ({ blockNumber }) => ({
       number: blockNumber,
-      hash: hash(Number(blockNumber), state.salt),
+      hash: hash(Number(blockNumber), Number(blockNumber) >= state.forkAt ? state.salt : 0),
       timestamp: 1_700_000_000n + blockNumber,
     }),
     getLogs: async ({ fromBlock, toBlock }) => {
@@ -98,7 +105,8 @@ function mockClient(opts: { head: number; events: Ev[]; hashSalt?: () => number;
         .map(encode)
         .sort((a, b) => Number(a.blockNumber! - b.blockNumber!) || a.logIndex! - b.logIndex!);
     },
-    readStake: async () => {
+    readStake: async (id, block) => {
+      if (state.stakeOf) return state.stakeOf(id, block);
       throw new Error('no state');
     },
   };
@@ -116,7 +124,8 @@ function fakeRedis() {
       held.set(k, v);
       return 'OK';
     }) as never,
-    eval: (async (_s: string, _n: number, k: string, v: string) => {
+    eval: (async (script: string, _n: number, k: string, v: string) => {
+      if (script.includes('pexpire')) return held.get(k) === v ? 1 : 0;
       if (held.get(k) === v) held.delete(k);
       return 1;
     }) as never,
@@ -228,10 +237,11 @@ describe('indexer', () => {
     expect(await balance()).toBe(9n);
     // chain reorganised: block hashes differ, deposit at 112 vanished, new head further on
     m.state.salt = 1;
+    m.state.forkAt = 111;
     m.state.events = [deposit(110, 5n)];
     m.state.head = 131;
     const res = await runIndexOnce(deps(m.client));
-    expect(res.rolledBackTo).toBe(99);
+    expect(res.rolledBackTo).toBe(110);
     expect(await balance()).toBe(5n);
     expect((await t.db.select().from(buyerLedger)).length).toBe(1);
     const j = await t.db.select().from(auditLog).where(eq(auditLog.action, 'indexer.event'));
@@ -376,5 +386,293 @@ describe('indexer', () => {
     expect(r.published.map((p) => JSON.parse(p))).toContainEqual({ type: 'eligibility', nodeId: n!.id });
     const warns = await t.db.select().from(auditLog).where(eq(auditLog.action, 'indexer.unknown_node'));
     expect(warns.length).toBe(1);
+  });
+
+  test('reorg after NodeUpdated restores prior class/cc; warn rows above ancestor removed', async () => {
+    const [u] = await t.db
+      .insert(users)
+      .values({ address: `0x${'d1'.padStart(40, '0')}` } as never)
+      .returning();
+    const key = getAddress(`0x${'e1'.padStart(40, '0')}`);
+    const [n] = await t.db
+      .insert(nodes)
+      .values({
+        owner: `0x${'d1'.padStart(40, '0')}`,
+        userId: u?.id as string,
+        nodeKey: key.toLowerCase(),
+        nodePubkey: 'pk',
+        name: 'n',
+        engine: 'ollama',
+        gpuClass: 1,
+        lane: 'open',
+        status: 'offline',
+        onchainId: 5n,
+        registered: true,
+      })
+      .returning();
+    const m = mockClient({
+      head: 140,
+      events: [
+        {
+          block: 112,
+          address: REG,
+          name: 'NodeUpdated',
+          args: { nodeId: 5n, gpuClass: 3, ccCapable: true, attestationRef: hash(0) },
+        },
+        { block: 113, address: STK, name: 'Staked', args: { nodeId: 77n, owner: BUYER, amount: 1n } },
+      ],
+    });
+    await runIndexOnce(deps(m.client));
+    const get = async () =>
+      (
+        await t.db
+          .select()
+          .from(nodes)
+          .where(eq(nodes.id, n?.id as string))
+      )[0];
+    expect((await get())?.gpuClass).toBe(3);
+    expect((await get())?.ccCapable).toBe(true);
+    m.state.salt = 1;
+    m.state.forkAt = 111;
+    m.state.events = [];
+    await runIndexOnce(deps(m.client));
+    expect((await get())?.gpuClass).toBe(1);
+    expect((await get())?.ccCapable).toBe(false);
+    const warns = await t.db.select().from(auditLog).where(eq(auditLog.action, 'indexer.unknown_node'));
+    expect(warns.length).toBe(0);
+  });
+
+  test('reorg after Settled restores status, used_micros, settle_tx; Claimed restores pre-existing row', async () => {
+    await t.db.insert(x402Payments).values({
+      paymentId: hash(1),
+      payer: BUYER.toLowerCase(),
+      scheme: 'exact',
+      status: 'settling',
+      usedMicros: 5n,
+    });
+    const owner = getAddress(`0x${'c1'.padStart(40, '0')}`);
+    await t.db.insert(claims).values({
+      owner: owner.toLowerCase(),
+      epoch: 7n,
+      amountUsdgMicros: 42n,
+      txHash: hash(113, 7),
+      status: 'submitted',
+    });
+    const m = mockClient({
+      head: 140,
+      events: [
+        {
+          block: 112,
+          address: VLT,
+          name: 'Settled',
+          args: { paymentId: hash(1), payer: BUYER, used: 99n, surcharge: 1n },
+        },
+        {
+          block: 113,
+          address: CLM,
+          name: 'Claimed',
+          args: { owner, epoch: 7n, amount: 42n, claimedTotal: 42n },
+        },
+      ],
+    });
+    await runIndexOnce(deps(m.client));
+    m.state.salt = 1;
+    m.state.forkAt = 111;
+    m.state.events = [];
+    await runIndexOnce(deps(m.client));
+    const [p] = await t.db.select().from(x402Payments);
+    expect(p?.status).toBe('settling');
+    expect(p?.usedMicros).toBe(5n);
+    expect(p?.settleTx).toBeNull();
+    expect(p?.closedAt).toBeNull();
+    const [c] = await t.db.select().from(claims);
+    expect(c?.status).toBe('submitted');
+    expect(c?.blockNumber).toBeNull();
+  });
+
+  test('stake rollback: failed re-read flags resync, keeps journal, retries on later runs', async () => {
+    const [u] = await t.db
+      .insert(users)
+      .values({ address: `0x${'d1'.padStart(40, '0')}` } as never)
+      .returning();
+    const [n] = await t.db
+      .insert(nodes)
+      .values({
+        owner: `0x${'d1'.padStart(40, '0')}`,
+        userId: u?.id as string,
+        nodeKey: `0x${'e1'.padStart(40, '0')}`,
+        nodePubkey: 'pk',
+        name: 'n',
+        engine: 'ollama',
+        gpuClass: 1,
+        lane: 'open',
+        status: 'offline',
+        onchainId: 5n,
+        registered: true,
+      })
+      .returning();
+    const m = mockClient({
+      head: 140,
+      events: [
+        { block: 112, address: STK, name: 'Staked', args: { nodeId: 5n, owner: BUYER, amount: 1000n } },
+      ],
+    });
+    m.state.stakeOf = async () => ({ active: 1000n, pending: 0n });
+    await runIndexOnce(deps(m.client));
+    m.state.salt = 1;
+    m.state.forkAt = 111;
+    m.state.events = [];
+    m.state.stakeOf = async () => {
+      throw new Error('historical state unavailable');
+    };
+    await runIndexOnce(deps(m.client));
+    expect(await readResync(t.db)).toEqual(['5']);
+    const rows = await t.db.select().from(auditLog).where(eq(auditLog.action, 'indexer.event'));
+    expect(rows.length).toBe(1); // journal row kept
+    // still failing: run is skipped, nothing silently wrong
+    expect((await runIndexOnce(deps(m.client))).skipped).toBe('stake_resync');
+    m.state.stakeOf = async () => ({ active: 0n, pending: 0n });
+    await runIndexOnce(deps(m.client));
+    expect(await readResync(t.db)).toEqual([]);
+    const [row] = await t.db
+      .select()
+      .from(nodes)
+      .where(eq(nodes.id, n?.id as string));
+    expect(row?.stakeSpdl).toBe('0');
+    expect((await t.db.select().from(auditLog).where(eq(auditLog.action, 'indexer.event'))).length).toBe(0);
+  });
+
+  test('lock lost mid-run aborts cleanly with no partial writes', async () => {
+    const m = mockClient({ head: 130, events: [deposit(110, 9n)] });
+    const r = fakeRedis();
+    const d = deps(m.client, r);
+    d.lockTtlMs = 30;
+    const origGetLogs = m.client.getLogs;
+    m.client.getLogs = async (a) => {
+      r.held.set('lock:indexer', 'someone-else'); // renewal now fails
+      await new Promise((res) => setTimeout(res, 60));
+      return origGetLogs(a);
+    };
+    expect((await runIndexOnce(d)).skipped).toBe('lock_lost');
+    expect(await balance()).toBeNull();
+    expect((await readCursor(t.db, 100)).lastSafeBlock).toBe(99);
+  });
+
+  test('shorter chain: heights above head are skipped when finding the ancestor', async () => {
+    const m = mockClient({ head: 130, events: [deposit(110, 5n), deposit(115, 4n)] });
+    await runIndexOnce(deps(m.client));
+    expect(await balance()).toBe(9n);
+    // head dropped below stored heights, hashes above 112 changed
+    m.state.head = 125; // safe 113
+    m.state.salt = 1;
+    m.state.forkAt = 113;
+    const real = m.client.getBlock;
+    m.client.getBlock = async (a) => {
+      if (a.blockNumber > 125n)
+        throw Object.assign(new Error('Block not found'), { name: 'BlockNotFoundError' });
+      return real(a);
+    };
+    m.state.events = [deposit(110, 5n)];
+    const res = await runIndexOnce(deps(m.client));
+    expect(res.rolledBackTo).toBe(112);
+    expect(await balance()).toBe(5n);
+  });
+
+  test('no ancestor in window: CRITICAL, halt, no writes', async () => {
+    const m = mockClient({ head: 130, events: [deposit(110, 5n)] });
+    await runIndexOnce(deps(m.client));
+    m.state.salt = 1;
+    m.state.forkAt = 0;
+    const errors: string[] = [];
+    const d = deps(m.client);
+    d.logger = {
+      info: () => undefined,
+      warn: () => undefined,
+      error: (_o: object, msg: string) => void errors.push(msg),
+    } as never;
+    expect((await runIndexOnce(d)).skipped).toBe('no_ancestor');
+    expect(errors.some((e) => e.includes('CRITICAL'))).toBe(true);
+    expect(await balance()).toBe(5n);
+  });
+
+  test('unknown nodes are parked in kv and backfilled when the node row appears', async () => {
+    const key = getAddress(`0x${'e2'.padStart(40, '0')}`);
+    const owner = getAddress(`0x${'d2'.padStart(40, '0')}`);
+    const m = mockClient({
+      head: 140,
+      events: [
+        {
+          block: 110,
+          address: REG,
+          name: 'NodeRegistered',
+          args: { nodeId: 9n, owner, nodeKey: key, gpuClass: 1, ccCapable: false, attestationRef: hash(0) },
+        },
+        { block: 111, address: STK, name: 'Staked', args: { nodeId: 9n, owner, amount: 500n } },
+      ],
+    });
+    m.state.stakeOf = async () => ({ active: 500n, pending: 0n });
+    await runIndexOnce(deps(m.client));
+    const parked = await t.sql`select key from kv where key like 'indexer:pending:%' order by key`;
+    expect(parked.map((r) => r.key)).toEqual([`indexer:pending:${key.toLowerCase()}`, 'indexer:pending:9']);
+    // B4 creates the node row later
+    const [u] = await t.db
+      .insert(users)
+      .values({ address: owner.toLowerCase() } as never)
+      .returning();
+    const [n] = await t.db
+      .insert(nodes)
+      .values({
+        owner: owner.toLowerCase(),
+        userId: u?.id as string,
+        nodeKey: key.toLowerCase(),
+        nodePubkey: 'pk',
+        name: 'n',
+        engine: 'ollama',
+        gpuClass: 1,
+        lane: 'open',
+        status: 'offline',
+      })
+      .returning();
+    const r = fakeRedis();
+    await runIndexOnce(deps(m.client, r));
+    const [row] = await t.db
+      .select()
+      .from(nodes)
+      .where(eq(nodes.id, n?.id as string));
+    expect(row?.registered).toBe(true);
+    expect(row?.onchainId).toBe(9n);
+    expect(row?.stakeSpdl).toBe('500');
+    expect((await t.sql`select key from kv where key like 'indexer:pending:%'`).length).toBe(0);
+    expect(r.published.length).toBeGreaterThan(0);
+  });
+
+  test('range errors shrink; rate limits back off on the same range', async () => {
+    const m = mockClient({ head: 200, events: [deposit(110, 5n)] });
+    let n = 0;
+    const real = m.client.getLogs;
+    const seen: Array<[bigint, bigint]> = [];
+    m.client.getLogs = async (a) => {
+      seen.push([a.fromBlock, a.toBlock]);
+      if (n++ < 2) throw new Error('HTTP 429 Too Many Requests: exceeded compute units');
+      return real(a);
+    };
+    const waits: number[] = [];
+    const d = deps(m.client);
+    d.sleep = async (ms) => void waits.push(ms);
+    await runIndexOnce(d);
+    expect(waits).toEqual([1000, 2000]);
+    expect(seen[0]).toEqual(seen[1]!);
+    expect(seen[1]).toEqual(seen[2]!); // same range, not shrunk
+    expect(await balance()).toBe(5n);
+    // unrelated message mentioning 'limit' is not a range error
+    const bad = mockClient({ head: 200, events: [] });
+    let calls = 0;
+    bad.client.getLogs = async () => {
+      calls++;
+      throw new Error('daily limit reached');
+    };
+    await t.reset();
+    await expect(runIndexOnce(deps(bad.client))).rejects.toThrow('daily limit');
+    expect(calls).toBe(1);
   });
 });
