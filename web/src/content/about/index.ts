@@ -1,5 +1,5 @@
 /**
- * Note: the sealed lane is in testing. About / network-role copy. Verbatim from the old rendered pages (parity task P6); the only deviations are the
+ * About / network-role copy. Verbatim from the old rendered pages (parity task P6); the only deviations are the
  * rows approved in docs/plan/parity-text-exceptions.md (claims always land in the wallet first).
  */
 export type Role = {
@@ -30,7 +30,7 @@ export const ROLES: Role[] = [
       'Retrieve the signed receipt for a completed job',
     ],
     considerations: [
-      'Sealed requests need the eligible confidential stack',
+      'Sealed requests need the eligible confidential stack (in testing)',
       'Open-lane prompts are visible to the operator',
       'Receipts evidence execution, not output correctness',
       'Production access and launch details are coming soon',
@@ -51,7 +51,7 @@ export const ROLES: Role[] = [
     ],
     considerations: [
       'Open-lane work must be non-sensitive',
-      'Sealed-lane nodes require eligible confidential GPUs',
+      'Sealed-lane nodes require eligible confidential GPUs (in testing)',
       'Attestation and canaries support verification',
       'Earnings depend on completed buyer-funded work',
     ],
@@ -67,11 +67,11 @@ export const ROLES: Role[] = [
       'Install the Docker node agent on suitable hardware',
       'Benchmark GPU capability and available VRAM',
       'Serve work matched to the node’s compute lane',
-      'Inspect USDG work records and intended claim routes',
+      'Inspect USDG work records and intended payout steps',
     ],
     considerations: [
       'Consumer GPUs belong in the non-private open lane',
-      'Eligible confidential GPUs may serve the sealed lane',
+      'Eligible confidential GPUs may serve the sealed lane (in testing)',
       'Demand and the posted rate card determine earnings',
       'There is no promise of income or GPU utilization',
     ],
@@ -127,12 +127,12 @@ export const ABOUT_BUILD = [
   {
     n: 'M4',
     title: 'Payout routes',
-    body: 'Claim USDG or quote canonical Stock Tokens. The card adapter adds a third payout route.',
+    body: 'Claim USDG, then quote a Stock Token or fund a card with your wallet.',
   },
   {
     n: 'M6',
     title: 'Sealed compute',
-    body: 'Eligible confidential GPUs add an attested sealed lane for encrypted prompts and responses.',
+    body: 'In testing: confidential GPUs add an attested sealed lane for encrypted prompts and responses.',
   },
 ];
 
