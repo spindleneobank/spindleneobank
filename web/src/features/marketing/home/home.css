@@ -57,3 +57,7 @@
     animation: none !important;
   }
 }
+
+.framer-VSipU .sp-api-output {
+  border-top: 0;
+}
