@@ -3,6 +3,7 @@ import { rhc } from '@spindle/shared/chain';
 import { Redis } from 'ioredis';
 import { createPublicClient, createWalletClient, http, parseTransaction } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import { forkHealthy } from '../../test/fork';
 import { createKeeper, KEEPER_LAST_NONCE_KEY, KEEPER_LOCK_KEY, type KeeperDeps } from './keeper';
 
 const ANVIL = process.env.ANVIL_URL ?? 'http://127.0.0.1:7245';
@@ -23,10 +24,11 @@ const redisUp = await redis
   .connect()
   .then(() => true)
   .catch(() => false);
-const up = anvilUp && redisUp;
+// Sending txs needs a usable fork (stale upstream state makes account reads fail).
+const up = anvilUp && redisUp && (await forkHealthy(ANVIL));
 if (!up)
   console.warn(
-    `SKIP: keeper tests need anvil (${ANVIL}) and redis (${REDIS}); anvil=${anvilUp} redis=${redisUp}`,
+    `SKIP: keeper tests need a healthy anvil fork (${ANVIL}) and redis (${REDIS}); anvil=${anvilUp} redis=${redisUp}`,
   );
 afterAll(() => {
   redis.disconnect();
