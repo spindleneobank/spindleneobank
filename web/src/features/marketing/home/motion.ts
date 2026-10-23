@@ -36,7 +36,10 @@ export function initOrbit(tree: HTMLElement): () => void {
   const io = new IntersectionObserver((e) => {
     visible = e[0]?.isIntersecting === true;
     if (visible) wake();
-    else cancelAnimationFrame(raf);
+    else {
+      cancelAnimationFrame(raf);
+      raf = 0;
+    }
   });
   io.observe(orbit);
   document.addEventListener('visibilitychange', wake);
