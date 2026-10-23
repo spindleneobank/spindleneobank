@@ -3,6 +3,8 @@
  * Idempotent: every step checks before acting; a second run changes nothing.
  * Flags: --reset-fork  re-fork anvil at a recent upstream block (wipes local chain state) even if deployed.
  */
+
+import { randomBytes } from 'node:crypto';
 import { type Address, getAddress, parseAbi } from 'viem';
 import { KNOWN } from '../src/shared/chain';
 import { ALL_ACCOUNTS, account, privateKey } from './lib/accounts';
@@ -21,7 +23,7 @@ import {
   waitForAnvil,
   warmFork,
 } from './lib/chain';
-import { updateEnvFile } from './lib/env';
+import { readEnvFile, updateEnvFile } from './lib/env';
 import { BACKEND_ENV_DEV, DEPLOYMENT_FILE, WEB_ENV_DEV } from './lib/paths';
 import { seed } from './seed';
 
@@ -101,6 +103,16 @@ async function main() {
     DEPLOY_BLOCK: String(dep.deployBlock),
     KEEPER_PRIVATE_KEY: privateKey(1), // anvil account 1: public dev key
   });
+  // Mock-only secrets: generated once when empty and IZIPAY_MODE is not live (never overwrite real keys).
+  const current = readEnvFile(BACKEND_ENV_DEV);
+  const mockSecrets: Record<string, string> = {};
+  if ((current.IZIPAY_MODE ?? 'mock') !== 'live') {
+    for (const k of ['IZIPAY_API_KEY', 'IZIPAY_API_SECRET', 'IZIPAY_WEBHOOK_SECRET']) {
+      if (!current[k]) mockSecrets[k] = randomBytes(24).toString('hex');
+    }
+  }
+  if (!current.CARD_DATA_ENC_KEY) mockSecrets.CARD_DATA_ENC_KEY = randomBytes(32).toString('hex');
+  backendChanged.push(...updateEnvFile(BACKEND_ENV_DEV, mockSecrets));
   const webChanged = updateEnvFile(WEB_ENV_DEV, {
     VITE_CHAIN_ID: '4663',
     VITE_RPC_URL: 'http://127.0.0.1:7245',
