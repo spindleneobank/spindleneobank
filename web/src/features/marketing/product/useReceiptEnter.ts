@@ -34,11 +34,23 @@ export function useReceiptEnter(root: RefObject<HTMLElement | null>) {
       offs.push(io);
     };
     for (const card of el.querySelectorAll<HTMLElement>('.framer-1qk8qr7'))
-      once(card, 0.2, () => animate(card, { opacity: [0, 1], y: [16, 0], scale: [0.97, 1] }, { type: 'spring', bounce: 0.12, duration: 0.7 }));
+      once(card, 0.2, () =>
+        animate(
+          card,
+          { opacity: [0, 1], y: [16, 0], scale: [0.97, 1] },
+          { type: 'spring', bounce: 0.12, duration: 0.7 },
+        ),
+      );
     for (const t of TWEENS)
       for (const node of el.querySelectorAll<HTMLElement>(t.sel))
         once(node, t.amount, () => {
-          node.animate([{ opacity: 0, transform: t.from }, { opacity: 1, transform: 'none' }], { duration: t.ms, delay: t.delay, easing: EASE, fill: 'backwards' });
+          node.animate(
+            [
+              { opacity: 0, transform: t.from },
+              { opacity: 1, transform: 'none' },
+            ],
+            { duration: t.ms, delay: t.delay, easing: EASE, fill: 'backwards' },
+          );
         });
     return () => {
       for (const o of offs) o.disconnect();

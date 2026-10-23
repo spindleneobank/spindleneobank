@@ -34,7 +34,9 @@ const shuffle3 = (n: number) => {
 };
 
 function mount(svg: SVGSVGElement) {
-  const groups = [...svg.querySelectorAll('g')].filter((g) => g.children.length === 9 && [...g.children].every((c) => c.tagName === 'circle'));
+  const groups = [...svg.querySelectorAll('g')].filter(
+    (g) => g.children.length === 9 && [...g.children].every((c) => c.tagName === 'circle'),
+  );
   const leftPaths = [...svg.querySelectorAll<SVGPathElement>(':scope > g[mask] > path')];
   const rightPaths = [...svg.querySelectorAll<SVGPathElement>(':scope > g[opacity="0.5"] > path')];
   const arrow = svg.querySelector<SVGGElement>('g[transform="translate(349 84)"] > g');
@@ -62,8 +64,14 @@ function mount(svg: SVGSVGElement) {
       const a = (Math.max(0, dist - (COMETS[k] as { off: number }).off) / c.L) * SAMPLES;
       const i = a >= SAMPLES ? SAMPLES - 1 : a | 0;
       const f = a - i;
-      dot.setAttribute('cx', ((c.xs[i] as number) + ((c.xs[i + 1] as number) - (c.xs[i] as number)) * f).toFixed(1));
-      dot.setAttribute('cy', ((c.ys[i] as number) + ((c.ys[i + 1] as number) - (c.ys[i] as number)) * f).toFixed(1));
+      dot.setAttribute(
+        'cx',
+        ((c.xs[i] as number) + ((c.xs[i + 1] as number) - (c.xs[i] as number)) * f).toFixed(1),
+      );
+      dot.setAttribute(
+        'cy',
+        ((c.ys[i] as number) + ((c.ys[i + 1] as number) - (c.ys[i] as number)) * f).toFixed(1),
+      );
     }
     g.setAttribute('opacity', op.toFixed(2));
   };
@@ -111,7 +119,8 @@ function mount(svg: SVGSVGElement) {
       const e = clamp01(c2 / 900);
       let t = clamp01(c2 / 120);
       if (c2 >= 900) t = 1 - clamp01((c2 - 900) / 300);
-      for (let r = 0; r < right.length; r++) place(right[r] as Element, rg[r] as Geo, (rg[r] as Geo).L * e, t);
+      for (let r = 0; r < right.length; r++)
+        place(right[r] as Element, rg[r] as Geo, (rg[r] as Geo).L * e, t);
     }
     if (p > tLoop) {
       active = false;
@@ -132,7 +141,9 @@ function mount(svg: SVGSVGElement) {
       raf = requestAnimationFrame(frame);
     }
   };
-  const io = new IntersectionObserver((es) => (es.some((e) => e.isIntersecting) ? go() : stop()), { threshold: 0.45 });
+  const io = new IntersectionObserver((es) => (es.some((e) => e.isIntersecting) ? go() : stop()), {
+    threshold: 0.45,
+  });
   io.observe(svg.parentElement ?? svg);
   const vis = () => (document.hidden ? stop() : undefined);
   document.addEventListener('visibilitychange', vis);
@@ -147,7 +158,9 @@ export function useHeroGraph(root: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const el = root.current;
     if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const offs = [...el.querySelectorAll<SVGSVGElement>('svg')].filter((s) => s.querySelector('radialGradient#cometHead')).map(mount);
+    const offs = [...el.querySelectorAll<SVGSVGElement>('svg')]
+      .filter((s) => s.querySelector('radialGradient#cometHead'))
+      .map(mount);
     return () => {
       for (const o of offs) o();
     };

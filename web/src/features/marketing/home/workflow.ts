@@ -35,7 +35,13 @@ type Sig = {
 function mount(svg: SVGSVGElement): () => void {
   const hit = Array.from(svg.querySelectorAll<SVGPathElement>(':scope > path[stroke="transparent"]'));
   if (hit.length < 5) return () => {};
-  const [p1, p2, p2Review, p3, p3Review] = hit as [SVGPathElement, SVGPathElement, SVGPathElement, SVGPathElement, SVGPathElement];
+  const [p1, p2, p2Review, p3, p3Review] = hit as [
+    SVGPathElement,
+    SVGPathElement,
+    SVGPathElement,
+    SVGPathElement,
+    SVGPathElement,
+  ];
   const sigs: Sig[] = Array.from(svg.querySelectorAll<SVGGElement>(':scope > g'))
     .filter((g) => g.children.length === STREAKS + 1 && g.lastElementChild?.tagName === 'g')
     .map((g) => {
@@ -103,7 +109,8 @@ function mount(svg: SVGSVGElement): () => void {
       e.style.opacity = `${Math.max(0, (1 - n / STREAKS) * 0.85 * alpha)}`;
     });
   };
-  const color = (stage: number, branch: string) => (stage === 1 ? GREY : stage === 2 ? RED : branch === 'approve' ? DARK : RED);
+  const color = (stage: number, branch: string) =>
+    stage === 1 ? GREY : stage === 2 ? RED : branch === 'approve' ? DARK : RED;
   for (const p of hit) p.style.opacity = '1';
 
   const slots: Array<{ startAt: number; branch: 'approve' | 'review' } | null> = sigs.map(() => null);
@@ -129,7 +136,8 @@ function mount(svg: SVGSVGElement): () => void {
       for (const a of SEED_AGE) spawn(now, a);
       nextSpawn = now;
     }
-    if (now >= nextSpawn && spawn(now, 0)) nextSpawn = now + SPAWN_MIN + Math.random() * (SPAWN_MAX - SPAWN_MIN);
+    if (now >= nextSpawn && spawn(now, 0))
+      nextSpawn = now + SPAWN_MIN + Math.random() * (SPAWN_MAX - SPAWN_MIN);
     sigs.forEach((s, c) => {
       const slot = slots[c];
       if (!slot) return;

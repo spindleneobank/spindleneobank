@@ -7,10 +7,17 @@ export type GroupStates = Record<string, Array<{ key: string; html: string }>>;
 
 export function morph(live: Element, next: Element) {
   for (const a of Array.from(live.attributes)) if (!next.hasAttribute(a.name)) live.removeAttribute(a.name);
-  for (const a of Array.from(next.attributes)) if (live.getAttribute(a.name) !== a.value) live.setAttribute(a.name, a.value);
+  for (const a of Array.from(next.attributes))
+    if (live.getAttribute(a.name) !== a.value) live.setAttribute(a.name, a.value);
   const lc = Array.from(live.childNodes);
   const nc = Array.from(next.childNodes);
-  const same = lc.length === nc.length && lc.every((n, i) => n.nodeType === nc[i]?.nodeType && (n.nodeType !== 1 || (n as Element).tagName === (nc[i] as Element).tagName));
+  const same =
+    lc.length === nc.length &&
+    lc.every(
+      (n, i) =>
+        n.nodeType === nc[i]?.nodeType &&
+        (n.nodeType !== 1 || (n as Element).tagName === (nc[i] as Element).tagName),
+    );
   if (!same) {
     live.replaceChildren(...nc.map((n) => n.cloneNode(true)));
     return;

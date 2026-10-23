@@ -32,7 +32,17 @@ function Metal({ m }: { m: { angle: number; distortion: number; softness: number
   const ref = useRef<HTMLDivElement>(null);
   const on = useVisibleBox(ref);
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'block', width: '100%', height: '100%', overflow: 'hidden', background: 'transparent' }}>
+    <div
+      ref={ref}
+      style={{
+        position: 'relative',
+        display: 'block',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        background: 'transparent',
+      }}
+    >
       {on ? <LiquidMetal {...m} /> : null}
     </div>
   );
@@ -53,50 +63,85 @@ const APPEAR = {
 };
 
 /** Builds the tree override; `faqOpen`/`toggleFaq` drive the single-open accordion (old Framer FAQ variants). */
-const makeOverride = (faqOpen: number, toggleFaq: (i: number) => void): Override => (el, key, kids): ReactNode | undefined => {
-  const p = el[1] as Record<string, unknown> | 0;
-  if (p && typeof p['data-pp-html'] === 'string')
-    // biome-ignore lint/security/noDangerouslySetInnerHtml: static SVG templates extracted from the old page
-    return <div key={key} id="pp-svg-templates" aria-hidden="true" style={p.style as never} dangerouslySetInnerHTML={{ __html: p['data-pp-html'] }} />;
-  if (p && p['data-pp-faq'] && data.faq) {
-    const i = Number(p['data-pp-faq']) - 1;
-    const item = data.faq.items[i];
-    if (!item) return undefined;
-    const open = faqOpen === i;
-    return (
-      // biome-ignore lint/a11y/useKeyWithClickEvents: the question header is the old Framer tap target; its inner button is focusable
-      <div
-        key={key}
-        style={{ display: 'contents' }}
-        onClick={(e) => {
-          if ((e.target as Element).closest('[data-framer-name="Question"]')) toggleFaq(i);
-        }}
-      >
-        {renderNode(open ? item.opened : item.closed, `faq${i}${open ? 'o' : 'c'}`, `faq${i}`, undefined)}
-      </div>
-    );
-  }
-  if (p && p['data-pp-tabs'] && data.tabs) return <TabGroup key={key} states={data.tabs.states} override={chatOverride} />;
-  if (p && p['data-pp-typewriter'])
-    return <Typewriter key={key} style={p.style as never} cursor={JSON.parse(String(p['data-pp-cursor'] ?? '{}'))} />;
-  if (p && p['data-pp-chat'] && data.chat) return <ChatPanel key={key} states={data.chat.states} override={chatOverride} />;
-  if (p && typeof p.className === 'string' && p.className.split(' ').includes('framer-1uny542'))
-    return (
-      <Appear key={key} as={el[0] as 'div'} spec={APPEAR} className={p.className} style={p.style as never}>
-        {kids}
-      </Appear>
-    );
-  const kind = p ? (p['data-pp-shader'] as string | undefined) : undefined;
-  if (!kind) return undefined;
-  if (kind === 'hero') return <HeroShader key={key} />;
-  const m = METAL[kind];
-  return m ? <Metal key={key} m={m} /> : undefined;
-};
+const makeOverride =
+  (faqOpen: number, toggleFaq: (i: number) => void): Override =>
+  (el, key, kids): ReactNode | undefined => {
+    const p = el[1] as Record<string, unknown> | 0;
+    if (p && typeof p['data-pp-html'] === 'string')
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: static SVG templates extracted from the old page
+      return (
+        <div
+          key={key}
+          id="pp-svg-templates"
+          aria-hidden="true"
+          style={p.style as never}
+          dangerouslySetInnerHTML={{ __html: p['data-pp-html'] }}
+        />
+      );
+    if (p && p['data-pp-faq'] && data.faq) {
+      const i = Number(p['data-pp-faq']) - 1;
+      const item = data.faq.items[i];
+      if (!item) return undefined;
+      const open = faqOpen === i;
+      return (
+        // biome-ignore lint/a11y/useKeyWithClickEvents: the question header is the old Framer tap target; its inner button is focusable
+        <div
+          key={key}
+          style={{ display: 'contents' }}
+          onClick={(e) => {
+            if ((e.target as Element).closest('[data-framer-name="Question"]')) toggleFaq(i);
+          }}
+        >
+          {renderNode(open ? item.opened : item.closed, `faq${i}${open ? 'o' : 'c'}`, `faq${i}`, undefined)}
+        </div>
+      );
+    }
+    if (p && p['data-pp-tabs'] && data.tabs)
+      return <TabGroup key={key} states={data.tabs.states} override={chatOverride} />;
+    if (p && p['data-pp-typewriter'])
+      return (
+        <Typewriter
+          key={key}
+          style={p.style as never}
+          cursor={JSON.parse(String(p['data-pp-cursor'] ?? '{}'))}
+        />
+      );
+    if (p && p['data-pp-chat'] && data.chat)
+      return <ChatPanel key={key} states={data.chat.states} override={chatOverride} />;
+    if (p && typeof p.className === 'string' && p.className.split(' ').includes('framer-1uny542'))
+      return (
+        <Appear key={key} as={el[0] as 'div'} spec={APPEAR} className={p.className} style={p.style as never}>
+          {kids}
+        </Appear>
+      );
+    const kind = p ? (p['data-pp-shader'] as string | undefined) : undefined;
+    if (!kind) return undefined;
+    if (kind === 'hero') return <HeroShader key={key} />;
+    const m = METAL[kind];
+    return m ? <Metal key={key} m={m} /> : undefined;
+  };
 
 /** The hidden SVG template block is the wrapper's last child so the page body stays a single flat list of sections. */
 function withTemplates(t: PNode, tpl: string): PNode {
   if (!Array.isArray(t)) return t;
-  const box: PNode = ['div', { id: 'pp-svg-templates', 'aria-hidden': 'true', style: { position: 'absolute', overflow: 'hidden', bottom: 0, left: 0, width: 0, height: 0, zIndex: 0, contain: 'strict' }, 'data-pp-html': tpl }];
+  const box: PNode = [
+    'div',
+    {
+      id: 'pp-svg-templates',
+      'aria-hidden': 'true',
+      style: {
+        position: 'absolute',
+        overflow: 'hidden',
+        bottom: 0,
+        left: 0,
+        width: 0,
+        height: 0,
+        zIndex: 0,
+        contain: 'strict',
+      },
+      'data-pp-html': tpl,
+    },
+  ];
   return [...t, box] as PNode;
 }
 
@@ -119,11 +164,18 @@ export function ProductBody() {
     const el = root.current;
     if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     for (const q of el.querySelectorAll<HTMLElement>('.framer-1uny542')) {
-      q.animate({ transform: ['none', 'none'] }, { delay: 200, duration: 600, easing: 'linear', fill: 'both' });
+      q.animate(
+        { transform: ['none', 'none'] },
+        { delay: 200, duration: 600, easing: 'linear', fill: 'both' },
+      );
     }
   }, []);
   return (
-    <div ref={root} className={`pp-scope ${data.root.cls.split(/\s+/).slice(0, 2).join(' ')}`} style={data.root.style}>
+    <div
+      ref={root}
+      className={`pp-scope ${data.root.cls.split(/\s+/).slice(0, 2).join(' ')}`}
+      style={data.root.style}
+    >
       {renderNode(withTemplates(data.tree, tpl), 'root', '', override)}
     </div>
   );

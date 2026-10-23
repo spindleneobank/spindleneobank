@@ -22,13 +22,21 @@ export function initChat(tree: HTMLElement, states: ChatState[]): () => void {
       const chars = host.querySelectorAll<HTMLElement>('p span > span');
       chars.forEach((c, n) => {
         c.style.opacity = '';
-        anims.push(c.animate([{ opacity: 0.001 }, { opacity: 1 }], { duration: 10, delay: 300 + n * 50, easing: 'linear', fill: 'backwards' }));
+        anims.push(
+          c.animate([{ opacity: 0.001 }, { opacity: 1 }], {
+            duration: 10,
+            delay: 300 + n * 50,
+            easing: 'linear',
+            fill: 'backwards',
+          }),
+        );
       });
     }
   };
   const show = (i: number, animate: boolean) => {
     const before = new Map<Element, { o: string; t: string }>();
-    for (const el of root.querySelectorAll<HTMLElement>('*')) before.set(el, { o: el.style.opacity, t: el.style.transform });
+    for (const el of root.querySelectorAll<HTMLElement>('*'))
+      before.set(el, { o: el.style.opacity, t: el.style.transform });
     morph(root, snapshot((states[i] as ChatState).html));
     if (!animate) return;
     for (const el of root.querySelectorAll<HTMLElement>('*')) {

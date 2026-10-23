@@ -64,10 +64,15 @@ export function mountDigitalPreview(host: HTMLElement): () => void {
   const glyphs = '01░01:+▒01';
 
   const loadFrame = () => {
-    if (!frame.getAttribute('src')) frame.src = `/dashboard-preview?view=${host.dataset.spDashboardPreview === 'footer' ? 'cards' : 'overview'}`;
+    if (!frame.getAttribute('src'))
+      frame.src = `/dashboard-preview?view=${host.dataset.spDashboardPreview === 'footer' ? 'cards' : 'overview'}`;
   };
   const ready = (e: MessageEvent) => {
-    if (e.origin === location.origin && e.source === frame.contentWindow && e.data?.type === 'spindle:preview-ready')
+    if (
+      e.origin === location.origin &&
+      e.source === frame.contentWindow &&
+      e.data?.type === 'spindle:preview-ready'
+    )
       host.classList.add('sp-has-live');
   };
 
@@ -93,7 +98,11 @@ export function mountDigitalPreview(host: HTMLElement): () => void {
         fctx.fillRect(cx * cell, cy * cell, cell - 1, cell - 1);
         const glow = (stream < 3 ? 0.88 : 0.23 + wave * 0.19) * (lum > 0.82 ? 0.62 : 1);
         fctx.fillStyle = `rgba(${tone[0]},${tone[1]},${tone[2]},${glow.toFixed(3)})`;
-        fctx.fillText(glyphs.charAt((hash + Math.floor(time * 0.7)) % glyphs.length), cx * cell + cell * 0.5, cy * cell + cell * 0.52);
+        fctx.fillText(
+          glyphs.charAt((hash + Math.floor(time * 0.7)) % glyphs.length),
+          cx * cell + cell * 0.5,
+          cy * cell + cell * 0.52,
+        );
         if (lum < 0.55 && hash % 4 === 0) {
           fctx.fillStyle = '#a0667470';
           fctx.fillRect(cx * cell + 1, cy * cell + 1, 2, 2);
@@ -173,7 +182,13 @@ export function mountDigitalPreview(host: HTMLElement): () => void {
           ? Math.min(sw / img.naturalWidth, sh / img.naturalHeight)
           : Math.max(sw / img.naturalWidth, sh / img.naturalHeight);
       sctx.clearRect(0, 0, sw, sh);
-      sctx.drawImage(img, (sw - img.naturalWidth * k) / 2, (sh - img.naturalHeight * k) / 2, img.naturalWidth * k, img.naturalHeight * k);
+      sctx.drawImage(
+        img,
+        (sw - img.naturalWidth * k) / 2,
+        (sh - img.naturalHeight * k) / 2,
+        img.naturalWidth * k,
+        img.naturalHeight * k,
+      );
       try {
         pixels = sctx.getImageData(0, 0, sw, sh).data;
       } catch {

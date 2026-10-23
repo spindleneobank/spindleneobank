@@ -123,7 +123,7 @@ export function CasePostPage({ flow }: { flow: FlowData }) {
             <div className="pg-cp-fade" />
             <div className="pg-cp-over">
               <div className="pg-cp-over-in">
-                <div className="pg-cp-logo" style={{ width: flow.logo.w }}>
+                <div className="pg-cp-logo" style={{ ['--w' as string]: flow.logo.w }}>
                   <img src={flow.logo.src} alt={flow.logo.alt} style={{ objectFit: flow.logo.fit }} />
                 </div>
                 <div className="pg-cp-stats">

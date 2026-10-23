@@ -11,7 +11,13 @@ const TABS = ['framer-aitp2v-container', 'framer-dwvy2q-container', 'framer-1g1s
 const LABEL = '.framer-18935bg';
 const SPRING = { type: 'spring', bounce: 0, duration: 0.6 } as const;
 
-export function TabGroup({ states, override }: { states: PNode[]; override?: Parameters<typeof renderNode>[3] }): ReactNode {
+export function TabGroup({
+  states,
+  override,
+}: {
+  states: PNode[];
+  override?: Parameters<typeof renderNode>[3];
+}): ReactNode {
   const [i, setI] = useState(0);
   const box = useRef<HTMLDivElement>(null);
   const prev = useRef(0);

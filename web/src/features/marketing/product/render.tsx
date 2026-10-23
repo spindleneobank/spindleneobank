@@ -14,10 +14,16 @@ export type PNode =
   | { v: [string, PNode][] }
   | { va: [string, Record<string, unknown>][]; t: string; c: PNode[] };
 
-export type Override = (el: PNode & unknown[], key: string, children: ReactNode[], path: string) => ReactNode | undefined;
+export type Override = (
+  el: PNode & unknown[],
+  key: string,
+  children: ReactNode[],
+  path: string,
+) => ReactNode | undefined;
 
 /** Marks a breakpoint variant with a data attribute (the class list stays identical to the old element's). */
-const cls = (p: Record<string, unknown> | 0, bps: string) => ({ ...(p || {}), 'data-pp-b': bps }) as Record<string, unknown>;
+const cls = (p: Record<string, unknown> | 0, bps: string) =>
+  ({ ...(p || {}), 'data-pp-b': bps }) as Record<string, unknown>;
 
 export function renderNode(n: PNode, key: string | number, path: string, ov?: Override): ReactNode {
   if (typeof n === 'string') return n;
