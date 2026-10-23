@@ -8,7 +8,12 @@ describe('hardware', () => {
   test('1 GPU csv', () => {
     const r = parseNvidiaCsv(ONE);
     expect(r).toHaveLength(1);
-    expect(r[0]).toMatchObject({ name: 'NVIDIA GeForce RTX 4090', vramMb: 24564, driver: '550.54.14', uuid: 'GPU-aaaa-1111' });
+    expect(r[0]).toMatchObject({
+      name: 'NVIDIA GeForce RTX 4090',
+      vramMb: 24564,
+      driver: '550.54.14',
+      uuid: 'GPU-aaaa-1111',
+    });
     expect(r[0]?.stat).toEqual({ util: 3, memUsedMb: 512, tempC: 41, powerW: 62.35 });
   });
   test('2 GPUs csv with N/A power', () => {
@@ -28,7 +33,9 @@ describe('hardware', () => {
   });
   test('rocm json', () => {
     const r = parseRocmJson(
-      JSON.stringify({ card0: { 'VRAM Total Memory (B)': '17163091968', 'VRAM Total Used Memory (B)': '10485760' } }),
+      JSON.stringify({
+        card0: { 'VRAM Total Memory (B)': '17163091968', 'VRAM Total Used Memory (B)': '10485760' },
+      }),
     );
     expect(r[0]?.vramMb).toBe(16368);
     expect(parseRocmJson('garbage')).toEqual([]);

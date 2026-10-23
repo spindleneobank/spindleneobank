@@ -1,8 +1,8 @@
 import { chmod, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import type { Address, Hex } from 'viem';
 import type { PrivateKeyAccount } from 'viem/accounts';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 
 export interface NodeKey {
   privateKey: Hex;
@@ -42,7 +42,8 @@ export async function loadOrCreateKey(dir: string): Promise<NodeKey> {
   }
   if (existing) {
     const j = JSON.parse(await readFile(file, 'utf8')) as { privateKey?: string; createdAt?: string };
-    if (!j.privateKey || !/^0x[0-9a-fA-F]{64}$/.test(j.privateKey)) throw new Error(`${file}: invalid privateKey`);
+    if (!j.privateKey || !/^0x[0-9a-fA-F]{64}$/.test(j.privateKey))
+      throw new Error(`${file}: invalid privateKey`);
     return hide(toNodeKey(j.privateKey as Hex, j.createdAt ?? new Date(0).toISOString()));
   }
   await mkdir(dir, { recursive: true });

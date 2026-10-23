@@ -17,7 +17,9 @@ export class OllamaEngine implements Engine {
   }
 
   async listModels(): Promise<EngineModel[]> {
-    const j = await this.getJson<{ models?: { name: string; digest?: string; size?: number }[] }>('/api/tags');
+    const j = await this.getJson<{ models?: { name: string; digest?: string; size?: number }[] }>(
+      '/api/tags',
+    );
     return (j.models ?? []).map((m) => ({
       id: m.name,
       digest: m.digest ?? '',
@@ -47,7 +49,8 @@ export class OllamaEngine implements Engine {
       }).catch((e) => {
         throw new EngineError(`ollama unreachable: ${(e as Error).message}`);
       });
-      if (!res.ok || !res.body) throw new EngineError(`ollama pull ${model} failed (${res.status})`, res.status);
+      if (!res.ok || !res.body)
+        throw new EngineError(`ollama pull ${model} failed (${res.status})`, res.status);
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = '';

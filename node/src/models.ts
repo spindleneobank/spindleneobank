@@ -28,9 +28,11 @@ export class ModelSync {
   ensure(models: EnsureModel[]): Promise<void> {
     this.active++;
     const run = this.chain.then(() => this.runBatch(models));
-    this.chain = run.catch(() => {}).then(() => {
-      this.active--;
-    });
+    this.chain = run
+      .catch(() => {})
+      .then(() => {
+        this.active--;
+      });
     return this.chain;
   }
 

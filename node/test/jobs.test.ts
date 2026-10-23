@@ -8,7 +8,13 @@ import { silentLogger } from '../src/log';
 
 const pk = generatePrivateKey();
 const account = privateKeyToAccount(pk);
-const key = { privateKey: pk, address: account.address, publicKey: account.publicKey, createdAt: '', account };
+const key = {
+  privateKey: pk,
+  address: account.address,
+  publicKey: account.publicKey,
+  createdAt: '',
+  account,
+};
 
 function fakeEngine(deltas: (Delta & { wait?: number })[], opts: { usage?: boolean } = {}): Engine {
   return {
@@ -70,11 +76,7 @@ function setup(engine: Engine, lazy = false) {
 describe('jobs', () => {
   test('streams 3 deltas as batched chunks then done with verifiable receipt', async () => {
     const { runner, sent, times } = setup(
-      fakeEngine([
-        { content: 'a' },
-        { content: 'b', wait: 40 },
-        { content: 'c', wait: 40 },
-      ]),
+      fakeEngine([{ content: 'a' }, { content: 'b', wait: 40 }, { content: 'c', wait: 40 }]),
     );
     await runner.start(mkJob());
     expect(sent[0]?.type).toBe('job.accepted');
@@ -86,11 +88,14 @@ describe('jobs', () => {
     const text = chunks.map((c) => (c as { delta: { content?: string } }).delta.content ?? '').join('');
     expect(text).toBe('abc');
     const idx = sent.map((m, i) => (m.type === 'job.chunk' ? i : -1)).filter((i) => i >= 0);
-    for (let i = 1; i < idx.length; i++) expect((times[idx[i] as number] ?? 0) - (times[idx[i - 1] as number] ?? 0)).toBeGreaterThanOrEqual(20);
+    for (let i = 1; i < idx.length; i++)
+      expect((times[idx[i] as number] ?? 0) - (times[idx[i - 1] as number] ?? 0)).toBeGreaterThanOrEqual(20);
     const done = sent.at(-1) as Extract<NodeToServer, { type: 'job.done' }>;
     expect(done.type).toBe('job.done');
     expect(done.usage).toEqual({ promptTokens: 5, completionTokens: 3 });
-    expect((done.output as { choices: { message: { content: string } }[] }).choices[0]?.message.content).toBe('abc');
+    expect((done.output as { choices: { message: { content: string } }[] }).choices[0]?.message.content).toBe(
+      'abc',
+    );
     const cose = receiptFromBase64(done.receipt);
     expect(verifyReceipt(cose, account.publicKey)).toBe(true);
     const p = decodeReceipt(cose).payload;
@@ -113,7 +118,9 @@ describe('jobs', () => {
   });
 
   test('cancel mid-stream aborts without done/error', async () => {
-    const { runner, sent } = setup(fakeEngine([{ content: 'a' }, { content: 'b', wait: 200 }, { content: 'c' }]));
+    const { runner, sent } = setup(
+      fakeEngine([{ content: 'a' }, { content: 'b', wait: 200 }, { content: 'c' }]),
+    );
     const p = runner.start(mkJob());
     await Bun.sleep(60);
     runner.cancel('job1');
@@ -163,7 +170,9 @@ describe('jobs', () => {
     await runner.start(mkJob());
     const done = sent.at(-1) as Extract<NodeToServer, { type: 'job.done' }>;
     expect(done.type).toBe('job.done');
-    expect((done.output as { choices: { message: { content: string } }[] }).choices[0]?.message.content).toBe('ok');
+    expect((done.output as { choices: { message: { content: string } }[] }).choices[0]?.message.content).toBe(
+      'ok',
+    );
     expect(verifyReceipt(receiptFromBase64(done.receipt), account.publicKey)).toBe(true);
   });
 
@@ -175,7 +184,11 @@ describe('jobs', () => {
     expect(done.usage).toEqual({ promptTokens: 7, completionTokens: 0 });
     const p = decodeReceipt(receiptFromBase64(done.receipt)).payload;
     const buf = new DataView(new ArrayBuffer(16));
-    [1, 2, 3, 4].forEach((n, i) => buf.setFloat32(i * 4, n, true));
-    expect(p.outputDigest).toBe(new Bun.CryptoHasher('sha256').update(new Uint8Array(buf.buffer)).digest('hex'));
+    [1, 2, 3, 4].forEach((n, i) => {
+      buf.setFloat32(i * 4, n, true);
+    });
+    expect(p.outputDigest).toBe(
+      new Bun.CryptoHasher('sha256').update(new Uint8Array(buf.buffer)).digest('hex'),
+    );
   });
 });

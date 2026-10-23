@@ -3,7 +3,7 @@ import { receiptToBase64, signReceipt } from '@spindle/shared/receipt';
 import { type Engine, EngineError } from './engine';
 import type { NodeKey } from './key';
 import type { Logger } from './log';
-import { type JobOutput, type ReceiptUsage, buildReceiptPayload } from './receipts';
+import { buildReceiptPayload, type JobOutput, type ReceiptUsage } from './receipts';
 import type { SendFn } from './send';
 
 export interface JobRunnerOptions {
@@ -85,7 +85,12 @@ export class JobRunner {
       });
       return Promise.resolve();
     }
-    const active: Active = { jobId: job.jobId, abort: new AbortController(), reason: null, done: Promise.resolve() };
+    const active: Active = {
+      jobId: job.jobId,
+      abort: new AbortController(),
+      reason: null,
+      done: Promise.resolve(),
+    };
     this.current = active;
     active.done = this.run(job, active).finally(() => {
       if (this.current === active) this.current = null;
@@ -130,7 +135,8 @@ export class JobRunner {
         log.info(`job ${job.jobId} aborted (${active.reason})`);
         return;
       }
-      const f = active.reason === 'timeout' ? new JobFail('TIMEOUT', 'job exceeded its deadline') : mapEngineError(e);
+      const f =
+        active.reason === 'timeout' ? new JobFail('TIMEOUT', 'job exceeded its deadline') : mapEngineError(e);
       log.warn(`job ${job.jobId} failed: ${f.code} ${f.message}`);
       send({ v: 1, type: 'job.error', jobId: job.jobId, code: f.code, message: f.message });
     } finally {
@@ -190,7 +196,8 @@ export class JobRunner {
         const req: Record<string, unknown> = { ...job.request, model: job.engineModel, stream: true };
         if (job.maxTokens > 0) {
           const asked = Number(req.max_tokens ?? req.max_completion_tokens);
-          req.max_tokens = Number.isFinite(asked) && asked > 0 ? Math.min(asked, job.maxTokens) : job.maxTokens;
+          req.max_tokens =
+            Number.isFinite(asked) && asked > 0 ? Math.min(asked, job.maxTokens) : job.maxTokens;
           delete req.max_completion_tokens;
         }
         for await (const d of engine.chatStream(req, active.abort.signal)) {
@@ -257,7 +264,8 @@ export class JobRunner {
       const data = (response.data as { index?: number; embedding: number[] }[] | undefined) ?? [];
       if (!data.length) throw new JobFail('ENGINE_ERROR', 'engine returned no embeddings');
       vectors = [...data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).map((d) => d.embedding);
-      if (vectors.some((v) => !Array.isArray(v))) throw new JobFail('ENGINE_ERROR', 'engine returned non-float embeddings');
+      if (vectors.some((v) => !Array.isArray(v)))
+        throw new JobFail('ENGINE_ERROR', 'engine returned non-float embeddings');
       promptTokens = (response.usage as { prompt_tokens?: number } | undefined)?.prompt_tokens ?? 0;
       response = { ...response, model: job.model };
     }

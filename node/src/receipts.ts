@@ -1,12 +1,12 @@
 import { canonicalJson, sha256Hex } from '@spindle/shared/canonical-json';
+import type { JobStartMsg } from '@spindle/shared/node-protocol';
 import {
-  type ReceiptPayload,
   encodeReceipt,
   outputDigest,
+  type ReceiptPayload,
   receiptToBase64,
   signReceipt,
 } from '@spindle/shared/receipt';
-import type { JobStartMsg } from '@spindle/shared/node-protocol';
 import type { NodeKey } from './key';
 
 export type JobOutput = string | number[][] | Uint8Array[];

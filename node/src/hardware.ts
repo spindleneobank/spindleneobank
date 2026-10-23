@@ -76,7 +76,11 @@ export function parseRocmJson(text: string): { name: string; vramMb: number; use
       const total = Number(v['VRAM Total Memory (B)']);
       const used = Number(v['VRAM Total Used Memory (B)'] ?? 0);
       if (!Number.isFinite(total) || total <= 0) continue;
-      out.push({ name: `AMD GPU (${card})`, vramMb: Math.round(total / 1048576), usedMb: Math.round(used / 1048576) });
+      out.push({
+        name: `AMD GPU (${card})`,
+        vramMb: Math.round(total / 1048576),
+        usedMb: Math.round(used / 1048576),
+      });
     }
     return out;
   } catch {
@@ -102,13 +106,13 @@ export async function detectHardware(fake?: Config['devFakeGpu']): Promise<Hardw
   const nv = await run(['nvidia-smi', ...NVIDIA_QUERY]);
   if (nv) {
     const cc = parseCcStatus(await run(['nvidia-smi', 'conf-compute', '-f']));
-    for (const r of parseNvidiaCsv(nv)) gpus.push({ name: r.name, vramMb: r.vramMb, driver: r.driver, uuid: r.uuid, cc });
+    for (const r of parseNvidiaCsv(nv))
+      gpus.push({ name: r.name, vramMb: r.vramMb, driver: r.driver, uuid: r.uuid, cc });
   } else {
     const amd = await run(['rocm-smi', '--showmeminfo', 'vram', '--json']);
     if (amd) {
-      parseRocmJson(amd).forEach((g, i) =>
-        gpus.push({ name: g.name, vramMb: g.vramMb, driver: 'rocm', uuid: `rocm-${i}`, cc: false }),
-      );
+      for (const [i, g] of parseRocmJson(amd).entries())
+        gpus.push({ name: g.name, vramMb: g.vramMb, driver: 'rocm', uuid: `rocm-${i}`, cc: false });
     }
   }
   return { gpus, cpu, ramMb };

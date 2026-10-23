@@ -3,16 +3,16 @@ import {
   CLOSE_CODES,
   type HelloBody,
   HelloMsg,
+  helloSigningMessage,
   type JobCancelMsg,
   type JobStartMsg,
   type ModelsEnsureMsg,
   NodeToServer,
-  type ProbeStartMsg,
   type PairingMsg,
+  type ProbeStartMsg,
   ServerToNode,
   type StatusMsg,
   type WelcomeMsg,
-  helloSigningMessage,
 } from '@spindle/shared/node-protocol';
 import type { NodeKey } from './key';
 import type { Logger } from './log';
@@ -91,7 +91,10 @@ export class NodeConnection {
   send(msg: NodeToServer): boolean {
     const parsed = NodeToServer.safeParse(msg);
     if (!parsed.success) {
-      this.o.log.error(`refusing to send invalid ${(msg as { type?: string }).type} message`, parsed.error.message);
+      this.o.log.error(
+        `refusing to send invalid ${(msg as { type?: string }).type} message`,
+        parsed.error.message,
+      );
       return false;
     }
     const ws = this.ws;
@@ -139,7 +142,9 @@ export class NodeConnection {
     const why = reason ? ` (${reason})` : '';
     switch (code) {
       case CLOSE_CODES.UPGRADE_REQUIRED:
-        this.o.log.error(`agent too old${why}. Update with: docker pull <spindle-node image> and restart the container.`);
+        this.o.log.error(
+          `agent too old${why}. Update with: docker pull <spindle-node image> and restart the container.`,
+        );
         this.fatal = true;
         this.o.onFatal(3);
         return;
@@ -152,7 +157,9 @@ export class NodeConnection {
         this.o.log.error(`authentication failed${why}; will retry (is the enrollment token valid?)`);
         break;
       case CLOSE_CODES.REPLACED:
-        this.o.log.warn(`replaced by a newer connection for the same node key${why}; is another agent running with this key?`);
+        this.o.log.warn(
+          `replaced by a newer connection for the same node key${why}; is another agent running with this key?`,
+        );
         this.scheduleReconnect(this.o.replacedDelayMs ?? 10_000);
         return;
       case CLOSE_CODES.PROTOCOL_ERROR:
@@ -193,7 +200,10 @@ export class NodeConnection {
     }
     const parsed = ServerToNode.safeParse(json);
     if (!parsed.success) {
-      this.o.log.warn(`ignoring invalid server message (${(json as { type?: string })?.type ?? '?'})`, parsed.error.message);
+      this.o.log.warn(
+        `ignoring invalid server message (${(json as { type?: string })?.type ?? '?'})`,
+        parsed.error.message,
+      );
       return;
     }
     this.dispatch(parsed.data).catch((e) => this.o.log.error(`handler failed: ${(e as Error).message}`));

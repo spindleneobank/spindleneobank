@@ -2,11 +2,11 @@ import type { HelloBody } from '@spindle/shared/node-protocol';
 import pkg from '../package.json';
 import { type Config, loadConfig } from './config';
 import { NodeConnection } from './connection';
-import { type Engine, createEngine } from './engine';
+import { createEngine, type Engine } from './engine';
 import { detectHardware, readGpuStats } from './hardware';
 import { JobRunner } from './jobs';
 import { loadOrCreateKey } from './key';
-import { type Logger, createLogger } from './log';
+import { createLogger, type Logger } from './log';
 import { ModelSync } from './models';
 
 export const AGENT_VERSION: string = pkg.version;
@@ -52,7 +52,8 @@ async function main(): Promise<void> {
     log.warn('# SPINDLE_DEV_LAZY is ON: chat returns "ok" without running the engine. DEV ONLY.');
     log.warn('################################################################');
   }
-  if (config.devFakeGpu) log.warn(`SPINDLE_DEV_FAKE_GPU is ON: reporting "${config.devFakeGpu.name}". DEV ONLY.`);
+  if (config.devFakeGpu)
+    log.warn(`SPINDLE_DEV_FAKE_GPU is ON: reporting "${config.devFakeGpu.name}". DEV ONLY.`);
 
   const key = await loadOrCreateKey(config.dataDir);
   log.info(`node key: ${key.address}`);
@@ -126,7 +127,9 @@ async function main(): Promise<void> {
     onFatal: (code) => void shutdown(code),
     handlers: {
       onWelcome: (w) => {
-        const wanted = config.models ? w.catalog.filter((m) => config.models?.includes(m.engineModel)) : w.catalog;
+        const wanted = config.models
+          ? w.catalog.filter((m) => config.models?.includes(m.engineModel))
+          : w.catalog;
         if (wanted.length) void sync.ensure(wanted);
       },
       onModelsEnsure: (m) => void sync.ensure(m.models),

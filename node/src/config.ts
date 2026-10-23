@@ -3,7 +3,9 @@ import { z } from 'zod';
 const bool = z
   .union([z.boolean(), z.string()])
   .optional()
-  .transform((v) => v === true || (typeof v === 'string' && ['1', 'true', 'yes', 'on'].includes(v.toLowerCase())));
+  .transform(
+    (v) => v === true || (typeof v === 'string' && ['1', 'true', 'yes', 'on'].includes(v.toLowerCase())),
+  );
 
 const EnvSchema = z.object({
   SPINDLE_API_URL: z
@@ -42,7 +44,12 @@ export interface Config {
 /** localhost, loopback, or a bare compose service name (no dots). */
 export function isDevHost(apiUrl: string): boolean {
   const host = new URL(apiUrl).hostname.replace(/^\[|\]$/g, '');
-  return host === 'localhost' || host === '127.0.0.1' || host === '::1' || (!host.includes('.') && !host.includes(':'));
+  return (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '::1' ||
+    (!host.includes('.') && !host.includes(':'))
+  );
 }
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
@@ -74,7 +81,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     token: e.SPINDLE_TOKEN,
     dataDir: e.SPINDLE_DATA_DIR,
     engine,
-    engineUrl: e.SPINDLE_ENGINE_URL ?? (engine === 'ollama' ? 'http://127.0.0.1:11434' : 'http://127.0.0.1:8000'),
+    engineUrl:
+      e.SPINDLE_ENGINE_URL ?? (engine === 'ollama' ? 'http://127.0.0.1:11434' : 'http://127.0.0.1:8000'),
     vllmModel: e.SPINDLE_VLLM_MODEL,
     models: e.SPINDLE_MODELS?.split(',')
       .map((s) => s.trim())
