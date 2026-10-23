@@ -93,7 +93,7 @@ describe('probe flow', () => {
     expect(Number(r?.tokPerSec)).toBe(80);
     const [row] = await t.db.select().from(nodes).where(eq(nodes.id, n.id));
     expect(row?.lastProbeAt).not.toBeNull();
-    expect((row?.benchmark as { tokPerSec: number }).tokPerSec).toBe(80);
+    expect(row?.benchmark).toMatchObject({ tokPerSec: 80 });
   });
 
   test('2 consecutive misses suspend; one miss does not', async () => {

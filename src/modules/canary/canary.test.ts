@@ -30,7 +30,8 @@ describe('fixtures', () => {
   });
   test('every regex fixture compiles and accepts its own plain answer', () => {
     for (const f of CHAT_FIXTURES) {
-      if ('regex' in f.expect) expect(() => new RegExp(f.expect.regex, 'i')).not.toThrow();
+      const e = f.expect;
+      if ('regex' in e) expect(() => new RegExp(e.regex, 'i')).not.toThrow();
     }
   });
 });
@@ -240,7 +241,7 @@ describe('results, withholds, escalation', () => {
     await canaryHooks.onCanaryFinished({ jobId, nodeId: n.id, verified: false, reason: 'BAD_SIGNATURE' });
     const [res] = await t.db.select().from(canaryResults);
     expect(res?.pass).toBe(false);
-    expect((res?.observed as { receipt: string }).receipt).toBe('BAD_SIGNATURE');
+    expect(res?.observed).toMatchObject({ receipt: 'BAD_SIGNATURE' });
   });
 
   test('scheduler: house excluded, every node gets at least one per hour, none when recent', async () => {

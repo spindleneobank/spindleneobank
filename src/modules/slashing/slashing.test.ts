@@ -146,9 +146,9 @@ describe('slashing', () => {
     expect(actions).toContain('slash_case.submitted');
     expect(actions).toContain('slash_case.dismiss');
     expect(log.find((l) => l.action === 'slash_case.submitted')?.actor).toBe(ADMIN);
-    expect((log.find((l) => l.action === 'slash_case.dismiss')?.details as { reason: string }).reason).toBe(
-      'false positive',
-    );
+    expect(log.find((l) => l.action === 'slash_case.dismiss')?.details).toMatchObject({
+      reason: 'false positive',
+    });
     expect((await req('POST', `/v1/admin/slash-cases/${a.id}/submitted`, { txHash: 'nope' })).status).toBe(
       400,
     );
