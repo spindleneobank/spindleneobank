@@ -93,11 +93,15 @@ describe.skipIf(!healthy)('indexer on anvil', () => {
     const [b] = await t.db.select().from(buyers).where(eq(buyers.address, lc));
     const [bal] = await t.db.select().from(buyerBalances).where(eq(buyerBalances.buyerId, b!.id));
     expect(bal?.balanceUsdgMicros).toBe(2_000_000n);
+    const h0 = Number(await pub.getBlockNumber({ cacheTime: 0 }));
     await runIndexOnce(deps);
     const [again] = await t.db.select().from(buyerBalances).where(eq(buyerBalances.buyerId, b!.id));
     expect(again?.balanceUsdgMicros).toBe(2_000_000n);
-    const head = Number(await pub.getBlockNumber());
-    expect((await readCursor(t.db, deps.deployBlock)).lastSafeBlock).toBe(head - 12);
+    // anvil keeps mining (--block-time 2): the safe block is head-12 for some head seen during the last run
+    const h1 = Number(await pub.getBlockNumber({ cacheTime: 0 }));
+    const safe = (await readCursor(t.db, deps.deployBlock)).lastSafeBlock;
+    expect(safe).toBeGreaterThanOrEqual(h0 - 12);
+    expect(safe).toBeLessThanOrEqual(h1 - 12);
   });
 
   test('register node then stake updates the nodes row', async () => {

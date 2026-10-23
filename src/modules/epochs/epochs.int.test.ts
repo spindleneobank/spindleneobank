@@ -10,7 +10,7 @@ import type { TestDb } from '../../../test/db-setup';
 import { FORK_SKIP_MESSAGE, forkHealthy } from '../../../test/fork';
 import { earningEvents, epochs } from '../../db/schema';
 import { requireAddress } from '../../lib/contracts';
-import { createKeeper } from '../../lib/keeper';
+import { createKeeper, KEEPER_LAST_NONCE_KEY } from '../../lib/keeper';
 import { proofFor, treeFromJson } from '../../shared/merkle';
 import { dbRef } from '../auth/constants';
 import { getProof, type ProofDeps } from '../claims/service';
@@ -53,6 +53,8 @@ beforeAll(async () => {
 afterAll(async () => {
   if (!healthy) return;
   if (snap) await rpc('evm_revert', [snap]);
+  // the reverted chain nonce is below the remembered last-sent nonce: forget it or the next keeper tx gaps
+  await redis?.del(KEEPER_LAST_NONCE_KEY);
   await redis?.quit();
   await t?.close();
 });

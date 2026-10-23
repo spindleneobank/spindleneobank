@@ -50,7 +50,7 @@ export interface IndexerClient {
 
 export function viemIndexerClient(): IndexerClient {
   return {
-    getBlockNumber: () => logsClient.getBlockNumber(),
+    getBlockNumber: () => logsClient.getBlockNumber({ cacheTime: 0 }),
     getBlock: ({ blockNumber }) => logsClient.getBlock({ blockNumber }),
     getLogs: ({ address, fromBlock, toBlock }) =>
       logsClient.getLogs({ address, fromBlock, toBlock }) as Promise<Log[]>,

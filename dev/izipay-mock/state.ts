@@ -70,6 +70,8 @@ export class MockState {
   otpArmed = new Map<string, { expiresAt: number; code: string | null }>();
   seenSignatures = new Map<string, number>();
   stickyFaults = new Set<Fault>();
+  /** Every non-admin request received (also those answered with an injected fault): for E2E assertions. */
+  requests: { at: string; method: string; path: string; fault: string | null }[] = [];
   private seq = { card: 0, payment: 0, topup: 0, tx: 0, event: 0 };
 
   reset(): void {
@@ -80,6 +82,7 @@ export class MockState {
     this.otpArmed.clear();
     this.seenSignatures.clear();
     this.stickyFaults.clear();
+    this.requests.length = 0;
     this.seq = { card: 0, payment: 0, topup: 0, tx: 0, event: 0 };
   }
 

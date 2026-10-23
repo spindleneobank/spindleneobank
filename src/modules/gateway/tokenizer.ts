@@ -120,6 +120,20 @@ function countWith(tok: Tok | null, text: string): TokenCount {
   }
 }
 
+/**
+ * Embedding inputs are counted the way the engine does (Ollama reports prompt_eval_count including the model's
+ * special tokens, e.g. [CLS]/[SEP] for BERT-style encoders), so honest node receipts recount within tolerance.
+ */
+export async function countEmbeddingInput(modelId: string, text: string): Promise<TokenCount> {
+  const tok = await getTokenizer(modelId);
+  if (!tok) return countWith(null, text);
+  try {
+    return { tokens: tok.encode(text, { add_special_tokens: true }).length, estimated: false };
+  } catch {
+    return countWith(null, text);
+  }
+}
+
 export async function countTokens(modelId: string, text: string): Promise<TokenCount> {
   return countWith(await getTokenizer(modelId), text);
 }

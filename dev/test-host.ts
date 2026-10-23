@@ -44,13 +44,24 @@ const testDb = `spindle_test_${checkout}`;
 // dev stack's) so parallel runs and the dev api never delete or mutate each other's keys.
 const redisDb = 1 + ([...checkout].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 15);
 
+// Integration suites need the contract addresses and other non-host settings from the env file too; load them all
+// (values never printed). Host-specific ones are overridden below; shell variables win over the file.
+const fileEnv: Record<string, string> = int ? { ...vars } : {};
+if (int) {
+}
+const testUrl =
+  process.env.TEST_DATABASE_URL ??
+  `postgres://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@127.0.0.1:7232/${testDb}`;
 const env = {
+  ...fileEnv,
   ...process.env,
-  TEST_DATABASE_URL:
-    process.env.TEST_DATABASE_URL ??
-    `postgres://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@127.0.0.1:7232/${testDb}`,
+  TEST_DATABASE_URL: testUrl,
   REDIS_URL: process.env.REDIS_URL ?? `redis://127.0.0.1:7279/${redisDb}`,
+  ...(int ? { DATABASE_URL: testUrl } : {}),
+  // never reach the real upstream (Alchemy / fork source) from host tests: only the local anvil
+  ALCHEMY_API_KEYS: process.env.ALCHEMY_API_KEYS ?? '',
   RPC_URLS: process.env.RPC_URLS ?? 'http://127.0.0.1:7245',
+  PUBLIC_RPC_URL: process.env.PUBLIC_RPC_URL ?? 'http://127.0.0.1:7245',
   IZIPAY_BASE_URL: process.env.IZIPAY_BASE_URL ?? 'http://127.0.0.1:7290/api/v1',
 };
 // bunfig ignores *.int.test.ts for the unit run; the integration run overrides the ignore list.

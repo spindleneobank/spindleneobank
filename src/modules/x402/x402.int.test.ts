@@ -5,14 +5,14 @@
  * only fails itself (SettleFailed, payer barred).
  * Skipped while the fork is unhealthy or nothing is deployed.
  */
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { erc20Abi } from '@spindle/shared/abi';
 import { KNOWN, rhc } from '@spindle/shared/chain';
 import { type Address, createWalletClient, type Hex, http, maxUint256 } from 'viem';
 import { account } from '../../../dev/lib/accounts';
 import { readDeployment } from '../../../dev/lib/chain';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
-import { FORK_SKIP_MESSAGE, forkHealthy } from '../../../test/fork';
+import { FORK_SKIP_MESSAGE, forkHealthy, syncChainTime } from '../../../test/fork';
 import { x402Payments } from '../../db/schema';
 import { createKeeper } from '../../lib/keeper';
 import { closeRedis, getRedis } from '../../lib/redis';
@@ -32,6 +32,9 @@ import { defaultSettleDeps, runSettle } from './settle';
 import { defaultSurchargeDeps, refreshSurcharge, resetSurchargeMemo } from './surcharge';
 import { memKv } from './testing';
 import { BARRED_KEY, resetPayerCache } from './verify';
+
+// anvil auto-mines every 2s: setup txs wait for blocks
+setDefaultTimeout(120_000);
 
 const dep = readDeployment();
 const healthy = (await forkHealthy()) && dep !== null;
@@ -70,6 +73,7 @@ const fakeCtx = (headers: Record<string, string> = {}) =>
 
 describe.skipIf(!healthy)('x402 on the RHC fork', () => {
   beforeAll(async () => {
+    await syncChainTime();
     t = await setupTestDb();
     dbRef.db = t.db;
     addressOverride.current = {

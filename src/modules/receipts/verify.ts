@@ -56,11 +56,16 @@ export const verifyDeps: {
 };
 
 /** Allowed difference between the node's count and the gateway's recount: max(3, 2%). */
-export function tokenTolerance(gatewayCount: number): number {
-  return Math.max(3, Math.ceil(gatewayCount * 0.02));
+export function tokenTolerance(gatewayCount: number, share = 0.02): number {
+  return Math.max(3, Math.ceil(gatewayCount * share));
 }
-export const withinTolerance = (node: number, gateway: number): boolean =>
-  Math.abs(node - gateway) <= tokenTolerance(gateway);
+/**
+ * Embedding encoders (nomic-embed-text via Ollama's GGUF tokenizer vs the HF tokenizer) differ by up to ~17% on
+ * longer inputs (measured on the E2E fork), so embeddings use a wider band than chat.
+ */
+export const EMBEDDINGS_TOLERANCE_SHARE = 0.25;
+export const withinTolerance = (node: number, gateway: number, share = 0.02): boolean =>
+  Math.abs(node - gateway) <= tokenTolerance(gateway, share);
 
 const fail = (
   reason: ReceiptReason,
@@ -127,7 +132,11 @@ export async function verifyJobReceipt(
     if ((payload.usage.n ?? 0) !== (view.images?.length ?? 0))
       return fail('TOKEN_MISMATCH', payload, recount);
   } else if (view.recount && !view.recountEstimated && job.lane !== 'sealed') {
-    const okPrompt = withinTolerance(payload.usage.p, view.recount.promptTokens);
+    const okPrompt = withinTolerance(
+      payload.usage.p,
+      view.recount.promptTokens,
+      job.kind === 'embeddings' ? EMBEDDINGS_TOLERANCE_SHARE : 0.02,
+    );
     const okCompletion =
       job.kind === 'embeddings' || withinTolerance(payload.usage.c, view.recount.completionTokens);
     if (!okPrompt || !okCompletion) return fail('TOKEN_MISMATCH', payload, recount);
