@@ -191,7 +191,7 @@ class Renderer {
     if (l) this.gl.uniform3f(l, v[0] ?? 0, v[1] ?? 0, v[2] ?? 0);
     this.sent.set(n, k);
   }
-  draw(o: { softness: number; distortion: number; angle: number; phase: number }) {
+  draw(o: { softness: number; distortion: number; angle: number; scale: number; phase: number }) {
     const { gl } = this;
     if (!this.program || gl.isContextLost() || this.w === 0) return;
     gl.useProgram(this.program);
@@ -206,7 +206,7 @@ class Renderer {
     this.f('uDistortion', Math.max(0, o.distortion));
     this.f('uContour', D.contour);
     this.f('uAngle', o.angle * RAD);
-    this.f('uScale', D.scale);
+    this.f('uScale', o.scale);
     this.f('uRotation', D.rotation * RAD);
     this.v2('uOffset', D.offsetX, D.offsetY);
     this.v2('uOrigin', D.originX, D.originY);
@@ -233,6 +233,8 @@ export type LiquidMetalProps = {
   softness?: number;
   speed?: number;
   angle?: number;
+  /** Framer default .6; Section Label pills use 1. */
+  scale?: number;
   animate?: boolean;
   /** Phone-width screens show a still frame unless this is on (Framer default: off). */
   animateOnPhone?: boolean;
@@ -246,6 +248,7 @@ export function LiquidMetal({
   softness = 0.1,
   speed = 1,
   angle = 70,
+  scale = D.scale,
   animate = true,
   animateOnPhone = false,
   style,
@@ -257,8 +260,8 @@ export function LiquidMetal({
   const [mounted, setMounted] = useState(false);
   const [failed, setFailed] = useState(false);
   const [gen, setGen] = useState(0);
-  const props = useRef({ distortion, softness, speed, angle });
-  props.current = { distortion, softness, speed, angle };
+  const props = useRef({ distortion, softness, speed, angle, scale });
+  props.current = { distortion, softness, speed, angle, scale };
 
   const still = () =>
     !animate ||
@@ -270,7 +273,7 @@ export function LiquidMetal({
     if (!rr) return;
     const p = props.current;
     const phase = (((t * p.speed) / 1000 / LOOP_S) % 1) * TAU;
-    rr.draw({ softness: p.softness, distortion: p.distortion, angle: p.angle, phase });
+    rr.draw({ softness: p.softness, distortion: p.distortion, angle: p.angle, scale: p.scale, phase });
   };
 
   // mount the canvas once near the viewport (rootMargin 800px 0)
@@ -365,7 +368,7 @@ export function LiquidMetal({
   useEffect(() => {
     if (still()) render(0);
     // biome-ignore lint/correctness/useExhaustiveDependencies: redraw on prop change
-  }, [distortion, softness, speed, angle]);
+  }, [distortion, softness, speed, angle, scale]);
   void setGen;
 
   return (
