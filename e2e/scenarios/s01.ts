@@ -10,6 +10,10 @@ export async function ensureNodeA(c?: { step: (m: string) => void; ev: (n: strin
   const s = await login(3);
   const a = await admin();
   let n = (await s.get('/v1/app/nodes')).find((x: any) => x.name === 'e2e-a');
+  if (n?.status === 'suspended') {
+    await a.post(`/v1/admin/nodes/${n.id}/unsuspend`, {});
+    c?.step('unsuspended e2e-a');
+  }
   if (!n || n.status !== 'online') {
     c?.step('enroll + start node e2e-a');
     if (n) {

@@ -3,6 +3,7 @@ import { until } from '../lib/chain';
 import { psql, rows } from '../lib/db';
 import { admin } from '../lib/fixtures';
 import { assert, type Scenario } from '../lib/harness';
+import { removeNode } from '../lib/node';
 import { ensureDevNode } from './s10';
 
 export const s11: Scenario = {
@@ -10,7 +11,12 @@ export const s11: Scenario = {
   name: 'Probe mismatch',
   async run(c) {
     const a = await admin();
-    const { s, n } = await ensureDevNode(6, 'e2e-gpu', { SPINDLE_DEV_FAKE_GPU: 'RTX 4090:24576' }, c);
+    const { s, n } = await ensureDevNode(
+      6,
+      `e2e-gpu-${Date.now() % 1000000}`,
+      { SPINDLE_DEV_FAKE_GPU: 'RTX 4090:24576' },
+      c,
+    );
     c.ev('node-claimed', { gpuClass: n.gpuClass, gpuModel: n.gpuModel, vramGb: n.vramGb });
     c.step(`fake-GPU node ${n.id}: class ${n.gpuClass} ${n.gpuModel}`);
     assert(n.gpuClass > 0, 'node claims a GPU class above 0');
@@ -37,6 +43,7 @@ export const s11: Scenario = {
     const st = (await s.get('/v1/app/nodes')).find((x: any) => x.id === n.id);
     c.ev('node-after', { status: st.status });
     assert(st.status === 'suspended', `node suspended (status ${st.status})`);
+    await removeNode(n.name, true);
     c.step('node suspended after two failed probes');
   },
 };

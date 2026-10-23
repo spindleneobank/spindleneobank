@@ -27,6 +27,13 @@ const only = (
   .filter((x) => /^\d+$/.test(x))
   .map(Number);
 
+import { checkDevFlags, ensureHouse, resetStack } from './lib/stack';
+
+if (process.argv.includes('--reset')) await resetStack();
+if (!(await checkDevFlags()))
+  console.log('harness flag missing: SPINDLE_DEV_LAZY / SPINDLE_DEV_FAKE_GPU not in node/src/config.ts');
+await ensureHouse((m) => console.log(`  stack ${m}`));
+
 const rows: { n: number; name: string; status: string; ms: number; detail: string }[] = [];
 for (const s of all) {
   if (only.length && !only.includes(s.n)) continue;

@@ -3,7 +3,7 @@ import { sleep, until } from '../lib/chain';
 import { psql, rows } from '../lib/db';
 import { admin, syncIndexer } from '../lib/fixtures';
 import { assert, type Scenario } from '../lib/harness';
-import { enrollAndStart } from '../lib/node';
+import { enrollAndStart, removeNode } from '../lib/node';
 import { registerNode } from '../lib/onchain';
 
 /** Starts a registered dev node for `acct` with extra env (lazy / fake gpu); returns its API row. */
@@ -40,7 +40,7 @@ export const s10: Scenario = {
   async run(c) {
     const a = await admin();
     const s7 = await login(7);
-    const { n } = await ensureDevNode(7, 'e2e-lazy', { SPINDLE_DEV_LAZY: '1' }, c);
+    const { n } = await ensureDevNode(7, `e2e-lazy-${Date.now() % 1000000}`, { SPINDLE_DEV_LAZY: '1' }, c);
     c.step(`lazy node ${n.id} registered`);
     // fixture: pending earnings so a withhold has something to take
     await psql(
@@ -99,5 +99,6 @@ export const s10: Scenario = {
     c.step(
       `node status ${st.status}; withheld ${withheld.map((w) => w[0]).join(',')}; case status ${mine[0].status}`,
     );
+    await removeNode(n.name, true);
   },
 };

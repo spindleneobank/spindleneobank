@@ -15,7 +15,11 @@ export const s13: Scenario = {
     const key = await apiKey(await login(4));
     const ex = join(REPO, 'examples');
     // wait until a node is free of probes: the example scripts do not retry NO_CAPACITY themselves
-    const warm = await bearer(key, '/v1/chat/completions', { model: 'qwen2.5:0.5b', max_tokens: 4, messages: [{ role: 'user', content: 'hi' }] });
+    const warm = await bearer(key, '/v1/chat/completions', {
+      model: 'qwen2.5:0.5b',
+      max_tokens: 4,
+      messages: [{ role: 'user', content: 'hi' }],
+    });
     await warm.text();
     const inst = await run(['bun', 'install'], { cwd: ex });
     c.ev('install', { code: inst.code, tail: inst.stdout.slice(-300) });

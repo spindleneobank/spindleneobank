@@ -46,6 +46,10 @@ export const s09: Scenario = {
   async run(c) {
     const s = await login(9);
     const a = await admin();
+    // fixture: the daily card-operation limit (3) is per rolling 24 h; earlier runs must not eat it
+    await psql(
+      "update card_operations set created_at = created_at - interval '2 days' where created_at > now() - interval '1 day'",
+    );
     await fetch(`${MOCK}/__mock/reset`, { method: 'POST' });
     const pricing = await s.get('/v1/app/cards/pricing');
     const product = pricing.products.find((p: any) => p.available)?.id ?? pricing.products[0].id;
