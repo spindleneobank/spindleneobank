@@ -1,6 +1,8 @@
 import type { Hono } from 'hono';
 import auth from '../modules/auth/routes';
+import buyers from '../modules/buyers/routes';
 import chainJobs from '../modules/chain/jobs';
+import gateway from '../modules/gateway/routes';
 import health from '../modules/health/routes';
 import nodesRoutes from '../modules/nodes/routes';
 import stocksJobs from '../modules/stocks/jobs';
@@ -13,5 +15,12 @@ import type { WorkerCtx } from './queue';
 export type RouteModule = (app: Hono<Env>) => void;
 export type JobModule = (ctx: WorkerCtx) => void | Promise<void>;
 
-export const routeModules: readonly RouteModule[] = [auth, health, stocks, nodesRoutes] as const;
+export const routeModules: readonly RouteModule[] = [
+  auth,
+  health,
+  stocks,
+  nodesRoutes,
+  buyers,
+  gateway,
+] as const;
 export const jobModules: readonly JobModule[] = [chainJobs, stocksJobs] as const;

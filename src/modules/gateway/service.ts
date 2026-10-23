@@ -1,0 +1,520 @@
+import { randomUUID } from 'node:crypto';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import { jobs, rateCard } from '../../db/schema';
+import { AppError } from '../../lib/errors';
+import { logger } from '../../lib/logger';
+import { getRedis } from '../../lib/redis';
+import { canonicalJson, sha256Hex } from '../../shared/canonical-json';
+import type { CatalogModel } from '../../shared/catalog';
+import type { GatewayView, OnJobFinished } from '../../shared/contracts/jobs';
+import type { JobKind, Lane } from '../../shared/enums';
+import { dbRef } from '../auth/constants';
+import { nodeHub } from '../nodes/hub';
+import { type Delta, type JobDone, JobFailure, type JobHandle, type JobStartInput } from '../nodes/jobs';
+import { loadCatalog, nodeSettings } from '../nodes/service';
+import { type Authorization, getPaymentProvider, parseAuth, serializeAuth } from './payment';
+import { actualCharge, buyerRate, type MaxChargeEstimate, type Rate, unitKindFor, utcDay } from './pricing';
+import { type Candidate, rank, recordTtft, type ScheduleRequest } from './scheduler';
+import { countChatPrompt, countTokens } from './tokenizer';
+
+/** Test seams. */
+export const gatewayDeps = {
+  dispatch: (nodeId: string, input: JobStartInput): JobHandle => nodeHub.dispatch(nodeId, input),
+  rank: (req: ScheduleRequest): Promise<Candidate[]> => rank(req),
+  /** Jobs are re-routed at most this many extra times before the first byte. */
+  maxRetries: 1,
+};
+
+// ---- request model ---------------------------------------------------------------------------------
+
+export interface GatewayRequest {
+  kind: JobKind;
+  model: CatalogModel;
+  lane: Lane;
+  /** Sanitized OpenAI body sent to the node (`job.start.request`); the input digest covers exactly this. */
+  body: Record<string, unknown>;
+  stream: boolean;
+  /** job.start.maxTokens (chat max_tokens, else 0) */
+  maxTokens: number;
+  estimate: MaxChargeEstimate;
+  /** chat messages / embeddings input kept for recounts */
+  messages?: { role: string; content: unknown }[];
+  inputs?: string[];
+}
+
+export async function resolveModel(id: string, kind: JobKind, lane: Lane): Promise<CatalogModel> {
+  const model = (await loadCatalog()).find((m) => m.id === id);
+  if (!model) throw new AppError('NOT_FOUND', `The model '${id}' does not exist or is not enabled.`);
+  if (model.kind !== kind) {
+    throw new AppError('VALIDATION', `The model '${id}' does not support ${kind}.`);
+  }
+  if (!model.lanes.includes(lane)) {
+    throw new AppError('VALIDATION', `The model '${id}' is not available in the ${lane} lane.`);
+  }
+  return model;
+}
+
+// ---- job rows & authorization registry -----------------------------------------------------------
+
+type JobPatch = Partial<typeof jobs.$inferInsert>;
+
+export async function updateJob(jobId: string, patch: JobPatch, onlyFrom?: string[]): Promise<void> {
+  const where = onlyFrom ? and(eq(jobs.id, jobId), inArray(jobs.status, onlyFrom)) : eq(jobs.id, jobId);
+  await dbRef.db.update(jobs).set(patch).where(where);
+}
+
+const AUTH_TTL_SEC = 24 * 3600;
+const authKey = (jobId: string) => `gw:auth:${jobId}`;
+const liveAuth = new Map<string, Authorization>();
+
+async function rememberAuth(auth: Authorization): Promise<void> {
+  liveAuth.set(auth.jobId, auth);
+  await getRedis()
+    .set(authKey(auth.jobId), serializeAuth(auth), 'EX', AUTH_TTL_SEC)
+    .catch((err) => logger.warn({ err: String(err) }, 'could not persist job authorization'));
+}
+
+/** Atomically take the authorization for a job; the first caller wins, later callers get null. */
+async function claimAuth(jobId: string): Promise<Authorization | null> {
+  const local = liveAuth.get(jobId);
+  if (local) {
+    liveAuth.delete(jobId);
+    await getRedis()
+      .del(authKey(jobId))
+      .catch(() => {});
+    return local;
+  }
+  try {
+    const raw = await getRedis().getdel(authKey(jobId));
+    return raw ? parseAuth(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Charge `chargeMicros` for a job through its payment provider and drop the reservation. Idempotent:
+ * a second call (or a call after `releaseJob`) returns null. This is what B7 calls once a receipt
+ * verifies.
+ */
+export async function settleJob(jobId: string, chargeMicros: bigint): Promise<bigint | null> {
+  const auth = await claimAuth(jobId);
+  if (!auth) return null;
+  const provider = getPaymentProvider(auth.provider);
+  if (!provider) {
+    await rememberAuth(auth);
+    throw new Error(`payment provider '${auth.provider}' is not registered`);
+  }
+  try {
+    return await provider.finalize(auth, chargeMicros);
+  } catch (err) {
+    await rememberAuth(auth); // keep the reservation recoverable
+    throw err;
+  }
+}
+
+/** Drop a job's reservation without charging (failure, timeout, rejected receipt). Idempotent. */
+export async function releaseJob(jobId: string): Promise<boolean> {
+  const auth = await claimAuth(jobId);
+  if (!auth) return false;
+  const provider = getPaymentProvider(auth.provider);
+  if (!provider) {
+    await rememberAuth(auth);
+    throw new Error(`payment provider '${auth.provider}' is not registered`);
+  }
+  try {
+    await provider.release(auth);
+    return true;
+  } catch (err) {
+    await rememberAuth(auth);
+    throw err;
+  }
+}
+
+// ---- onJobFinished hook (B7) ----------------------------------------------------------------------
+
+/**
+ * Fallback used until B7 registers its verifier: bills the node-reported usage unverified. B7 replaces
+ * it with `registerJobFinishedHandler(onJobFinished)`.
+ */
+const defaultOnJobFinished: OnJobFinished = async (jobId) => {
+  const [job] = await dbRef.db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
+  await settleJob(jobId, job?.buyerUsdgMicros ?? 0n);
+};
+
+let finishedHandler: OnJobFinished = defaultOnJobFinished;
+export function registerJobFinishedHandler(handler: OnJobFinished): void {
+  finishedHandler = handler;
+}
+export function resetJobFinishedHandler(): void {
+  finishedHandler = defaultOnJobFinished;
+}
+
+// ---- one job's lifecycle ---------------------------------------------------------------------------
+
+export interface RunInit {
+  jobId: string;
+  req: GatewayRequest;
+  auth: Authorization;
+  rates: Map<number, Rate>;
+}
+
+export class JobRun {
+  readonly jobId: string;
+  readonly req: GatewayRequest;
+  readonly auth: Authorization;
+  readonly rates: Map<number, Rate>;
+  node?: Candidate;
+  handle?: JobHandle;
+  text = '';
+  reasoning = '';
+  aborted = false;
+  private retries = 0;
+  private startedAt = 0;
+
+  constructor(init: RunInit) {
+    this.jobId = init.jobId;
+    this.req = init.req;
+    this.auth = init.auth;
+    this.rates = init.rates;
+  }
+
+  /** Stops the node job (client went away). Pending `deltas()` iteration then ends. */
+  abort(): void {
+    this.aborted = true;
+    this.handle?.cancel();
+  }
+
+  rate(): Rate | undefined {
+    return this.node ? this.rates.get(this.node.gpuClass) : undefined;
+  }
+
+  private startInput(node: Candidate): JobStartInput {
+    const engineModel = this.req.model.engineIds[node.engine as 'ollama' | 'vllm'];
+    if (!engineModel) throw new AppError('NO_CAPACITY', 'No node can serve this model right now.');
+    return {
+      jobId: this.jobId,
+      kind: this.req.kind,
+      model: this.req.model.id,
+      engineModel,
+      lane: this.req.lane,
+      request: this.req.body,
+      maxTokens: this.req.maxTokens,
+      deadlineMs: Date.now() + nodeSettings.jobTimeoutMs,
+    };
+  }
+
+  /**
+   * Streams node deltas and returns the final `JobDone`. Before the first byte, a requeueable failure
+   * (BUSY / MODEL_NOT_READY / NODE_LOST) or a dispatch refusal re-routes the job once to another node.
+   * Throws `JobFailure` / `AppError` otherwise.
+   */
+  async *deltas(): AsyncGenerator<Delta, JobDone, void> {
+    const tried = new Set<string>();
+    for (;;) {
+      const ranked = (
+        await gatewayDeps.rank({
+          model: this.req.model.id,
+          lane: this.req.lane,
+          kind: this.req.kind,
+          minVramMb: this.req.model.minVramMb,
+          exclude: tried,
+        })
+      ).filter((c) => this.rates.has(c.gpuClass));
+      const node = ranked[0];
+      if (!node) throw new AppError('NO_CAPACITY', 'No node is available for this model right now.');
+      let handle: JobHandle;
+      try {
+        handle = gatewayDeps.dispatch(node.nodeId, this.startInput(node));
+      } catch (err) {
+        tried.add(node.nodeId);
+        if (err instanceof AppError && err.code !== 'CONFLICT' && this.retries < gatewayDeps.maxRetries) {
+          this.retries++;
+          continue;
+        }
+        throw err;
+      }
+      this.node = node;
+      this.handle = handle;
+      this.startedAt = Date.now();
+      await updateJob(this.jobId, { nodeId: node.nodeId, status: 'dispatched', dispatchedAt: new Date() }, [
+        'queued',
+        'dispatched',
+      ]).catch((err) => logger.warn({ err: String(err) }, 'job dispatch update failed'));
+      void handle.accepted.then((ok) => {
+        if (ok) void updateJob(this.jobId, { status: 'running' }, ['queued', 'dispatched']).catch(() => {});
+      });
+      let emitted = 0;
+      try {
+        for await (const d of handle.chunks) {
+          if (emitted === 0) recordTtft(node.nodeId, Date.now() - this.startedAt);
+          emitted++;
+          if (d.delta.content) this.text += d.delta.content;
+          if (d.delta.reasoning) this.reasoning += d.delta.reasoning;
+          yield d;
+        }
+        return await handle.done;
+      } catch (err) {
+        if (
+          err instanceof JobFailure &&
+          err.requeueable &&
+          emitted === 0 &&
+          !this.aborted &&
+          this.retries < gatewayDeps.maxRetries
+        ) {
+          this.retries++;
+          tried.add(node.nodeId);
+          continue;
+        }
+        throw err;
+      } finally {
+        handle.cancel(); // no-op once settled; stops the node job if the consumer bailed out early
+      }
+    }
+  }
+}
+
+// ---- request entry -----------------------------------------------------------------------------
+
+/** Capacity: ranked nodes that also have a rate card row. Empty means 503 NO_CAPACITY. */
+export async function checkCapacity(
+  req: GatewayRequest,
+): Promise<{ ranked: Candidate[]; rates: Map<number, Rate> }> {
+  if (req.lane === 'sealed') {
+    // Scheduling honours SEALED_LANE_ENABLED and attestation; relaying sealed payloads is S1.
+    const sealed = await gatewayDeps.rank({
+      model: req.model.id,
+      lane: 'sealed',
+      kind: req.kind,
+      minVramMb: req.model.minVramMb,
+    });
+    if (sealed.length === 0) throw new AppError('NO_CAPACITY', 'No attested sealed-lane node is available.');
+    throw new AppError('NO_CAPACITY', 'The sealed lane is not accepting requests yet.');
+  }
+  const ranked = await gatewayDeps.rank({
+    model: req.model.id,
+    lane: req.lane,
+    kind: req.kind,
+    minVramMb: req.model.minVramMb,
+  });
+  const unit = unitKindFor(req.kind);
+  const day = utcDay();
+  const rates = new Map<number, Rate>();
+  for (const cls of new Set(ranked.map((c) => c.gpuClass))) {
+    const r = await buyerRate(cls, req.lane, unit, day);
+    if (r) rates.set(cls, r);
+  }
+  const usable = ranked.filter((c) => rates.has(c.gpuClass));
+  if (usable.length === 0)
+    throw new AppError('NO_CAPACITY', 'No node is available for this model right now.');
+  return { ranked: usable, rates };
+}
+
+export const newJobId = (): string => randomUUID();
+
+export async function insertJob(run: RunInit): Promise<void> {
+  const { auth, req } = run;
+  await dbRef.db.insert(jobs).values({
+    id: run.jobId,
+    buyerId: auth.buyerId,
+    lane: req.lane,
+    model: req.model.id,
+    kind: req.kind,
+    unitKind: unitKindFor(req.kind),
+    payMode: auth.payMode,
+    x402PaymentId: auth.x402PaymentId ?? null,
+    status: 'queued',
+  });
+  await rememberAuth(auth);
+}
+
+// ---- settlement paths ------------------------------------------------------------------------------
+
+const errorText = (err: unknown): string => (err instanceof Error ? err.message : String(err)).slice(0, 500);
+
+/** Any failure before or during a run: record it and release the reservation. Never throws. */
+export async function failRun(jobId: string, err: unknown): Promise<void> {
+  const status =
+    err instanceof JobFailure && err.code === 'TIMEOUT'
+      ? 'timeout'
+      : err instanceof JobFailure && err.code === 'CANCELLED'
+        ? 'cancelled'
+        : 'failed';
+  try {
+    await updateJob(jobId, { status, error: errorText(err), finishedAt: new Date() }, [
+      'queued',
+      'dispatched',
+      'running',
+    ]);
+  } catch (e) {
+    logger.error({ err: String(e), jobId }, 'could not mark job failed');
+  }
+  try {
+    await releaseJob(jobId);
+  } catch (e) {
+    logger.error({ err: String(e), jobId }, 'could not release reservation');
+  }
+}
+
+export interface Completed {
+  chargeMicros: bigint;
+  promptTokens: number;
+  completionTokens: number;
+  images: number;
+}
+
+/** Node reported done: persist usage and the provisional charge (what the buyer sees). */
+export async function completeRun(run: JobRun, done: JobDone): Promise<Completed> {
+  const rate = run.rate();
+  if (!rate) throw new Error('no rate for the serving node');
+  const u = done.usage;
+  const usage =
+    run.req.kind === 'chat'
+      ? ({ kind: 'chat', promptTokens: u.promptTokens, completionTokens: u.completionTokens } as const)
+      : run.req.kind === 'embeddings'
+        ? ({ kind: 'embeddings', promptTokens: u.promptTokens } as const)
+        : ({ kind: 'images', images: u.images ?? 0 } as const);
+  let chargeMicros = actualCharge(usage, rate);
+  if (chargeMicros > run.auth.reservedMicros) chargeMicros = run.auth.reservedMicros;
+  const units =
+    run.req.kind === 'images'
+      ? (u.images ?? 0)
+      : u.promptTokens + (run.req.kind === 'chat' ? u.completionTokens : 0);
+  await updateJob(
+    run.jobId,
+    {
+      status: 'completed',
+      units: String(units),
+      promptTokens: u.promptTokens,
+      completionTokens: u.completionTokens,
+      buyerUsdgMicros: chargeMicros,
+      finishedAt: new Date(),
+    },
+    ['queued', 'dispatched', 'running'],
+  );
+  return {
+    chargeMicros,
+    promptTokens: u.promptTokens,
+    completionTokens: u.completionTokens,
+    images: u.images ?? 0,
+  };
+}
+
+/**
+ * The client disconnected mid-stream: bill for the tokens already produced (gateway recount, never
+ * more than the reservation) and release the rest.
+ */
+export async function cancelRun(run: JobRun): Promise<void> {
+  try {
+    const rate = run.rate();
+    let charge = 0n;
+    let completion = 0;
+    let prompt = 0;
+    if (rate && run.req.kind === 'chat' && (run.text || run.reasoning)) {
+      completion = (await countTokens(run.req.model.id, run.text + run.reasoning)).tokens;
+      prompt = (await countChatPrompt(run.req.model.id, run.req.messages as never)).tokens;
+      charge = actualCharge({ kind: 'chat', promptTokens: prompt, completionTokens: completion }, rate);
+      if (charge > run.auth.reservedMicros) charge = run.auth.reservedMicros;
+    }
+    await updateJob(
+      run.jobId,
+      {
+        status: 'cancelled',
+        promptTokens: prompt,
+        completionTokens: completion,
+        units: String(prompt + completion),
+        buyerUsdgMicros: charge,
+        finishedAt: new Date(),
+        error: 'client disconnected',
+      },
+      ['queued', 'dispatched', 'running'],
+    );
+    if (charge > 0n) await settleJob(run.jobId, charge);
+    else await releaseJob(run.jobId);
+  } catch (err) {
+    logger.error({ err: String(err), jobId: run.jobId }, 'cancel settlement failed; releasing');
+    await releaseJob(run.jobId).catch(() => {});
+  }
+}
+
+// ---- hand-off to B7 ----------------------------------------------------------------------------------
+
+export function gatewayView(run: JobRun, done: JobDone): GatewayView {
+  const view: GatewayView = { inputDigest: sha256Hex(canonicalJson(run.req.body)) };
+  const out = (done.output ?? {}) as { data?: { embedding?: number[]; b64_json?: string }[] };
+  if (run.req.kind === 'chat') view.outputText = run.text;
+  else if (run.req.kind === 'embeddings') view.embeddings = (out.data ?? []).map((d) => d.embedding ?? []);
+  else view.images = (out.data ?? []).map((d) => new Uint8Array(Buffer.from(d.b64_json ?? '', 'base64')));
+  return view;
+}
+
+/**
+ * Called after the response is on the wire: recounts tokens with the model's tokenizer and hands the
+ * job to B7 (`OnJobFinished`). Any failure here releases the reservation rather than leaving it held.
+ */
+export async function finishJob(run: JobRun, done: JobDone): Promise<void> {
+  try {
+    const view = gatewayView(run, done);
+    if (run.req.lane !== 'sealed') {
+      if (run.req.kind === 'chat') {
+        const [p, c] = await Promise.all([
+          countChatPrompt(run.req.model.id, run.req.messages as never),
+          countTokens(run.req.model.id, run.text),
+        ]);
+        view.recount = { promptTokens: p.tokens, completionTokens: c.tokens };
+      } else if (run.req.kind === 'embeddings') {
+        const counts = await Promise.all((run.req.inputs ?? []).map((t) => countTokens(run.req.model.id, t)));
+        view.recount = { promptTokens: counts.reduce((a, b) => a + b.tokens, 0), completionTokens: 0 };
+      }
+    }
+    await finishedHandler(run.jobId, { v: 1, type: 'job.done', jobId: run.jobId, ...done }, view);
+  } catch (err) {
+    logger.error({ err: String(err), jobId: run.jobId }, 'onJobFinished failed; releasing reservation');
+    await releaseJob(run.jobId).catch(() => {});
+  }
+}
+
+// ---- models listing ---------------------------------------------------------------------------------
+
+export interface ModelListing {
+  model: CatalogModel;
+  available: boolean;
+  buyerMicrosPerUnit: bigint;
+}
+
+export async function listModels(): Promise<ModelListing[]> {
+  const catalog = await loadCatalog();
+  const day = utcDay();
+  const mins = await dbRef.db
+    .select({
+      lane: rateCard.lane,
+      unitKind: rateCard.unitKind,
+      min: sql<string>`min(${rateCard.buyerUsdgMicrosPerUnit})`,
+    })
+    .from(rateCard)
+    .where(eq(rateCard.day, day))
+    .groupBy(rateCard.lane, rateCard.unitKind);
+  const out: ModelListing[] = [];
+  for (const model of catalog) {
+    let serving = false;
+    let available = false;
+    for (const lane of model.lanes) {
+      for (const c of nodeHub.candidates({
+        model: model.id,
+        lane,
+        kind: model.kind,
+        includeUnregistered: true,
+      })) {
+        serving = true;
+        if (c.registered) available = true;
+      }
+    }
+    if (!serving) continue;
+    const prices = mins
+      .filter((m) => model.lanes.includes(m.lane as Lane) && m.unitKind === unitKindFor(model.kind))
+      .map((m) => BigInt(m.min));
+    const min = prices.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0] ?? 0n;
+    out.push({ model, available, buyerMicrosPerUnit: min });
+  }
+  return out;
+}
