@@ -1,4 +1,3 @@
-import { verifyReceiptAttestation } from '../attest/verify';
 import type { GatewayView } from '../../shared/contracts/jobs';
 import type { JobKind, Lane } from '../../shared/enums';
 import {
@@ -8,6 +7,7 @@ import {
   receiptFromBase64,
   verifyReceipt,
 } from '../../shared/receipt';
+import { verifyReceiptAttestation } from '../attest/verify';
 
 /** Stable reason codes stored in `receipts.reason`. */
 export const RECEIPT_REASONS = [

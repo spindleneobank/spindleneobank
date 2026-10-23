@@ -8,7 +8,7 @@ import type { ReceiptPayload } from '../../shared/receipt';
 import { dbRef } from '../auth/constants';
 import type { VerifyJob } from '../receipts/verify';
 import { nvidiaDeps } from './nvidia';
-import { type SyntheticEnv, installSyntheticEnv, SYN } from './testkit';
+import { installSyntheticEnv, SYN, type SyntheticEnv } from './testkit';
 import { latestAttestation, recordAttestation, verifyAttestation, verifyReceiptAttestation } from './verify';
 
 // All bundles in this file are SYNTHETIC (see testkit.ts); the real-quote DCAP path is covered in tdx.test.ts.
@@ -29,7 +29,10 @@ afterAll(async () => {
 beforeEach(async () => {
   await t.reset();
   env = await installSyntheticEnv();
-  const [u] = await t.db.insert(users).values({ address: `0x${'9'.repeat(40)}` }).returning();
+  const [u] = await t.db
+    .insert(users)
+    .values({ address: `0x${'9'.repeat(40)}` })
+    .returning();
   const [n] = await t.db
     .insert(nodes)
     .values({
@@ -73,7 +76,10 @@ describe('verifyAttestation', () => {
   test('MUST: report_data binds the node key; another node cannot reuse the bundle', async () => {
     const { bundle } = await env.makeBundle(nodeKey);
     const evil = privateKeyToAccount(generatePrivateKey()).address.toLowerCase();
-    expect(await verifyAttestation(bundle, evil)).toMatchObject({ ok: false, reason: 'REPORT_DATA_MISMATCH' });
+    expect(await verifyAttestation(bundle, evil)).toMatchObject({
+      ok: false,
+      reason: 'REPORT_DATA_MISMATCH',
+    });
     const { bundle: b2 } = await env.makeBundle(nodeKey, { reportDataFor: evil });
     expect(await verifyAttestation(b2, nodeKey)).toMatchObject({ ok: false, reason: 'REPORT_DATA_MISMATCH' });
   });
@@ -81,7 +87,10 @@ describe('verifyAttestation', () => {
   test('event log must replay to the quote RTMR3', async () => {
     const { bundle } = await env.makeBundle(nodeKey);
     const log = (bundle.eventLog as unknown[]).slice(0, -1);
-    expect(await verifyAttestation({ ...bundle, eventLog: log }, nodeKey)).toMatchObject({ ok: false, reason: 'RTMR3_MISMATCH' });
+    expect(await verifyAttestation({ ...bundle, eventLog: log }, nodeKey)).toMatchObject({
+      ok: false,
+      reason: 'RTMR3_MISMATCH',
+    });
   });
 
   test('allowlist: unknown compose hash, unknown MRTD and an empty allowlist are all rejected', async () => {
@@ -101,19 +110,33 @@ describe('verifyAttestation', () => {
 
   test('NVIDIA: failed overall result, wrong nonce, bad token signature and NRAS outage', async () => {
     let { bundle } = await env.makeBundle(nodeKey, { nrasResult: false });
-    expect(await verifyAttestation(bundle, nodeKey)).toMatchObject({ ok: false, reason: 'NVIDIA_ATT_FAILED' });
+    expect(await verifyAttestation(bundle, nodeKey)).toMatchObject({
+      ok: false,
+      reason: 'NVIDIA_ATT_FAILED',
+    });
 
     ({ bundle } = await env.makeBundle(nodeKey));
-    const tampered = { ...bundle, nvidiaEvidence: { ...(bundle.nvidiaEvidence as object), nonce: 'ee'.repeat(32) } };
+    const tampered = {
+      ...bundle,
+      nvidiaEvidence: { ...(bundle.nvidiaEvidence as object), nonce: 'ee'.repeat(32) },
+    };
     expect((await verifyAttestation(tampered, nodeKey)).ok).toBe(false); // the nonce is bound in report_data
 
-    nvidiaDeps.jwks = (() => async () => (await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-384' }, true, ['sign', 'verify'])).publicKey) as never;
-    expect(await verifyAttestation(bundle, nodeKey)).toMatchObject({ ok: false, reason: 'NVIDIA_JWT_INVALID' });
+    nvidiaDeps.jwks = (() => async () =>
+      (await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-384' }, true, ['sign', 'verify']))
+        .publicKey) as never;
+    expect(await verifyAttestation(bundle, nodeKey)).toMatchObject({
+      ok: false,
+      reason: 'NVIDIA_JWT_INVALID',
+    });
 
     nvidiaDeps.nras = async () => {
       throw new Error('503');
     };
-    expect(await verifyAttestation(bundle, nodeKey)).toMatchObject({ ok: false, reason: 'NVIDIA_NRAS_UNAVAILABLE' });
+    expect(await verifyAttestation(bundle, nodeKey)).toMatchObject({
+      ok: false,
+      reason: 'NVIDIA_NRAS_UNAVAILABLE',
+    });
   });
 
   test('disallowed TCB status', async () => {
@@ -135,7 +158,7 @@ describe('recordAttestation + freshness', () => {
     expect(n?.ccCapable).toBe(true);
     const [row] = await t.db.select().from(nodeAttestations);
     expect(row?.verified).toBe(true);
-    expect((row?.expiresAt as Date).getTime() - Date.now()).toBeGreaterThan(3500_000);
+    expect((row?.expiresAt?.getTime() ?? 0) - Date.now()).toBeGreaterThan(3500_000);
     const att = await latestAttestation(nodeId);
     expect(att?.hpkePublicKey).toBe(bundle.hpkePublicKey);
     // a new session without evidence clears eligibility immediately
@@ -168,12 +191,30 @@ describe('recordAttestation + freshness', () => {
 
 describe('verifyReceiptAttestation (receipt rule 6)', () => {
   const job = (): VerifyJob => ({
-    id: 'j1', model: 'm', kind: 'chat', lane: 'sealed', nodeKey, nodePubkey: acct.publicKey,
+    id: 'j1',
+    model: 'm',
+    kind: 'chat',
+    lane: 'sealed',
+    nodeKey,
+    nodePubkey: acct.publicKey,
   });
-  const payload = (a: Partial<NonNullable<ReceiptPayload['attestation']>> | null, over: Partial<ReceiptPayload> = {}): ReceiptPayload => ({
-    v: 1, jobId: 'j1', nodeKey, model: 'm', modelDigest: 'x', kind: 'chat', lane: 'sealed',
-    usage: { p: 0, c: 0 }, inputDigest: '0'.repeat(64), outputDigest: '0'.repeat(64),
-    startedAt: Date.now() - 1000, finishedAt: Date.now(), agentVersion: '0',
+  const payload = (
+    a: Partial<NonNullable<ReceiptPayload['attestation']>> | null,
+    over: Partial<ReceiptPayload> = {},
+  ): ReceiptPayload => ({
+    v: 1,
+    jobId: 'j1',
+    nodeKey,
+    model: 'm',
+    modelDigest: 'x',
+    kind: 'chat',
+    lane: 'sealed',
+    usage: { p: 0, c: 0 },
+    inputDigest: '0'.repeat(64),
+    outputDigest: '0'.repeat(64),
+    startedAt: Date.now() - 1000,
+    finishedAt: Date.now(),
+    agentVersion: '0',
     ...(a ? { attestation: { quoteHash: '', rtmr3: '', gpuEvidenceHash: '', hpkeKeyHash: '', ...a } } : {}),
     ...over,
   });
@@ -183,15 +224,34 @@ describe('verifyReceiptAttestation (receipt rule 6)', () => {
     const r = await recordAttestation(nodeId, nodeKey, bundle);
     if (!r.ok) throw new Error('setup');
     const e = r.evidence;
-    const good = { quoteHash: e.quoteHash, rtmr3: e.rtmr3, gpuEvidenceHash: e.gpuEvidenceHash, hpkeKeyHash: e.hpkeKeyHash };
+    const good = {
+      quoteHash: e.quoteHash,
+      rtmr3: e.rtmr3,
+      gpuEvidenceHash: e.gpuEvidenceHash,
+      hpkeKeyHash: e.hpkeKeyHash,
+    };
     expect(await verifyReceiptAttestation(job(), payload(good))).toMatchObject({ ok: true });
-    expect(await verifyReceiptAttestation(job(), payload(null))).toMatchObject({ ok: false, reason: 'NO_RECEIPT_ATTESTATION' });
-    expect(await verifyReceiptAttestation(job(), payload({ ...good, quoteHash: 'ab'.repeat(32) }))).toMatchObject({ ok: false, reason: 'ATTESTATION_UNKNOWN' });
-    expect(await verifyReceiptAttestation(job(), payload({ ...good, hpkeKeyHash: 'cd'.repeat(32) }))).toMatchObject({ ok: false, reason: 'ATTESTATION_MISMATCH' });
-    expect(await verifyReceiptAttestation(job(), payload({ ...good, rtmr3: 'cd'.repeat(48) }))).toMatchObject({ ok: false, reason: 'ATTESTATION_MISMATCH' });
-    expect(await verifyReceiptAttestation(job(), payload(good, { finishedAt: Date.now() + 2 * 3600_000 }))).toMatchObject({ ok: false, reason: 'ATTESTATION_STALE' });
+    expect(await verifyReceiptAttestation(job(), payload(null))).toMatchObject({
+      ok: false,
+      reason: 'NO_RECEIPT_ATTESTATION',
+    });
+    expect(
+      await verifyReceiptAttestation(job(), payload({ ...good, quoteHash: 'ab'.repeat(32) })),
+    ).toMatchObject({ ok: false, reason: 'ATTESTATION_UNKNOWN' });
+    expect(
+      await verifyReceiptAttestation(job(), payload({ ...good, hpkeKeyHash: 'cd'.repeat(32) })),
+    ).toMatchObject({ ok: false, reason: 'ATTESTATION_MISMATCH' });
+    expect(await verifyReceiptAttestation(job(), payload({ ...good, rtmr3: 'cd'.repeat(48) }))).toMatchObject(
+      { ok: false, reason: 'ATTESTATION_MISMATCH' },
+    );
+    expect(
+      await verifyReceiptAttestation(job(), payload(good, { finishedAt: Date.now() + 2 * 3600_000 })),
+    ).toMatchObject({ ok: false, reason: 'ATTESTATION_STALE' });
     // another node cannot present this attestation
     const other = privateKeyToAccount(generatePrivateKey()).address.toLowerCase();
-    expect(await verifyReceiptAttestation({ ...job(), nodeKey: other }, payload(good))).toMatchObject({ ok: false, reason: 'ATTESTATION_UNKNOWN' });
+    expect(await verifyReceiptAttestation({ ...job(), nodeKey: other }, payload(good))).toMatchObject({
+      ok: false,
+      reason: 'ATTESTATION_UNKNOWN',
+    });
   });
 });

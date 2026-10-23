@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto';
-import { type Collateral, getCollateral, Quote, type VerifiedReport, verify as dcapVerify } from '@phala/dcap-qvl';
+import {
+  type Collateral,
+  verify as dcapVerify,
+  getCollateral,
+  Quote,
+  type VerifiedReport,
+} from '@phala/dcap-qvl';
 import { z } from 'zod';
 import { attestSettings } from './settings';
 
@@ -148,7 +154,9 @@ export function parseEventLog(raw: unknown): DstackEvent[] {
 export function runtimeEventDigest(e: DstackEvent): string {
   const t = Buffer.alloc(4);
   t.writeUInt32LE(e.event_type >>> 0);
-  return hex(sha384(t, Buffer.from(':'), Buffer.from(e.event), Buffer.from(':'), Buffer.from(e.event_payload, 'hex')));
+  return hex(
+    sha384(t, Buffer.from(':'), Buffer.from(e.event), Buffer.from(':'), Buffer.from(e.event_payload, 'hex')),
+  );
 }
 
 /**
@@ -161,7 +169,8 @@ export function replayRtmr3(events: DstackEvent[]): { rtmr3: string; named: Map<
   const named = new Map<string, string>();
   for (const e of events) {
     if (e.imr !== 3) continue;
-    if (!/^[0-9a-fA-F]{96}$/.test(e.digest)) throw new AttestError('EVENT_LOG_MALFORMED', 'digest must be sha384');
+    if (!/^[0-9a-fA-F]{96}$/.test(e.digest))
+      throw new AttestError('EVENT_LOG_MALFORMED', 'digest must be sha384');
     if (e.event_type === DSTACK_RUNTIME_EVENT_TYPE) {
       if (runtimeEventDigest(e) !== e.digest.toLowerCase())
         throw new AttestError('EVENT_LOG_DIGEST', `event ${e.event} digest does not match its content`);

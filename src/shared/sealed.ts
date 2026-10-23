@@ -32,7 +32,10 @@ export interface SealedKeyPair {
 
 export async function generateKeyPair(): Promise<SealedKeyPair> {
   const kp = await suite().kem.generateKeyPair();
-  return { publicKey: b64(new Uint8Array(await suite().kem.serializePublicKey(kp.publicKey))), privateKey: kp.privateKey };
+  return {
+    publicKey: b64(new Uint8Array(await suite().kem.serializePublicKey(kp.publicKey))),
+    privateKey: kp.privateKey,
+  };
 }
 
 const requestAad = (nodeKey: string, model: string): Uint8Array =>
@@ -63,11 +66,19 @@ export async function sealRequest(p: {
   const s = suite();
   const eph = await generateKeyPair();
   const pk = await s.kem.deserializePublicKey(unb64(p.nodePublicKey));
-  const sender = await s.createSenderContext({ recipientPublicKey: pk, info: enc8.encode(`${SEALED_VERSION}/request`) });
+  const sender = await s.createSenderContext({
+    recipientPublicKey: pk,
+    info: enc8.encode(`${SEALED_VERSION}/request`),
+  });
   const plaintext = enc8.encode(JSON.stringify({ request: p.request, ephemeralPub: eph.publicKey }));
   const ct = await sender.seal(plaintext, requestAad(p.nodeKey, p.model));
   return {
-    envelope: { nodeKey: p.nodeKey, enc: b64(new Uint8Array(sender.enc)), ciphertext: b64(new Uint8Array(ct)), ephemeralPub: eph.publicKey },
+    envelope: {
+      nodeKey: p.nodeKey,
+      enc: b64(new Uint8Array(sender.enc)),
+      ciphertext: b64(new Uint8Array(ct)),
+      ephemeralPub: eph.publicKey,
+    },
     openResponse: new ResponseOpener(eph.privateKey),
   };
 }
@@ -104,13 +115,18 @@ export class ResponseSealer {
   static async create(buyerEphemeralPub: string, jobId: string): Promise<ResponseSealer> {
     const s = suite();
     const pk = await s.kem.deserializePublicKey(unb64(buyerEphemeralPub));
-    const ctx = await s.createSenderContext({ recipientPublicKey: pk, info: enc8.encode(`${SEALED_VERSION}/response`) });
+    const ctx = await s.createSenderContext({
+      recipientPublicKey: pk,
+      info: enc8.encode(`${SEALED_VERSION}/response`),
+    });
     return new ResponseSealer(ctx, jobId);
   }
 
   /** Returns an opaque string: `<b64 enc>:<b64 ct>` for the first frame, `<b64 ct>` afterwards. */
   async seal(frame: unknown): Promise<string> {
-    const ct = b64(new Uint8Array(await this.ctx.seal(enc8.encode(JSON.stringify(frame)), respAad(this.jobId))));
+    const ct = b64(
+      new Uint8Array(await this.ctx.seal(enc8.encode(JSON.stringify(frame)), respAad(this.jobId))),
+    );
     if (!this.first) return ct;
     this.first = false;
     return `${b64(new Uint8Array(this.ctx.enc))}:${ct}`;

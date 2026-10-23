@@ -15,11 +15,20 @@ import type { AttestationBundle } from '../../shared/node-protocol';
 import { generateKeyPair } from '../../shared/sealed';
 import { nvidiaDeps } from './nvidia';
 import { attestSettings, resetAllowlist } from './settings';
-import { clearCollateralCache, DSTACK_RUNTIME_EVENT_TYPE, expectedReportData, replayRtmr3, runtimeEventDigest, tdxDeps } from './tdx';
+import {
+  clearCollateralCache,
+  DSTACK_RUNTIME_EVENT_TYPE,
+  expectedReportData,
+  replayRtmr3,
+  runtimeEventDigest,
+  tdxDeps,
+} from './tdx';
 
 const fx = (f: string) => new URL(`./fixtures/${f}`, import.meta.url).pathname;
 export const REAL_QUOTE = readFileSync(fx('dcap-qvl-tdx_quote.bin'));
-export const REAL_COLLATERAL = JSON.parse(readFileSync(fx('dcap-qvl-tdx_quote_collateral.json'), 'utf8')) as Collateral;
+export const REAL_COLLATERAL = JSON.parse(
+  readFileSync(fx('dcap-qvl-tdx_quote_collateral.json'), 'utf8'),
+) as Collateral;
 /** The collateral of the real sample is valid around this time. */
 export const REAL_QUOTE_NOW_MS = Date.parse('2025-06-25T00:00:00Z');
 
@@ -73,7 +82,10 @@ export async function installSyntheticEnv(
       rtmr0: [SYN.rtmr0],
       rtmr1: [SYN.rtmr1],
       rtmr2: [SYN.rtmr2],
-      composes: (allow.composeHash ?? [SYN.composeHash]).map((composeHash) => ({ composeHash, imageDigest: 'sha256:synthetic' })),
+      composes: (allow.composeHash ?? [SYN.composeHash]).map((composeHash) => ({
+        composeHash,
+        imageDigest: 'sha256:synthetic',
+      })),
     }),
   );
   attestSettings.allowlistPath = file;
@@ -144,7 +156,11 @@ export async function installSyntheticEnv(
         bundle: {
           tdxQuote: quote.toString('base64'),
           eventLog,
-          nvidiaEvidence: { nonce, arch: opts.arch ?? 'HOPPER', evidence_list: [{ evidence: 'synthetic', certificate: 'synthetic' }] },
+          nvidiaEvidence: {
+            nonce,
+            arch: opts.arch ?? 'HOPPER',
+            evidence_list: [{ evidence: 'synthetic', certificate: 'synthetic' }],
+          },
           hpkePublicKey: hpke.publicKey,
           measurements: { nonce, composeHash: SYN.composeHash },
         },

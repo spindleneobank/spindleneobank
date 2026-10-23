@@ -78,11 +78,15 @@ export async function verifyAttestation(bundle: AttestationBundle, nodeKey: stri
 
     // 2. binding of the HPKE key and the node key to this quote
     if (tdx.reportData !== expectedReportData(bundle.hpkePublicKey, nodeKey, nonce))
-      throw new AttestError('REPORT_DATA_MISMATCH', 'quote report_data does not bind the HPKE key and node key');
+      throw new AttestError(
+        'REPORT_DATA_MISMATCH',
+        'quote report_data does not bind the HPKE key and node key',
+      );
 
     // 3. measurements
     const { rtmr3, named } = replayRtmr3(parseEventLog(bundle.eventLog));
-    if (rtmr3 !== tdx.rtmr3) throw new AttestError('RTMR3_MISMATCH', 'event log does not replay to the quote RTMR3');
+    if (rtmr3 !== tdx.rtmr3)
+      throw new AttestError('RTMR3_MISMATCH', 'event log does not replay to the quote RTMR3');
     const composeHash = named.get('compose-hash');
     checkAllowlist(tdx, composeHash);
 
@@ -236,11 +240,7 @@ export async function verifyReceiptAttestation(
   const a = rows[0]?.a;
   if (!a?.expiresAt) return { ok: false, reason: 'ATTESTATION_UNKNOWN' };
   const m = a.measurements as AttestationEvidence;
-  if (
-    m.rtmr3 !== att.rtmr3 ||
-    m.gpuEvidenceHash !== att.gpuEvidenceHash ||
-    m.hpkeKeyHash !== att.hpkeKeyHash
-  )
+  if (m.rtmr3 !== att.rtmr3 || m.gpuEvidenceHash !== att.gpuEvidenceHash || m.hpkeKeyHash !== att.hpkeKeyHash)
     return { ok: false, reason: 'ATTESTATION_MISMATCH' };
   if (payload.finishedAt > a.expiresAt.getTime()) return { ok: false, reason: 'ATTESTATION_STALE' };
   if (payload.startedAt < a.createdAt.getTime() - attestSettings.ttlMs)

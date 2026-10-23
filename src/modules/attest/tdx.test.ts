@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { type DstackEvent, runtimeEventDigest, expectedReportData, replayRtmr3, tdxDeps, verifyTdxQuote, clearCollateralCache, AttestError } from './tdx';
+import {
+  AttestError,
+  clearCollateralCache,
+  type DstackEvent,
+  expectedReportData,
+  replayRtmr3,
+  runtimeEventDigest,
+  tdxDeps,
+  verifyTdxQuote,
+} from './tdx';
 import { REAL_COLLATERAL, REAL_QUOTE, REAL_QUOTE_NOW_MS, syntheticEventLog } from './testkit';
 
 const saved = { ...tdxDeps };
@@ -21,7 +30,10 @@ describe('DCAP verification of a REAL public TDX quote (dcap-qvl sample, recorde
 
   test('collateral is cached for an hour', async () => {
     let calls = 0;
-    tdxDeps.fetchCollateral = async () => (calls++, REAL_COLLATERAL);
+    tdxDeps.fetchCollateral = async () => {
+      calls++;
+      return REAL_COLLATERAL;
+    };
     await verifyTdxQuote(REAL_QUOTE);
     await verifyTdxQuote(REAL_QUOTE);
     expect(calls).toBe(1);
@@ -42,7 +54,9 @@ describe('DCAP verification of a REAL public TDX quote (dcap-qvl sample, recorde
   });
 
   test('garbage is malformed; an SGX quote is not TDX', async () => {
-    await expect(verifyTdxQuote(new Uint8Array(500))).rejects.toMatchObject({ reason: 'TDX_QUOTE_MALFORMED' });
+    await expect(verifyTdxQuote(new Uint8Array(500))).rejects.toMatchObject({
+      reason: 'TDX_QUOTE_MALFORMED',
+    });
   });
 
   test('collateral outage is reported', async () => {
@@ -84,7 +98,9 @@ describe('RTMR3 replay (SYNTHETIC dstack event log)', () => {
     const base = replayRtmr3(log).rtmr3;
     expect(replayRtmr3(log.slice(1)).rtmr3).not.toBe(base);
     expect(replayRtmr3([log[1], log[0], ...log.slice(2)] as DstackEvent[]).rtmr3).not.toBe(base);
-    const forged = log.map((e) => (e.event === 'compose-hash' ? { ...e, event_payload: 'ff'.repeat(32) } : e));
+    const forged = log.map((e) =>
+      e.event === 'compose-hash' ? { ...e, event_payload: 'ff'.repeat(32) } : e,
+    );
     expect(() => replayRtmr3(forged)).toThrow(AttestError); // payload no longer matches the measured digest
   });
   test('conflicting duplicate compose-hash events are rejected', () => {

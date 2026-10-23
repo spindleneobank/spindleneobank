@@ -3,7 +3,12 @@ import { z } from 'zod';
 
 /** TCB statuses a sealed node may have. Configurable: SEALED_ALLOWED_TCB="UpToDate,SWHardeningNeeded". */
 const csv = (v: string | undefined, d: string[]): string[] =>
-  v === undefined || v.trim() === '' ? d : v.split(',').map((s) => s.trim()).filter(Boolean);
+  v === undefined || v.trim() === ''
+    ? d
+    : v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
 
 export const ATTEST_TTL_MS = 3600_000;
 
@@ -13,7 +18,8 @@ export const attestSettings = {
   pcsUrl: process.env.SEALED_PCS_URL ?? 'https://api.trustedservices.intel.com/sgx/certification/v4/',
   collateralTtlMs: 3600_000,
   nrasUrl: process.env.SEALED_NRAS_URL ?? 'https://nras.attestation.nvidia.com/v3/attest/gpu',
-  nrasJwksUrl: process.env.SEALED_NRAS_JWKS_URL ?? 'https://nras.attestation.nvidia.com/.well-known/jwks.json',
+  nrasJwksUrl:
+    process.env.SEALED_NRAS_JWKS_URL ?? 'https://nras.attestation.nvidia.com/.well-known/jwks.json',
   nrasIssuer: process.env.SEALED_NRAS_ISSUER ?? 'https://nras.attestation.nvidia.com',
   /** Attestation validity (also the dispatch-time freshness limit). */
   ttlMs: ATTEST_TTL_MS,

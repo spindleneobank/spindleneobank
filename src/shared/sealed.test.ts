@@ -6,7 +6,12 @@ const NODE = '0x1111111111111111111111111111111111111111';
 async function setup() {
   const node = await generateKeyPair();
   const req = { model: 'm', messages: [{ role: 'user', content: 'secret prompt' }] };
-  const sealed = await sealRequest({ nodePublicKey: node.publicKey, nodeKey: NODE, model: 'm', request: req });
+  const sealed = await sealRequest({
+    nodePublicKey: node.publicKey,
+    nodeKey: NODE,
+    model: 'm',
+    request: req,
+  });
   return { node, req, sealed };
 }
 
@@ -21,7 +26,9 @@ describe('sealed HPKE (real crypto, no hardware needed)', () => {
 
   test('wrong node key, wrong model or wrong recipient fail', async () => {
     const { node, sealed } = await setup();
-    await expect(openRequest(node.privateKey, sealed.envelope, '0x2222222222222222222222222222222222222222', 'm')).rejects.toThrow();
+    await expect(
+      openRequest(node.privateKey, sealed.envelope, '0x2222222222222222222222222222222222222222', 'm'),
+    ).rejects.toThrow();
     await expect(openRequest(node.privateKey, sealed.envelope, NODE, 'other-model')).rejects.toThrow();
     const other = await generateKeyPair();
     await expect(openRequest(other.privateKey, sealed.envelope, NODE, 'm')).rejects.toThrow();
@@ -31,7 +38,9 @@ describe('sealed HPKE (real crypto, no hardware needed)', () => {
     const { node, sealed } = await setup();
     const b = Buffer.from(sealed.envelope.ciphertext, 'base64');
     b[0] = (b[0] as number) ^ 1;
-    await expect(openRequest(node.privateKey, { ...sealed.envelope, ciphertext: b.toString('base64') }, NODE, 'm')).rejects.toThrow();
+    await expect(
+      openRequest(node.privateKey, { ...sealed.envelope, ciphertext: b.toString('base64') }, NODE, 'm'),
+    ).rejects.toThrow();
   });
 
   test('response frames round-trip in order; drop/reorder/replay and a wrong job id are detected', async () => {
@@ -39,7 +48,11 @@ describe('sealed HPKE (real crypto, no hardware needed)', () => {
     const { ephemeralPub } = await openRequest(node.privateKey, sealed.envelope, NODE, 'm');
     const mk = async () => ResponseSealer.create(ephemeralPub, 'job-1');
     const s = await mk();
-    const f = [await s.seal({ delta: { content: 'he' } }), await s.seal({ delta: { content: 'llo' } }), await s.seal({ output: { done: true } })];
+    const f = [
+      await s.seal({ delta: { content: 'he' } }),
+      await s.seal({ delta: { content: 'llo' } }),
+      await s.seal({ output: { done: true } }),
+    ];
     expect(f[0]).toContain(':');
     expect(f[1]).not.toContain(':');
     const r = sealed.openResponse;

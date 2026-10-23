@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, type JWTPayload, jwtVerify, type JWTVerifyGetKey } from 'jose';
+import { createRemoteJWKSet, type JWTPayload, type JWTVerifyGetKey, jwtVerify } from 'jose';
 import { z } from 'zod';
 import { attestSettings } from './settings';
 import { AttestError } from './tdx';
@@ -24,7 +24,12 @@ export const nvidiaDeps: {
     const res = await fetch(attestSettings.nrasUrl, {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ nonce: ev.nonce, arch: ev.arch, claims_version: '2.0', evidence_list: ev.evidence_list }),
+      body: JSON.stringify({
+        nonce: ev.nonce,
+        arch: ev.arch,
+        claims_version: '2.0',
+        evidence_list: ev.evidence_list,
+      }),
       signal: AbortSignal.timeout(attestSettings.fetchTimeoutMs),
     });
     if (!res.ok) throw new Error(`NRAS HTTP ${res.status}`);

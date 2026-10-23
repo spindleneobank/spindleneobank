@@ -455,6 +455,7 @@ export async function cancelRun(
 
 export function gatewayView(run: JobRun, done: JobDone): GatewayView {
   const view: GatewayView = { inputDigest: sha256Hex(canonicalJson(run.req.body)), recountEstimated: false };
+  if (run.req.lane === 'sealed') return view; // S1: ciphertext only; no output is visible to the gateway
   const out = (done.output ?? {}) as { data?: { embedding?: number[]; b64_json?: string }[] };
   if (run.req.kind === 'chat') view.outputText = run.text;
   else if (run.req.kind === 'embeddings') view.embeddings = (out.data ?? []).map((d) => d.embedding ?? []);
