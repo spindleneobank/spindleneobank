@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { createRouter } from '@tanstack/react-router';
+import { NotFound } from './components/marketing/NotFound';
 import { routeTree } from './routeTree.gen';
 
 export function getRouter() {
@@ -13,18 +14,6 @@ export function getRouter() {
     defaultPreload: 'intent',
     defaultNotFoundComponent: NotFound,
   });
-}
-
-function NotFound() {
-  return (
-    <div className="sp-container sp-placeholder">
-      <h1>Page not found</h1>
-      <p className="sp-lead">That page does not exist or has moved.</p>
-      <a href="/" className="sp-cta sp-cta-secondary">
-        <span>Back home</span>
-      </a>
-    </div>
-  );
 }
 
 declare module '@tanstack/react-router' {
