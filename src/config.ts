@@ -61,6 +61,7 @@ const envSchema = z.object({
   HOUSE_OWNER_ADDRESS: address,
   KEEPER_PRIVATE_KEY: optionalHexKey32,
   DEPLOY_BLOCK: nonnegativeInt(0),
+  LOG_CHUNK: positiveInt(5000),
 
   RELAY_API_URL: z.string().default('https://api.relay.link'),
   RELAY_API_KEY: z.string().default(''),
