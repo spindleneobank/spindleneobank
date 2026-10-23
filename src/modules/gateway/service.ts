@@ -171,6 +171,8 @@ export class JobRun {
   text = '';
   reasoning = '';
   aborted = false;
+  /** gateway recount of the embeddings input, computed once in completeRun and reused by finishJob */
+  embeddingsRecount?: { tokens: number; estimated: boolean };
   private retries = 0;
   private startedAt = 0;
 
@@ -360,6 +362,38 @@ export async function failRun(jobId: string, err: unknown): Promise<void> {
   }
 }
 
+/**
+ * Embeddings receipts verify within a wide token band (EMBEDDINGS_TOLERANCE_SHARE), so the node's count
+ * must never be billed above the gateway's exact recount: bill min(node, recount). An estimated recount
+ * (no tokenizer) is not trustworthy enough to cap on, so the node count stands.
+ */
+export function embeddingsBilledTokens(
+  nodeTokens: number,
+  recount: { tokens: number; estimated: boolean } | undefined,
+): number {
+  if (!recount || recount.estimated) return nodeTokens;
+  return Math.min(nodeTokens, recount.tokens);
+}
+
+export async function recountEmbeddings(
+  run: JobRun,
+): Promise<{ tokens: number; estimated: boolean } | undefined> {
+  if (run.req.kind !== 'embeddings' || run.req.lane === 'sealed') return undefined;
+  if (run.embeddingsRecount) return run.embeddingsRecount;
+  try {
+    const counts = await Promise.all(
+      (run.req.inputs ?? []).map((t) => countEmbeddingInput(run.req.model.id, t)),
+    );
+    run.embeddingsRecount = {
+      tokens: counts.reduce((a, b) => a + b.tokens, 0),
+      estimated: counts.some((x) => x.estimated),
+    };
+  } catch (err) {
+    logger.warn({ err: String(err), jobId: run.jobId }, 'embeddings recount failed; billing node count');
+  }
+  return run.embeddingsRecount;
+}
+
 export interface Completed {
   chargeMicros: bigint;
   promptTokens: number;
@@ -371,7 +405,12 @@ export interface Completed {
 export async function completeRun(run: JobRun, done: JobDone): Promise<Completed> {
   const rate = run.rate();
   if (!rate) throw new Error('no rate for the serving node');
-  const u = done.usage;
+  // embeddings: cap the node-reported count at the gateway recount, so the provisional charge, the
+  // x402 settle amount, the reservation settle and the provider earning (80% of the final charge) agree
+  const u = { ...done.usage };
+  if (run.req.kind === 'embeddings') {
+    u.promptTokens = embeddingsBilledTokens(u.promptTokens, await recountEmbeddings(run));
+  }
   const usage =
     run.req.kind === 'chat'
       ? ({ kind: 'chat', promptTokens: u.promptTokens, completionTokens: u.completionTokens } as const)
@@ -479,11 +518,11 @@ export async function finishJob(run: JobRun, done: JobDone): Promise<void> {
         view.recount = { promptTokens: p.tokens, completionTokens: c.tokens };
         view.recountEstimated = p.estimated || c.estimated;
       } else if (run.req.kind === 'embeddings') {
-        const counts = await Promise.all(
-          (run.req.inputs ?? []).map((t) => countEmbeddingInput(run.req.model.id, t)),
-        );
-        view.recount = { promptTokens: counts.reduce((a, b) => a + b.tokens, 0), completionTokens: 0 };
-        view.recountEstimated = counts.some((x) => x.estimated);
+        const rc = await recountEmbeddings(run);
+        if (rc) {
+          view.recount = { promptTokens: rc.tokens, completionTokens: 0 };
+          view.recountEstimated = rc.estimated;
+        }
       }
     }
     await finishedHandler(run.jobId, { v: 1, type: 'job.done', jobId: run.jobId, ...done }, view);
