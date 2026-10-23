@@ -21,7 +21,8 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 // Allowlist (path fragment -> why). The icon sprite names a "passkey" glyph; it is never rendered as copy.
-const ALLOW_FILES = ['components/pixelIcons.data.ts'];
+// features/marketing/p8/data.ts holds the old legal copy verbatim (owner decision); its only hit is the disclaimer "No partnership ... is implied".
+const ALLOW_FILES = ['components/pixelIcons.data.ts', 'features/marketing/p8/data.ts'];
 const sourceFiles = ['content', 'components', 'routes', 'dashboard', 'features']
   .flatMap((d) => walk(join(SRC, d)))
   .filter((f) => !ALLOW_FILES.some((a) => f.endsWith(a)));
