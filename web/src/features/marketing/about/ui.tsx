@@ -49,11 +49,26 @@ export function TitleBlock({
 }
 
 /** Duotone image: same filters as the old page (flower-palette.svg#orchid / #ember). */
+const SRCSET_W: Record<string, [number, number]> = {
+  'inside-glass-v10': [640, 1280],
+  'role-gpu-cooling-v10': [800, 1600],
+  'role-ai-light-v10': [530, 1061],
+  'role-node-switch-v10': [800, 1600],
+  'role-api-connectors-v10': [800, 1600],
+  'inside-refraction-v10': [800, 1600],
+  'inside-copper-v10': [619, 1239],
+};
+const SIZES = '(max-width: 809px) calc(100vw - 32px), 1200px';
+
 export function Duo({ src, tone, className }: { src: string; tone: 'orchid' | 'ember'; className?: string }) {
+  const base = src.split('/').pop()?.replace('.webp', '') ?? '';
+  const w = SRCSET_W[base];
   return (
     <img
       className={className}
       src={src}
+      srcSet={w ? `/assets/mobile/${base}.webp ${w[0]}w, ${src} ${w[1]}w` : undefined}
+      sizes={w ? SIZES : undefined}
       alt=""
       style={{ filter: `url("/assets/flower-palette.svg#${tone}")` }}
       loading="eager"
