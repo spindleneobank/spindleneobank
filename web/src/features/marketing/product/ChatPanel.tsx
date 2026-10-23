@@ -54,16 +54,20 @@ export function ChatPanel({ states, override }: { states: PNode[]; override?: Pa
     // typing: reveal each character (opacity 0.001 -> 1, 10ms, 50ms apart)
     if (started.current) {
       const chars = root.querySelectorAll<HTMLElement>('[data-pp-ch]');
-      chars.forEach((c, n) => {
+      const seen = new Map<Element | null, number>();
+      for (const c of chars) {
+        const host = c.closest('p');
+        const n = seen.get(host) ?? 0;
+        seen.set(host, n + 1);
         c.animate([{ opacity: 0.001 }, { opacity: 1 }], { duration: 10, delay: 300 + n * 50, easing: 'linear', fill: 'backwards' });
-      });
+      }
     }
     prev.current = now;
   }, [i]);
 
   return (
     <div ref={box} style={{ display: 'contents' }}>
-      {renderNode(states[i] as PNode, `s${i}`, `chat${i}`, override)}
+      {renderNode(states[i] as PNode, "s", "chat", override)}
     </div>
   );
 }

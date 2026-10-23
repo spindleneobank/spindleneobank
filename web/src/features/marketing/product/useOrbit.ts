@@ -13,6 +13,8 @@ export function useOrbit(root: RefObject<HTMLElement | null>) {
         badge: arm.firstElementChild as HTMLElement | null,
         angle: Number.parseFloat(/rotate\((-?[\d.]+)deg\)/.exec(arm.style.transform)?.[1] ?? '0'),
       }));
+      orbit.style.willChange = 'transform';
+      for (const a of arms) if (a.badge) a.badge.style.willChange = 'transform';
       return { orbit, arms, on: true };
     });
     let raf = 0;
