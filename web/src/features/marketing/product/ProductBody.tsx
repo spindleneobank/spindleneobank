@@ -4,6 +4,7 @@ import { Appear, LiquidMetal } from '../../../components/marketing/motion';
 import tree from '../../../content/marketing/product-tree.json';
 import { ChatPanel } from './ChatPanel';
 import { HeroShader } from './HeroShader';
+import { Typewriter } from './Typewriter';
 import { useHeroGraph } from './useHeroGraph';
 import { useMotionVisible } from './useMotionVisible';
 import { useWorkflowSignal } from './useWorkflowSignal';
@@ -71,6 +72,8 @@ const makeOverride = (faqOpen: number, toggleFaq: (i: number) => void): Override
       </div>
     );
   }
+  if (p && p['data-pp-typewriter'])
+    return <Typewriter key={key} style={p.style as never} cursor={JSON.parse(String(p['data-pp-cursor'] ?? '{}'))} />;
   if (p && p['data-pp-chat'] && data.chat) return <ChatPanel key={key} states={data.chat.states} override={chatOverride} />;
   if (p && typeof p.className === 'string' && p.className.split(' ').includes('framer-1uny542'))
     return (

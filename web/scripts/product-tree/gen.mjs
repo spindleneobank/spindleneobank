@@ -60,12 +60,24 @@ for (const b of BPS) {
   if (!fs.existsSync(f)) continue;
   chatStates[b] = JSON.parse(fs.readFileSync(f, 'utf8')).map((s) => ({ name: s.name, node: norm(s.tree) }));
 }
+// Framer "Typewriter" code component ("Spend Typewriter"): rendered live by <Typewriter>, keeping the wrapper's own styles
+function stubTypewriter(n) {
+  if (typeof n === 'string') return;
+  if ((n.a.class || '').split(' ').includes('framer-1ged15i-container') && n.c.length === 1 && typeof n.c[0] !== 'string') {
+    const box = n.c[0];
+    const cursor = box.c[1]?.c?.[1]?.a?.style || '';
+    n.c = [{ t: 'div', a: { 'data-pp-typewriter': '1', role: 'text', style: box.a.style, 'data-pp-cursor': cursor }, c: [] }];
+    return;
+  }
+  n.c.forEach(stubTypewriter);
+}
 function stubChat(n) { // replace the chat container's content with a marker
   if (typeof n === 'string') return;
   if ((n.a.class || '').split(' ').includes(CHAT)) { n.c = [{ t: 'div', a: { 'data-pp-chat': '1' }, c: [] }]; return; }
   n.c.forEach(stubChat);
 }
 if (Object.keys(chatStates).length === BPS.length) for (const b of BPS) stubChat(trees[b]);
+for (const b of BPS) stubTypewriter(trees[b]);
 
 // FAQ accordion (capture-faq.mjs): items keep their container, the state root is rendered by <FaqItem>
 const faqRaw = {};
@@ -127,6 +139,7 @@ function props(a) {
   for (const [k, v] of Object.entries(a)) {
     if (k === 'style') { o.style = styleObj(v); continue; }
     if (k === 'class') { o.className = v; continue; }
+    if (k === 'data-pp-cursor') { o[k] = JSON.stringify(styleObj(v)); continue; }
     if (MAP[k]) { o[MAP[k]] = v; continue; }
     if (k.startsWith('data-') || k.startsWith('aria-')) { o[k] = v; continue; }
     o[k.includes('-') ? camelAttr(k) : k] = v;
