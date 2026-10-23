@@ -1,8 +1,5 @@
 {
-  "types": [
-    "address",
-    "uint256"
-  ],
+  "types": ["address", "uint256"],
   "root": "0x4e9ed6321077e464cd1dae7ad743159bcf78399f054c151659893620f8f4b838",
   "totalEarned": "5126956831",
   "leaves": [
