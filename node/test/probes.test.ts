@@ -85,3 +85,33 @@ test('a failing bench still answers with an empty probe.result', async () => {
   await p.handle(probe('p3', 'bench'));
   expect(out).toEqual([{ v: 1, type: 'probe.result', probeId: 'p3' }]);
 });
+
+test('job gate: defers while a probe runs, BUSY if it takes too long', async () => {
+  const out: NodeToServer[] = [];
+  let release!: () => void;
+  const hold = new Promise<void>((r) => {
+    release = r;
+  });
+  const slow = engine();
+  slow.chatStream = async function* () {
+    await hold;
+    yield { content: 'a' };
+  };
+  const p = new ProbeRunner({
+    engine: slow,
+    send: (m) => !!out.push(m),
+    log: silentLogger,
+    idle: async () => {},
+    busy: () => false,
+  });
+  expect(await p.gate(50)).toBe(true); // no probe: immediate
+  const done = p.handle(probe('p1', 'bench'));
+  expect(p.active).toBe(true);
+  expect(await p.gate(50)).toBe(false); // too long: caller replies BUSY
+  const waiting = p.gate(2000);
+  release();
+  expect(await waiting).toBe(true); // deferred until the probe finished
+  await done;
+  expect(out.length).toBe(1);
+  expect(p.active).toBe(false);
+});

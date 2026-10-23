@@ -143,7 +143,12 @@ async function main(): Promise<void> {
         if (wanted.length) void sync.ensure(wanted);
       },
       onModelsEnsure: (m) => void sync.ensure(m.models),
-      onJobStart: (m) => void runner.start(m),
+      onJobStart: (m) =>
+        void probes.gate(5000).then((ok) => {
+          // a job never overlaps a probe: defer up to 5 s, else BUSY
+          if (ok) return runner.start(m);
+          send({ v: 1, type: 'job.error', jobId: m.jobId, code: 'BUSY', message: 'node is running a probe' });
+        }),
       onJobCancel: (m) => runner.cancel(m.jobId),
       onProbeStart: (m) => void probes.handle(m),
     },

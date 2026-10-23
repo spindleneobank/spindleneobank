@@ -18,14 +18,42 @@ export interface ProbeRunnerOptions {
 /** Handles probe.start. Probes run one at a time and only while no job is in flight. */
 export class ProbeRunner {
   private chain: Promise<void> = Promise.resolve();
+  private pending = 0;
 
   constructor(private readonly o: ProbeRunnerOptions) {}
 
   /** Queue a probe; the returned promise settles after the result was sent. */
   handle(m: ProbeStartMsg): Promise<void> {
-    const next = this.chain.then(() => this.run(m)).catch(() => {});
+    this.pending++;
+    const next = this.chain
+      .then(() => this.run(m))
+      .catch(() => {})
+      .finally(() => this.pending--);
     this.chain = next;
     return next;
+  }
+
+  /** True while a probe is running or queued. */
+  get active(): boolean {
+    return this.pending > 0;
+  }
+
+  /**
+   * Gate for job.start: resolves true when no probe is active (waiting for running/queued probes
+   * to finish), or false if that takes longer than `maxMs` (caller replies BUSY). Jobs never run
+   * concurrently with a probe/benchmark.
+   */
+  async gate(maxMs = 5000): Promise<boolean> {
+    if (!this.active) return true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const ok = await Promise.race([
+      this.chain.then(() => true),
+      new Promise<boolean>((r) => {
+        timer = setTimeout(() => r(false), maxMs);
+      }),
+    ]);
+    clearTimeout(timer);
+    return ok && !this.active;
   }
 
   private async run(m: ProbeStartMsg): Promise<void> {
