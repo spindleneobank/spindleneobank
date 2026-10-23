@@ -3,6 +3,49 @@
 .sx-shell [data-p5-root] *{font-variant-numeric:normal}
 [data-p5-root] :where(img,svg,video,canvas){display:inline;max-width:none}
 [data-p5-root] :where(h1,h2,h3,h4,h5,h6,p,ul,ol,figure,blockquote){margin:revert}
+@keyframes sp-meter-work { 
+  0%, 100% { transform: scaleY(0.68); opacity: 0.48; }
+  45% { transform: scaleY(1); opacity: 1; }
+  70% { transform: scaleY(0.84); opacity: 0.72; }
+}
+@keyframes sp-work-packet { 
+  0% { transform: translateX(-70%); opacity: 0; }
+  7% { opacity: 0.85; }
+  90% { opacity: 0.85; }
+  100% { transform: translateX(70%); opacity: 0; }
+}
+@keyframes sp-work-status { 
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+[data-sp-social] svg { color: inherit !important; transform-origin: center center; }
+[data-sp-social]:is(:hover, :focus-visible) svg { animation: 0.55s cubic-bezier(0.2, 0.65, 0.3, 1) 0s 1 normal none running sp-social-bounce; }
+@keyframes sp-social-bounce { 
+  0%, 100% { transform: translateY(0px); }
+  35% { transform: translateY(-6px); }
+  62% { transform: translateY(0px); }
+  80% { transform: translateY(-2px); }
+}
+@keyframes sp-api-cursor { 
+  50% { opacity: 0.1; }
+}
+@media (prefers-reduced-motion: reduce){[data-sp-social] svg, .sp-api-output > i { animation: auto ease 0s 1 normal none running none !important; }}
+html #main [data-sp-social], html #main [data-sp-social]:is(:hover, :focus-visible), html #main [data-sp-social] .framer-text { color: rgb(251, 217, 200) !important; --framer-link-hover-text-color: #fbd9c8 !important; --framer-text-color: #fbd9c8 !important; }
+@keyframes sd-pulse { 
+  50% { opacity: 0.3; box-shadow: rgba(189, 160, 223, 0.25) 0px 0px 3px; }
+}
+@keyframes sd-data { 
+  50% { opacity: 0.75; translate: 0px -4px; }
+}
+@keyframes sd-core { 
+  50% { transform: rotate(45deg) scale(0.94); }
+}
+@keyframes sd-orbit { 
+  100% { rotate: 360deg; }
+}
+@keyframes sd-bar-grow { 
+  0% { transform: scaleY(0.05); opacity: 0.1; }
+  100% { transform: scaleY(1); opacity: 0.8; }
+}
 #main .framer-text { --framer-link-current-text-color: #fbd9c8; --framer-link-hover-text-color: #d7cfdf; }
 @keyframes sp-dialog-in { 
   0% { opacity: 0; translate: 0px 10px; scale: 0.985; }

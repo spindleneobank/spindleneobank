@@ -3,6 +3,45 @@
 .sx-shell [data-p5-root] *{font-variant-numeric:normal}
 [data-p5-root] :where(img,svg,video,canvas){display:inline;max-width:none}
 [data-p5-root] :where(h1,h2,h3,h4,h5,h6,p,ul,ol,figure,blockquote){margin:revert}
+@keyframes sp-meter-work { 
+  0%, 100% { transform: scaleY(0.68); opacity: 0.48; }
+  45% { transform: scaleY(1); opacity: 1; }
+  70% { transform: scaleY(0.84); opacity: 0.72; }
+}
+@keyframes sp-work-packet { 
+  0% { transform: translateX(-70%); opacity: 0; }
+  7% { opacity: 0.85; }
+  90% { opacity: 0.85; }
+  100% { transform: translateX(70%); opacity: 0; }
+}
+@keyframes sp-work-status { 
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+@keyframes sp-social-bounce { 
+  0%, 100% { transform: translateY(0px); }
+  35% { transform: translateY(-6px); }
+  62% { transform: translateY(0px); }
+  80% { transform: translateY(-2px); }
+}
+@keyframes sp-api-cursor { 
+  50% { opacity: 0.1; }
+}
+@keyframes sd-pulse { 
+  50% { opacity: 0.3; box-shadow: rgba(189, 160, 223, 0.25) 0px 0px 3px; }
+}
+@keyframes sd-data { 
+  50% { opacity: 0.75; translate: 0px -4px; }
+}
+@keyframes sd-core { 
+  50% { transform: rotate(45deg) scale(0.94); }
+}
+@keyframes sd-orbit { 
+  100% { rotate: 360deg; }
+}
+@keyframes sd-bar-grow { 
+  0% { transform: scaleY(0.05); opacity: 0.1; }
+  100% { transform: scaleY(1); opacity: 0.8; }
+}
 #main img[data-sp-kind="stock"] { filter: url("/assets/duotone.svg#violet"); }
 #main .framer-text { --framer-link-current-text-color: #fbd9c8; --framer-link-hover-text-color: #d7cfdf; }
 @keyframes sp-dialog-in { 
@@ -298,43 +337,43 @@ mark.framer-text, p.framer-text, div.framer-text, h1.framer-text, h2.framer-text
 .framer-D72R9 .framer-styles-preset-1ebkype:not(.rich-text-wrapper), .framer-D72R9 .framer-styles-preset-1ebkype.rich-text-wrapper p { --framer-font-family: "Inter", "Inter Placeholder", sans-serif; --framer-font-family-bold: "Inter", "Inter Placeholder", sans-serif; --framer-font-family-bold-italic: "Inter", "Inter Placeholder", sans-serif; --framer-font-family-italic: "Inter", "Inter Placeholder", sans-serif; --framer-font-open-type-features: "blwf" on, "cv03" on, "cv04" on, "cv09" on, "cv11" on; --framer-font-size: 14px; --framer-font-style: normal; --framer-font-style-bold: normal; --framer-font-style-bold-italic: italic; --framer-font-style-italic: italic; --framer-font-variation-axes: normal; --framer-font-weight: 400; --framer-font-weight-bold: 700; --framer-font-weight-bold-italic: 700; --framer-font-weight-italic: 400; --framer-letter-spacing: 0px; --framer-line-height: 22px; --framer-paragraph-spacing: 20px; --framer-text-alignment: start; --framer-text-color: var(--sp-fg-token-36fd4801-1ed5-4456-94b3-71f198c2018f,rgba(243, 218, 205, 1)); --framer-text-decoration: none; --framer-text-stroke-color: initial; --framer-text-stroke-width: initial; --framer-text-transform: none; }
 .framer-BiCoW .framer-styles-preset-1u4ub8q:not(.rich-text-wrapper), .framer-BiCoW .framer-styles-preset-1u4ub8q.rich-text-wrapper p { --framer-font-family: "Geist Mono", "Geist Mono Placeholder", monospace; --framer-font-family-bold: "Geist Mono", "Geist Mono Placeholder", monospace; --framer-font-family-bold-italic: "Geist Mono", "Geist Mono Placeholder", monospace; --framer-font-family-italic: "Geist Mono", "Geist Mono Placeholder", monospace; --framer-font-open-type-features: "blwf" on, "cv03" on, "cv04" on, "cv09" on, "cv11" on; --framer-font-size: 14px; --framer-font-style: normal; --framer-font-style-bold: normal; --framer-font-style-bold-italic: italic; --framer-font-style-italic: italic; --framer-font-variation-axes: normal; --framer-font-weight: 400; --framer-font-weight-bold: 700; --framer-font-weight-bold-italic: 700; --framer-font-weight-italic: 400; --framer-letter-spacing: 0px; --framer-line-height: 20px; --framer-paragraph-spacing: 20px; --framer-text-alignment: start; --framer-text-color: rgba(190, 140, 168, 1); --framer-text-decoration: none; --framer-text-stroke-color: initial; --framer-text-stroke-width: initial; --framer-text-transform: uppercase; }
 .framer-d7BIe .framer-styles-preset-19rt131:not(.rich-text-wrapper), .framer-d7BIe .framer-styles-preset-19rt131.rich-text-wrapper p { --framer-font-family: "Inter", "Inter Placeholder", sans-serif; --framer-font-family-bold: "Inter", "Inter Placeholder", sans-serif; --framer-font-family-bold-italic: "Inter", "Inter Placeholder", sans-serif; --framer-font-family-italic: "Inter", "Inter Placeholder", sans-serif; --framer-font-open-type-features: "blwf" on, "cv03" on, "cv04" on, "cv09" on, "cv11" on; --framer-font-size: 16px; --framer-font-style: normal; --framer-font-style-bold: normal; --framer-font-style-bold-italic: italic; --framer-font-style-italic: italic; --framer-font-variation-axes: normal; --framer-font-weight: 400; --framer-font-weight-bold: 700; --framer-font-weight-bold-italic: 700; --framer-font-weight-italic: 400; --framer-letter-spacing: -.02em; --framer-line-height: 24px; --framer-paragraph-spacing: 8px; --framer-text-alignment: start; --framer-text-color: var(--sp-fg-token-f6a8d8cb-9e85-4bc1-a178-0191b832f963,rgba(243, 218, 205, 0.6588235294117647)); --framer-text-decoration: none; --framer-text-stroke-color: initial; --framer-text-stroke-width: initial; --framer-text-transform: none; }
-@keyframes dash-anim-clockwise-yjpmylf55 { 
+@keyframes dash-anim-clockwise-9ws8acyjj { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-1zlm034vy { 
+@keyframes dash-anim-clockwise-ddegaenmr { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-flh6kya9w { 
+@keyframes dash-anim-clockwise-g9z532mok { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-15zcgcom1 { 
+@keyframes dash-anim-clockwise-nq2xuxtzw { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-2yv5bnvbu { 
+@keyframes dash-anim-clockwise-ia998x3rt { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-ms9vnab1a { 
+@keyframes dash-anim-clockwise-m1vis3jk8 { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-at3yblk1u { 
+@keyframes dash-anim-clockwise-8fvkxti1z { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-lijdus7wx { 
+@keyframes dash-anim-clockwise-2e5uzxbye { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-h15lzq415 { 
+@keyframes dash-anim-clockwise-efnvd5gtw { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-xy870u9vz { 
+@keyframes dash-anim-clockwise-bysq1fgpv { 
   100% { stroke-dashoffset: -14; }
 }
-@keyframes dash-anim-clockwise-o1kqd2h5m { 
+@keyframes dash-anim-clockwise-jds7gzpjf { 
   100% { stroke-dashoffset: -14; }
 }
-@keyframes dash-anim-clockwise-0jye2y7ix { 
+@keyframes dash-anim-clockwise-htr4r1mtw { 
   100% { stroke-dashoffset: -14; }
 }
-@keyframes dash-anim-clockwise-tiji807ge { 
+@keyframes dash-anim-clockwise-cvu6ryoc1 { 
   100% { stroke-dashoffset: -14; }
 }
 @keyframes shimmer-r3o { 
