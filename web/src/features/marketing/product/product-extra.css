@@ -1,0 +1,10 @@
+/* Breakpoint variants of the rendered tree: Framer breakpoints desktop >=1200, tablet 810-1199.98, phone <=809.98. */
+@media (min-width: 1200px) {
+  .pp-b-t, .pp-b-p, .pp-b-tp { display: none !important; }
+}
+@media (min-width: 810px) and (max-width: 1199.98px) {
+  .pp-b-d, .pp-b-p, .pp-b-dp { display: none !important; }
+}
+@media (max-width: 809.98px) {
+  .pp-b-d, .pp-b-t, .pp-b-dt { display: none !important; }
+}
