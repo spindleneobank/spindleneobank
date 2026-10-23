@@ -578,7 +578,12 @@ async function liveAuths(): Promise<Authorization[]> {
     cursor = next;
     if (keys.length === 0) continue;
     for (const raw of await redis.mget(keys)) {
-      if (raw) out.push(parseAuth(raw));
+      if (!raw) continue;
+      try {
+        out.push(parseAuth(raw));
+      } catch (err) {
+        logger.warn({ err: String(err) }, 'skipping unparseable gw:auth value');
+      }
     }
   } while (cursor !== '0');
   return out;

@@ -170,8 +170,8 @@ const PER_INPUT_OVERHEAD = 16;
 
 /**
  * Hard UPPER bound on prompt tokens, used for reservations (never chars/3). With the tokenizer
- * cached: exact count x 1.1 + template overhead. Otherwise the UTF-8 byte length (a BPE token
- * covers at least one byte) plus per-message and fixed template overhead.
+ * cached: exact count x 1.1 + template overhead. Otherwise 2x the UTF-8 byte length (NFC normalization can
+ * exceed 1 token/byte) plus per-message and fixed template overhead.
  */
 export function promptUpperBound(modelId: string, messages: ChatMessageLike[]): number {
   const texts = messages.map(messageText);
@@ -185,7 +185,7 @@ export function promptUpperBound(modelId: string, messages: ChatMessageLike[]): 
       // fall through to the byte bound
     }
   }
-  return texts.reduce((n, t) => n + utf8Bytes(t), 0) + overhead;
+  return texts.reduce((n, t) => n + 2 * utf8Bytes(t), 0) + overhead;
 }
 
 /** Hard upper bound on embeddings input tokens (bytes + 16 per input without a tokenizer). */
@@ -202,7 +202,7 @@ export function inputsUpperBound(modelId: string, inputs: string[]): number {
       // fall through
     }
   }
-  return inputs.reduce((n, t) => n + utf8Bytes(t) + PER_INPUT_OVERHEAD, 0);
+  return inputs.reduce((n, t) => n + 2 * utf8Bytes(t) + PER_INPUT_OVERHEAD, 0);
 }
 
 /** Background-load every enabled catalog tokenizer so the byte bound is the exception. */

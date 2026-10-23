@@ -83,8 +83,8 @@ describe('tokenizer', () => {
       throw new Error('offline');
     };
     const cjk = [{ role: 'user', content: '你好，世界'.repeat(20) }];
-    expect(promptUpperBound('qwen2.5:7b', cjk)).toBe(Buffer.byteLength('你好，世界'.repeat(20)) + 8 + 32);
-    expect(inputsUpperBound('nomic-embed-text', ['😀', 'x'])).toBe(4 + 16 + 1 + 16);
+    expect(promptUpperBound('qwen2.5:7b', cjk)).toBe(2 * Buffer.byteLength('你好，世界'.repeat(20)) + 8 + 32);
+    expect(inputsUpperBound('nomic-embed-text', ['😀', 'x'])).toBe(8 + 16 + 2 + 16);
     resetTokenizerCache();
     tokenizerSettings.load = async () => fake();
     await getTokenizer('qwen2.5:7b');
@@ -102,6 +102,7 @@ describe('tokenizer', () => {
     const samples = [
       '你好，世界！这是一个测试。'.repeat(30),
       '😀🚀🔥👩‍👩‍👧‍👦'.repeat(30),
+      'שּׁ'.repeat(300),
       'for(let i=0;i<n;i++){x^=(x<<13)|0;}\n'.repeat(30),
     ];
     for (const s of samples) {
