@@ -61,6 +61,7 @@ const envSchema = z.object({
   HOUSE_OWNER_ADDRESS: address,
   KEEPER_PRIVATE_KEY: optionalHexKey32,
   DEPLOY_BLOCK: nonnegativeInt(0),
+  LOG_CHUNK: positiveInt(5000),
 
   RELAY_API_URL: z.string().default('https://api.relay.link'),
   RELAY_API_KEY: z.string().default(''),
@@ -88,6 +89,8 @@ const envSchema = z.object({
   TOKENIZER_CACHE_DIR: z.string().default('data/tokenizers'),
   ADMIN_ADDRESSES: addressList,
   JOB_TIMEOUT_MS: positiveInt(120000),
+  NODE_IMAGE: z.string().default('spindle/node'),
+  MIN_AGENT_VERSION: z.string().default('0.1.0'),
   CANARY_RATE_BPS: nonnegativeInt(200),
   SEALED_LANE_ENABLED: boolean(false),
 });

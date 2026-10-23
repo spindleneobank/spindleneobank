@@ -1,0 +1,25 @@
+# Single-node example. Usage:  SPINDLE_TOKEN=<token> docker compose -f compose.example.yml up -d
+# Replace the image namespace once published. For GPUs keep the `deploy` block (needs the
+# nvidia-container-toolkit); delete it for CPU-only hosts.
+services:
+  spindle-node:
+    image: ${SPINDLE_IMAGE:-spindle/spindle-node}:ollama
+    container_name: spindle-node
+    restart: unless-stopped
+    environment:
+      SPINDLE_API_URL: ${SPINDLE_API_URL:-wss://api.spindle.example}
+      # passed through from your shell only when set (an empty token is invalid)
+      SPINDLE_TOKEN:
+      SPINDLE_NAME:
+    volumes:
+      - spindle-node:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  spindle-node:

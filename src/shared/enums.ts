@@ -106,6 +106,7 @@ export const ErrorCode = [
   'CHAIN_STATE',
   'INTERNAL',
   'SESSION_EXHAUSTED',
+  'LIVE_WRITES_DISABLED',
 ] as const;
 export type ErrorCode = (typeof ErrorCode)[number];
 
@@ -125,4 +126,5 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   CHAIN_STATE: 409,
   INTERNAL: 500,
   SESSION_EXHAUSTED: 402,
+  LIVE_WRITES_DISABLED: 409,
 };

@@ -12,7 +12,8 @@ export type ErrorCode =
   | 'UPSTREAM_UNAVAILABLE'
   | 'INSUFFICIENT_LIQUIDITY'
   | 'CHAIN_STATE'
-  | 'INTERNAL';
+  | 'INTERNAL'
+  | 'LIVE_WRITES_DISABLED';
 
 export const DEFAULT_STATUS: Record<ErrorCode, number> = {
   VALIDATION: 400,
@@ -29,6 +30,7 @@ export const DEFAULT_STATUS: Record<ErrorCode, number> = {
   INSUFFICIENT_LIQUIDITY: 409,
   CHAIN_STATE: 409,
   INTERNAL: 500,
+  LIVE_WRITES_DISABLED: 409,
 };
 
 export class AppError extends Error {
