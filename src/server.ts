@@ -8,6 +8,7 @@ import { routeModules } from './lib/modules';
 import { closeQueues } from './lib/queue';
 import { closeRedis } from './lib/redis';
 import { websocket } from './lib/ws';
+import { nodeHub } from './modules/nodes/hub';
 
 export function buildApp(): Hono<Env> {
   const app = new Hono<Env>();
@@ -38,6 +39,7 @@ export function buildApp(): Hono<Env> {
 const app = buildApp();
 const server = Bun.serve({ port: config.PORT, fetch: app.fetch, websocket });
 logger.info({ port: server.port }, 'api listening');
+void nodeHub.start().catch((err) => logger.error({ err }, 'node hub failed to start'));
 
 let shuttingDown = false;
 async function shutdown(): Promise<void> {
@@ -48,6 +50,7 @@ async function shutdown(): Promise<void> {
     process.exit(1);
   }, 15_000);
   try {
+    await nodeHub.stop();
     await server.stop();
     await Promise.allSettled([sql.end(), closeRedis(), closeQueues()]);
   } finally {
