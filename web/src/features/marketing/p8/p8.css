@@ -1,0 +1,703 @@
+/* P8: architecture, legal and 404 bodies, rebuilt from the old rendered DOM (desktop >=1200, tablet 810-1199.98, phone <=809.98). */
+.p8 {
+  --p8-t: #f3dacd;
+  --p8-m: rgba(243, 218, 205, 0.66);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: clip;
+  color: var(--p8-t);
+}
+.p8 h1,
+.p8 h2,
+.p8 h4,
+.p8 h6,
+.p8 p {
+  margin: 0;
+}
+.p8 h1,
+.p8 h2,
+.p8 h4,
+.p8 h6 {
+  font-weight: 400;
+}
+.p8-title {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 164px 24px 100px;
+}
+.p8-title-detail {
+  padding-bottom: 80px;
+}
+.p8-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 1300px;
+  box-sizing: border-box;
+  padding: 0 32px;
+  overflow: clip;
+}
+.p8-container-c {
+  align-items: center;
+}
+.p8-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  max-width: 505px;
+  overflow: clip;
+}
+.p8-stack-detail {
+  max-width: 610px;
+}
+.p8-h1 {
+  font-family: "Chakra Petch", Arial, sans-serif;
+  font-size: 64px;
+  line-height: 72.96px;
+  letter-spacing: -1.6px;
+  color: var(--p8-t);
+}
+.p8-lead {
+  font-family: "Spindle Sans", Inter, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: -0.24px;
+  color: var(--p8-m);
+}
+.p8-center {
+  text-align: center;
+}
+.p8-c {
+  color: var(--p8-t);
+}
+
+/* pill */
+.p8-pill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 2px;
+  border-radius: 6px;
+  overflow: clip;
+  align-self: flex-start;
+  flex: none;
+}
+.p8-pill-metal {
+  position: absolute;
+  left: -20px;
+  right: -20px;
+  top: -20px;
+  height: 70px;
+}
+.p8-pill-in {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  background-image: linear-gradient(#110f15 0%, #f2f2f2 100%);
+}
+.p8-pill-in img {
+  width: 18px;
+  height: 18px;
+  display: block;
+  object-fit: contain;
+}
+.p8-pill-in p {
+  font-family: "Spindle Sans", Inter, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: -0.18px;
+  text-transform: uppercase;
+  white-space: pre;
+  color: var(--p8-t);
+}
+
+/* page lines (the "Light" component: 1px light + 1px page colour) */
+.p8-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.p8-lines > i {
+  position: absolute;
+  display: flex;
+}
+.p8-lines > i::before,
+.p8-lines > i::after {
+  content: "";
+  display: block;
+}
+.p8-lines > i::before {
+  background: rgba(40, 26, 39, 0.2);
+}
+.p8-lines > i::after {
+  background: #110f15;
+}
+.p8-lines .t,
+.p8-lines .b {
+  left: 0;
+  right: 0;
+  height: 2px;
+  flex-direction: column;
+}
+.p8-lines .t {
+  top: 0;
+}
+.p8-lines .b {
+  bottom: 0;
+}
+.p8-lines .t::before,
+.p8-lines .t::after,
+.p8-lines .b::before,
+.p8-lines .b::after {
+  height: 1px;
+}
+.p8-lines .l,
+.p8-lines .r {
+  top: 0;
+  bottom: 0;
+  width: 2px;
+}
+.p8-lines .l {
+  left: 0;
+}
+.p8-lines .r {
+  right: 0;
+}
+.p8-lines .l::before,
+.p8-lines .l::after,
+.p8-lines .r::before,
+.p8-lines .r::after {
+  width: 1px;
+}
+
+.p8-band {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  overflow: clip;
+}
+
+/* index: search row and grid */
+.p8-search {
+  padding: 32px 24px;
+}
+.p8-search .p8-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1300px;
+  box-sizing: border-box;
+  padding: 0 32px;
+  overflow: clip;
+}
+.p8-h2 {
+  font-family: "Chakra Petch", Arial, sans-serif;
+  font-size: 43px;
+  line-height: 52.46px;
+  letter-spacing: -1.075px;
+  color: var(--p8-t);
+}
+.p8-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 240px;
+  width: 240px;
+}
+.p8-field-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 12px;
+  background: #110f15;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.p8-field-box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid #593e4e;
+  border-radius: 8px;
+  pointer-events: none;
+}
+.p8-field-box svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: #e9d6df;
+}
+.p8-field-box input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: Inter, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--p8-t);
+}
+.p8-field-box input::placeholder {
+  color: rgba(243, 218, 205, 0.4);
+  opacity: 1;
+}
+.p8-grid-wrap {
+  padding: 0 24px;
+}
+.p8-grid-in {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 1300px;
+  overflow: clip;
+}
+.p8-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  justify-content: center;
+  width: 100%;
+}
+.p8-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+.p8-card-in {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 32px;
+  background: #110f15;
+}
+.p8-card-logo {
+  position: relative;
+  display: flex;
+  width: 38px;
+  height: 38px;
+  border-radius: 4px;
+  overflow: clip;
+  background: #110f15;
+}
+.p8-card-logo img,
+.p8-icon img {
+  object-fit: contain;
+}
+.p8-card-logo img {
+  width: 38px;
+  height: 38px;
+  display: block;
+}
+.p8-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.p8-card-title {
+  font-family: "Spindle Sans", Inter, Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 28px;
+  letter-spacing: -0.3px;
+  color: var(--p8-t);
+}
+.p8-card-desc {
+  font-family: "Spindle Sans", Inter, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: -0.21px;
+  color: var(--p8-m);
+}
+.p8-empty {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+
+/* detail */
+.p8-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  overflow: clip;
+  width: fit-content;
+  color: var(--p8-t);
+  text-decoration: none;
+}
+.p8-back i {
+  display: block;
+  width: 14px;
+  height: 12px;
+  background: #0e0b0a;
+}
+.p8-back p,
+.p8-upper {
+  font-family: "Spindle Sans", Inter, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.21px;
+  text-transform: uppercase;
+  color: var(--p8-t);
+}
+.p8-icon {
+  display: flex;
+  width: 58px;
+  height: 58px;
+  border-radius: 7px;
+  overflow: clip;
+}
+.p8-icon img {
+  width: 58px;
+  height: 58px;
+  border-radius: 7px;
+  display: block;
+}
+.p8-detail-body {
+  padding: 0 24px;
+}
+.p8-detail-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1300px;
+  box-sizing: border-box;
+  padding: 0 32px;
+  overflow: clip;
+}
+.p8-prose {
+  display: flex;
+  flex-direction: column;
+  gap: 80px;
+  max-width: 590px;
+  box-sizing: border-box;
+  padding: 80px 0 140px;
+  overflow: clip;
+}
+.p8-prose-in {
+  display: flex;
+  flex-direction: column;
+}
+.p8-h6 {
+  font-family: "Spindle Sans", Inter, Arial, sans-serif;
+  font-size: 20px;
+  line-height: 28px;
+  letter-spacing: -0.3px;
+  color: var(--p8-t);
+}
+.p8-prose-in p {
+  margin: 8px 0 0;
+}
+.p8-prose-in .p8-h6:not(:first-child) {
+  margin-top: 40px;
+}
+.p8-aside {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  max-width: 412px;
+  box-sizing: border-box;
+  padding: 80px 0 80px 32px;
+  overflow: clip;
+}
+.p8-fact {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+}
+.p8-fact-h {
+  font-family: "Spindle Sans", Inter, Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 26px;
+  letter-spacing: -0.27px;
+  color: var(--p8-t);
+}
+.p8-aside .sx-sbtn {
+  width: 100%;
+}
+
+/* legal */
+.p8-legal {
+  padding: 100px 24px 140px;
+}
+.p8-legal-in {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 1300px;
+  box-sizing: border-box;
+  padding: 0 32px;
+  overflow: clip;
+}
+.p8-legal-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 80px;
+  width: 100%;
+  max-width: 720px;
+  overflow: clip;
+}
+.p8-legal-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+}
+.p8-h4 {
+  font-family: "Chakra Petch", Arial, sans-serif;
+  font-size: 32px;
+  line-height: 38px;
+  letter-spacing: -0.8px;
+  color: var(--p8-t);
+}
+.p8-legal a {
+  color: var(--p8-t);
+}
+
+/* 404 */
+.p8-404 {
+  min-height: 100vh;
+  padding: 140px 24px;
+  box-sizing: border-box;
+  gap: 16px;
+}
+.p8-404-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 1300px;
+  box-sizing: border-box;
+  padding: 0 32px;
+}
+.p8-404-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  overflow: clip;
+}
+
+@media (max-width: 1199.98px) {
+  .p8-title,
+  .p8-title-detail {
+    padding: 140px 24px 80px;
+  }
+  .p8-container {
+    padding: 0 24px;
+  }
+  .p8-h1 {
+    font-size: 46.08px;
+    line-height: 52.5312px;
+    letter-spacing: -1.152px;
+  }
+  .p8-h2 {
+    font-size: 30.72px;
+    line-height: 37.4784px;
+    letter-spacing: -0.768px;
+  }
+  .p8-search .p8-row {
+    padding: 0 24px;
+  }
+  .p8-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .p8-card-in {
+    padding: 24px;
+  }
+  .p8-detail-row {
+    flex-direction: column;
+    justify-content: center;
+    gap: 32px;
+    padding: 0 24px;
+  }
+  .p8-detail-body {
+    padding: 80px 24px;
+  }
+  .p8-prose {
+    max-width: none;
+    width: 100%;
+    padding: 0;
+    gap: 40px;
+  }
+  .p8-aside {
+    max-width: none;
+    width: 100%;
+    padding: 32px;
+  }
+  .p8-legal {
+    padding: 80px 24px;
+  }
+  .p8-h4 {
+    font-size: 26px;
+    letter-spacing: -0.65px;
+  }
+  .p8-legal-item {
+    gap: 16px;
+  }
+  .p8-legal-col {
+    gap: 40px;
+  }
+  .p8-404 {
+    padding: 80px 24px;
+  }
+  .p8-404-box {
+    gap: 48px;
+    padding: 0 24px;
+  }
+}
+@media (max-width: 809.98px) {
+  .p8-title,
+  .p8-title-detail {
+    padding: 120px 6px 60px;
+  }
+  .p8-container {
+    padding: 0 16px;
+  }
+  .p8-h1 {
+    font-size: 30px;
+    line-height: 34.2px;
+    letter-spacing: -0.75px;
+  }
+  .p8-h2 {
+    font-size: 25px;
+    line-height: 30.5px;
+    letter-spacing: -0.625px;
+  }
+  .p8-search {
+    padding: 32px 6px;
+  }
+  .p8-search .p8-row {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 16px;
+    padding: 0 16px;
+  }
+  .p8-field {
+    width: 100%;
+    max-width: none;
+  }
+  .p8-field-box {
+    padding: 16px;
+  }
+  .p8-grid-wrap {
+    padding: 0 6px;
+  }
+  .p8-grid {
+    grid-template-columns: 1fr;
+  }
+  .p8-detail-row {
+    gap: 40px;
+    padding: 0 16px;
+  }
+  .p8-detail-body {
+    padding: 60px 6px;
+  }
+  .p8-aside {
+    padding: 20px;
+    gap: 40px;
+  }
+  .p8-legal {
+    padding: 60px 6px;
+  }
+  .p8-h4 {
+    font-size: 24px;
+    letter-spacing: -0.6px;
+  }
+  .p8-404 {
+    padding: 60px 6px;
+  }
+  .p8-404-box {
+    gap: 40px;
+    padding: 0 16px;
+  }
+}
+
+.p8-index {
+  padding-bottom: 140px;
+}
+@media (max-width: 1199.98px) {
+  .p8-index {
+    padding-bottom: 80px;
+  }
+}
+@media (max-width: 809.98px) {
+  .p8-index {
+    padding-bottom: 60px;
+  }
+}
+
+.p8-container-c .p8-pill {
+  align-self: center;
+}
+.p8-404-title .p8-pill {
+  align-self: center;
+}
+.p8-aside .sx-roll p {
+  font-family: "Spindle Sans", Inter, Arial, sans-serif;
+  font-size: 14px;
+  letter-spacing: -0.21px;
+  font-weight: 400;
+}
