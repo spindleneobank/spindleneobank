@@ -115,7 +115,7 @@ export function NodeTable({ nodes, onOpen }: { nodes: NodeView[]; onOpen: (id: s
     <RowTable
       className="cp-rt"
       caption="Your nodes"
-      template="1.5fr 1fr 1.6fr 0.7fr 1.3fr 0.5fr 1.2fr 0.8fr auto"
+      template="minmax(0,1.5fr) minmax(0,1fr) minmax(0,1.6fr) minmax(0,0.8fr) minmax(0,1.3fr) minmax(0,0.5fr) minmax(0,1.2fr) minmax(0,0.9fr) 118px"
       rows={nodes}
       rowKey={(n) => n.id}
       cols={[
