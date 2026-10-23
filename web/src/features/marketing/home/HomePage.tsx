@@ -8,7 +8,11 @@ import desktopStates from './markup/desktop.states.json';
 import phoneStates from './markup/phone.states.json';
 import tabletStates from './markup/tablet.states.json';
 import { type GroupStates, initGroups, initVideos } from './behaviors';
-import { initApiConsole, initCapabilityNav, initChat, initOrbit, initReceiptReveals, initTicker } from './motion';
+import { type ChatState, initChat } from './chat';
+import desktopChat from './markup/desktop.chat.json';
+import phoneChat from './markup/phone.chat.json';
+import tabletChat from './markup/tablet.chat.json';
+import { initApiConsole, initCapabilityNav, initOrbit, initReceiptReveals, initTicker } from './motion';
 import { initShaders } from './shaders';
 import { mountDigitalPreview } from './digitalPreview';
 import './home.generated.css';
@@ -16,6 +20,7 @@ import './home.css';
 
 const TREES: Record<Breakpoint, string> = { desktop: desktopHtml, tablet: tabletHtml, phone: phoneHtml };
 const STATES: Record<Breakpoint, GroupStates> = { desktop: desktopStates, tablet: tabletStates, phone: phoneStates };
+const CHAT: Record<Breakpoint, ChatState[]> = { desktop: desktopChat, tablet: tabletChat, phone: phoneChat };
 const ORDER: Breakpoint[] = ['desktop', 'tablet', 'phone'];
 
 /**
@@ -75,7 +80,7 @@ export function HomePage() {
     if (tree) {
       disposers.push(initGroups(tree, STATES[bp]));
       disposers.push(initVideos(tree));
-      disposers.push(initOrbit(tree), initApiConsole(tree), initCapabilityNav(tree), initShaders(tree), initChat(tree), initReceiptReveals(tree), initTicker(tree));
+      disposers.push(initOrbit(tree), initApiConsole(tree), initCapabilityNav(tree), initShaders(tree), initChat(tree, CHAT[bp]), initReceiptReveals(tree), initTicker(tree));
     }
     for (const host of el.querySelectorAll<HTMLElement>('[data-sp-dashboard-preview]')) disposers.push(mountDigitalPreview(host));
     el.addEventListener('click', onClick, true);

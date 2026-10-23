@@ -155,41 +155,6 @@ function textP(root: ParentNode, text: string): HTMLElement | null {
   return null;
 }
 
-/** The "Inspect receipt" chat: the question types in (10ms per character, 50ms apart), then the rows fade up in turn. */
-export function initChat(tree: HTMLElement): () => void {
-  const thread = tree.querySelector<HTMLElement>('[data-framer-name="Conversation Thread"]');
-  if (!thread || reduced()) return () => {};
-  const anims: Animation[] = [];
-  const q = textP(thread, 'How does completed work become a payout?');
-  if (q?.firstChild?.nodeType === 3) {
-    const text = q.textContent ?? '';
-    q.textContent = '';
-    [...text].forEach((ch, n) => {
-      const s = document.createElement('span');
-      s.textContent = ch;
-      q.append(s);
-      anims.push(s.animate([{ opacity: 0.001 }, { opacity: 1 }], { duration: 10, delay: 300 + n * 50, easing: EASE, fill: 'backwards' }));
-    });
-  }
-  const rows = Array.from(thread.children) as HTMLElement[];
-  const starts = [0, 2800, 4600, 5500];
-  rows.forEach((row, i) => {
-    if (i === 0) return;
-    anims.push(
-      row.animate(
-        [
-          { opacity: 0, transform: 'translateY(16px)' },
-          { opacity: 1, transform: 'none' },
-        ],
-        { duration: 300, delay: starts[i] ?? 5500, easing: EASE, fill: 'backwards' },
-      ),
-    );
-  });
-  return () => {
-    for (const a of anims) a.cancel();
-  };
-}
-
 /** Receipt-flow cards: fade and settle into place the first time they scroll into view. */
 export function initReceiptReveals(tree: HTMLElement): () => void {
   if (reduced()) return () => {};

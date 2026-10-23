@@ -5,7 +5,7 @@
  */
 export type GroupStates = Record<string, Array<{ key: string; html: string }>>;
 
-function morph(live: Element, next: Element) {
+export function morph(live: Element, next: Element) {
   for (const a of Array.from(live.attributes)) if (!next.hasAttribute(a.name)) live.removeAttribute(a.name);
   for (const a of Array.from(next.attributes)) if (live.getAttribute(a.name) !== a.value) live.setAttribute(a.name, a.value);
   const lc = Array.from(live.childNodes);
@@ -22,7 +22,7 @@ function morph(live: Element, next: Element) {
   });
 }
 
-function snapshot(html: string): Element {
+export function snapshot(html: string): Element {
   const t = document.createElement('template');
   t.innerHTML = html;
   return t.content.firstElementChild as Element;
