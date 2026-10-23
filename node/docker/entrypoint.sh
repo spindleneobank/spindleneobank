@@ -14,6 +14,7 @@ esac
 ENGINE="${SPINDLE_ENGINE:-ollama}"
 PIDS=""
 
+# shellcheck disable=SC2329  # invoked via trap
 term() {
   log "stopping"
   for p in $PIDS; do kill -TERM "$p" 2>/dev/null || true; done
