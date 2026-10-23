@@ -110,7 +110,6 @@ export function SeriesChart({ buckets }: { buckets: Bucket[] }) {
       <div className="sd-xaxis" aria-hidden="true">
         {labelAt.map((i, pos) => (
           // positions, not bar indexes: short ranges map several labels to the same bar
-          // biome-ignore lint/suspicious/noArrayIndexKey: label slot is the stable identity
           <span key={`${pos}-${i}`}>{day(bars[i]?.b.ts ?? '')}</span>
         ))}
       </div>
