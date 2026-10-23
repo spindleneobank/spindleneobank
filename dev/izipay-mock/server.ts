@@ -340,6 +340,7 @@ export function createMock(opts: MockOptions) {
       }
       return ok({ faults: [...state.stickyFaults] });
     }
+    if (req.method === 'GET' && url.pathname === '/__mock/requests') return ok({ requests: state.requests });
     if (req.method === 'GET' && url.pathname === '/__mock/state') {
       return ok({ cards: [...state.cards.values()], payments: [...state.payments.values()] });
     }
@@ -364,6 +365,12 @@ export function createMock(opts: MockOptions) {
       const header = req.headers.get('x-mock-fault');
       if (header && FAULTS.includes(header as Fault)) faults.add(header as Fault);
 
+      state.requests.push({
+        at: new Date().toISOString(),
+        method: req.method,
+        path: url.pathname,
+        fault: [...faults][0] ?? null,
+      });
       const authFail = checkAuth(req, url.pathname + url.search, raw);
       if (authFail) return authFail;
 

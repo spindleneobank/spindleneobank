@@ -67,3 +67,11 @@ export async function until<T>(
   }
   throw new Error(`timeout after ${ms}ms${last ? `: ${String(last)}` : ''}`);
 }
+
+/** Plain tx from anvil account `i`. */
+export async function sendRaw(i: number, tx: { to: `0x${string}`; data?: `0x${string}`; value?: bigint }) {
+  const w = wallet(i);
+  const hash = await w.sendTransaction({ to: tx.to, data: tx.data, value: tx.value ?? 0n });
+  await ok(hash);
+  return hash;
+}
