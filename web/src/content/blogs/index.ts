@@ -299,14 +299,14 @@ export const POSTS: Post[] = [
     slug: 'sealed-lane',
     oldSlug: 'smart-automation-keeps-every-process-simple-and-scalable',
     category: 'Architecture',
-    bold: 'Confidential compute belongs in the attested sealed lane.',
-    dim: 'How the Sealed Lane Keeps Prompts Inside Eligible Attested GPUs',
+    bold: 'Confidential compute belongs in the sealed lane (in testing).',
+    dim: 'How the Sealed Lane (in Testing) Keeps Prompts Inside Attested GPUs',
     cardImg: {
       src: '/assets/stock/concrete-stair-room-web-v10.webp',
       alt: 'Empty concrete interior with angular stairs',
       filter: 'orchid',
     },
-    title: 'Confidential compute belongs in the attested sealed lane.',
+    title: 'Confidential compute belongs in the sealed lane (in testing).',
     hero: {
       src: '/assets/stock/light-crystals-web-v10.webp',
       alt: 'Light Chrystals III',
@@ -420,7 +420,7 @@ export const POSTS: Post[] = [
       },
       {
         t: 'p',
-        text: 'Routing considers compute lane, VRAM fit, stake weight, latency and reputation. The sealed lane is for private jobs on the eligible attested stack. The open lane handles non-sensitive workloads such as public-model batch inference, embeddings, evaluations and image generation.',
+        text: 'Routing considers compute lane, VRAM fit, stake weight, latency and reputation. The sealed lane (in testing) is for private jobs on the attested stack. The open lane handles non-sensitive workloads such as public-model batch inference, embeddings, evaluations and image generation.',
       },
       {
         t: 'h4',
@@ -523,7 +523,7 @@ export const POSTS: Post[] = [
       },
       {
         t: 'p',
-        text: 'Completed buyer-funded work determines earnings. A node’s hardware does not create a guaranteed payment, and consumer GPUs are not confidential compute. These limits matter when comparing the open and sealed lanes or deciding whether to supply a GPU.',
+        text: 'Completed buyer-funded work determines earnings. A node’s hardware does not create a guaranteed payment, and consumer GPUs are not confidential compute. These limits matter when comparing the open lane with the sealed lane (in testing) or deciding whether to supply a GPU.',
       },
     ],
     preparedFrom: 'Spindle specification',

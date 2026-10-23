@@ -364,7 +364,7 @@ export const FLOWS: Flow[] = [
       },
       {
         t: 'p',
-        text: 'The node signs a COSE receipt for each job. A verifier checks its signature, the job-to-billing match and token counts against the gateway. Eligible sealed-lane nodes attach attestation evidence. Metering applies the rate card to verified work, then an epoch builder records cumulative entitlement in an hourly Merkle root on Robinhood Chain.',
+        text: 'The node signs a COSE receipt for each job. A verifier checks its signature, the job-to-billing match and token counts against the gateway. Sealed-lane nodes (in testing) attach attestation evidence. Metering applies the rate card to verified work, then an epoch builder records cumulative entitlement in an hourly Merkle root on Robinhood Chain.',
       },
       {
         t: 'h4',
