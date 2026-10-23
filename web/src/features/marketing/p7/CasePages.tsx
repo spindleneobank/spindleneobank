@@ -178,7 +178,8 @@ export function CasePostPage({ flow }: { flow: FlowData }) {
                   {flow.facts.map((f) => (
                     <li key={f.strong}>
                       <p>
-                        <strong>{f.strong}</strong> {f.text}
+                        <strong>{f.strong}</strong>
+                        {` ${f.text}`}
                       </p>
                     </li>
                   ))}

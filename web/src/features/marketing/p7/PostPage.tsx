@@ -81,9 +81,7 @@ export function PostPage({ post }: { post: Post }) {
                 </div>
                 <div className="pg-share">
                   {SHARE_ICONS.map((svg) => (
-                    <div key={svg} className="pg-share-i">
-                      <span style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: svg }} />
-                    </div>
+                    <div key={svg} className="pg-share-i" dangerouslySetInnerHTML={{ __html: svg }} />
                   ))}
                 </div>
               </div>

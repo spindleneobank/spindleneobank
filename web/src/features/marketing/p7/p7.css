@@ -667,7 +667,7 @@
   width: 100%;
   height: auto;
   aspect-ratio: 764 / 431;
-  object-fit: cover;
+  object-fit: fill;
   border-radius: 8px;
 }
 .pg-case-content .pg-post-flow > picture {
@@ -1658,4 +1658,9 @@
     flex: none;
     width: 100%;
   }
+}
+
+.pg-post-imgwrap .pg-photo img,
+.pg-cp-imgwrap .pg-photo img {
+  object-position: 50% 0%;
 }
