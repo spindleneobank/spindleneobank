@@ -1,0 +1,9 @@
+**
+!package.json
+!bun.lock
+!node/package.json
+!node/tsconfig.json
+!node/src
+!node/docker
+!web/package.json
+!src/shared
