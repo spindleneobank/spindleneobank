@@ -30,7 +30,10 @@ export async function resetStack() {
     });
     if ((await p.exited) !== 0) throw new Error(`failed: ${c}`);
   };
-  await run('bun run dev:reset');
+  // same as `bun run dev:reset`, plus the E2E override (runs api/worker from this checkout, raises nothing secret)
+  const dc =
+    'docker compose -p spindle-dev -f ../docs/deploy/compose.dev.yml -f ../docs/deploy/compose.e2e.yml';
+  await run(`sudo ${dc} down -v && sudo ${dc} up -d && bun run dev:bootstrap && sudo ${dc} up -d --force-recreate api worker`);
   await waitHealthy();
   for (const n of ['house-node', 'e2e-a', 'e2e-lazy', 'e2e-gpu', 'e2e-pair'])
     await sh(`sudo docker rm -f ${n.startsWith('e2e') ? `e2e-node-${n}` : `spindle-dev-${n}`} 2>&1`);

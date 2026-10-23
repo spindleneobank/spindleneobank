@@ -50,6 +50,11 @@ export const s09: Scenario = {
     await psql(
       "update card_operations set created_at = created_at - interval '2 days' where created_at > now() - interval '1 day'",
     );
+    // the mock restarts its id counters on reset: free the provider ids earlier runs stored (unique constraint)
+    await psql(
+      "update cards set provider_card_id = provider_card_id || '_old' || floor(extract(epoch from now()))::text where provider_card_id like 'card\\_mock\\_%' and provider_card_id not like '%\\_old%'",
+    );
+    await psql("update cards set status = 'failed' where status = 'pending_payment'");
     await fetch(`${MOCK}/__mock/reset`, { method: 'POST' });
     const pricing = await s.get('/v1/app/cards/pricing');
     const product = pricing.products.find((p: any) => p.available)?.id ?? pricing.products[0].id;

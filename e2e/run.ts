@@ -1,6 +1,7 @@
 // bun run e2e [--only 1,3] [--reset]   Drives the 13 scenarios in docs/plan/verification.md against the dev stack.
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pub } from './lib/chain';
 import { EVIDENCE } from './lib/env';
 import { makeCtx, type Scenario, Skip } from './lib/harness';
 import { s01 } from './scenarios/s01';
@@ -35,10 +36,25 @@ if (!(await checkDevFlags()))
 await ensureHouse((m) => console.log(`  stack ${m}`));
 
 const rows: { n: number; name: string; status: string; ms: number; detail: string }[] = [];
-for (const s of all) {
+// scenarios 6 and 7 warp the chain clock by hours; x402 signatures carry wall-clock deadlines, so every scenario that
+// pays via x402 (4, 5, 13) must run before them. Results are reported in scenario-number order.
+const ORDER = [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 6, 7];
+const NEEDS_FRESH_CLOCK = [4, 5, 13];
+const sorted = [...all].sort((a, b) => ORDER.indexOf(a.n) - ORDER.indexOf(b.n));
+for (const s of sorted) {
   if (only.length && !only.includes(s.n)) continue;
   const c = makeCtx(s.n);
   const t0 = Date.now();
+  if (NEEDS_FRESH_CLOCK.includes(s.n)) {
+    const ahead =
+      Number((await pub.getBlock({ blockTag: 'latest' })).timestamp) - Math.floor(Date.now() / 1000);
+    if (ahead > 120) {
+      const msg = `chain clock is ${ahead}s ahead of wall time (an earlier run warped it): x402 deadlines are already expired. Run with --reset`;
+      c.step(`FAIL: ${msg}`);
+      rows.push({ n: s.n, name: s.name, status: 'FAIL', ms: 0, detail: msg });
+      continue;
+    }
+  }
   console.log(`== scenario ${s.n}: ${s.name}`);
   try {
     await s.run(c);
@@ -50,6 +66,7 @@ for (const s of all) {
     rows.push({ n: s.n, name: s.name, status, ms: Date.now() - t0, detail: msg.slice(0, 400) });
   }
 }
+rows.sort((a, b) => a.n - b.n);
 const table = rows
   .map(
     (r) =>
