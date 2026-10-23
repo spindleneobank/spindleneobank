@@ -97,9 +97,14 @@ export function RevealText({ paragraphs }: { paragraphs: string[] }) {
       top = r.top + scrollY;
       bottom = r.bottom + scrollY;
     };
-    const apply = () => {
+    const apply = (force?: unknown) => {
       raf = 0;
       const vh = innerHeight;
+      // like the old effect, only track the block while it is on screen
+      if (force !== true) {
+        const r = el.getBoundingClientRect();
+        if (r.bottom < 0 || r.top > vh) return;
+      }
       const s = top - 0.9 * vh;
       const e = bottom - 0.8 * vh;
       const p = reduce ? 1 : Math.min(1, Math.max(0, (scrollY - s) / (e - s)));
@@ -112,13 +117,13 @@ export function RevealText({ paragraphs }: { paragraphs: string[] }) {
         c.style.color = mix(Math.round(m * 100));
       }
     };
-    const onScroll = apply;
+    const onScroll = () => apply();
     const onResize = () => {
       measure();
-      onScroll();
+      apply(true);
     };
     measure();
-    apply();
+    apply(true);
     addEventListener('scroll', onScroll, { passive: true });
     addEventListener('resize', onResize);
     const ro = new ResizeObserver(onResize);
