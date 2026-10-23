@@ -14,7 +14,7 @@
     "dev:down": "docker compose -f ../docs/deploy/compose.dev.yml down",
     "dev:bootstrap": "bun run dev/bootstrap.ts",
     "dev:reset": "docker compose -f ../docs/deploy/compose.dev.yml down -v && docker compose -f ../docs/deploy/compose.dev.yml up -d && bun run dev/bootstrap.ts",
-    "test": "bun test",
+    "test": "bun test src dev",
     "test:int": "bun test --env-file=../docs/deploy/backend.env.dev src/**/*.int.test.ts",
     "typecheck": "tsc --noEmit -p . && bun run --filter '*' --if-present typecheck",
     "lint": "biome check .",
