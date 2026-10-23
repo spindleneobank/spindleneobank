@@ -1,0 +1,63 @@
+/* Home page: generated Framer rules live in home.generated.css; hand-written rules below. */
+/* Before hydration all three breakpoint trees are in the DOM; only the matching one shows. */
+@media (min-width: 1200px) {
+  [data-hm-tree='tablet'],
+  [data-hm-tree='phone'] {
+    display: none !important;
+  }
+}
+@media (min-width: 810px) and (max-width: 1199.98px) {
+  [data-hm-tree='desktop'],
+  [data-hm-tree='phone'] {
+    display: none !important;
+  }
+}
+@media (max-width: 809.98px) {
+  [data-hm-tree='desktop'],
+  [data-hm-tree='tablet'] {
+    display: none !important;
+  }
+}
+
+/* The old page inherited the browser default line-height from body; the app body sets 1.5. */
+.framer-x8qsM[data-hm-page='home'] {
+  line-height: normal;
+}
+
+/* Framer hover variant of the "View all" links (background fills in instantly). */
+.framer-VSipU a.framer-yifr6[data-framer-name='Dark']:hover {
+  background-color: rgb(234, 224, 220) !important;
+}
+
+/* The app's own marketing.css styles .sp-api-console / .sp-api-state as a grid; the old page used plain blocks. */
+.framer-VSipU .sp-api-console {
+  gap: normal;
+}
+.framer-VSipU .sp-api-state {
+  display: block;
+  gap: normal;
+}
+
+/* Dash flow of the workflow diagram; the suffix is the React useId of the old instance per breakpoint. */
+@keyframes workflow-flow-r1k {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+/* The app's .sp-eyebrow adds a left bar; the old page's eyebrows have none. */
+.framer-VSipU .sp-eyebrow {
+  padding-left: 0;
+  border-left: 0;
+}
+
+/* Reduced motion: the old page runs no infinite animation, including the workflow dash flow. */
+@media (prefers-reduced-motion: reduce) {
+  .framer-VSipU [style*='workflow-flow'] {
+    animation: none !important;
+  }
+}
+
+.framer-VSipU .sp-api-output {
+  border-top: 0;
+}
