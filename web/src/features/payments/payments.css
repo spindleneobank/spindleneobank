@@ -1,0 +1,142 @@
+.sd-pay-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.sd-pay-bar .sd-seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.sd-pay-panel {
+  gap: 18px;
+}
+.sd-input {
+  min-height: 44px;
+  width: 100%;
+  max-width: 360px;
+  padding: 0 12px;
+  border: 1px solid #dcc9d4;
+  background: #fffdfa;
+  font: 14px var(--sp-font-mono);
+  color: #55424f;
+  box-sizing: border-box;
+}
+.sd-input:focus-visible {
+  outline: 2px solid #b08aa0;
+  outline-offset: 1px;
+}
+.sd-input[aria-invalid="true"] {
+  border-color: #d9a99f;
+}
+.sd-field label {
+  font-size: 12px;
+  color: #8c6b68;
+}
+.sd-amount-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.sd-quote,
+.sd-next {
+  display: grid;
+  gap: 14px;
+}
+.sd-quote dd[data-warn="true"] {
+  color: #a1465a;
+  font-weight: 600;
+}
+.sd-tx-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: flex-start;
+}
+.sd-done {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 16px 18px;
+  border: 1px solid #b7d1bd;
+  background: #f1f8f2;
+  color: #2f5a3d;
+  min-width: 0;
+}
+.sd-done > .sd-next {
+  color: var(--d-ink);
+  width: 100%;
+}
+.sd-next ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.sd-next li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px solid #e7dcd9;
+  background: #fffdfa;
+}
+.sd-next li[data-pref="true"] {
+  border-color: #b08aa0;
+  background: #f8eef3;
+}
+.sd-next li > div {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 200px;
+}
+.sd-next small {
+  color: #85717e;
+}
+.sd-next em {
+  font-style: normal;
+  color: #9e6e82;
+  font-size: 11px;
+}
+.sd-disclosure {
+  border-top: 1px solid #e7dcd9;
+  padding-top: 12px;
+}
+.sd-split-setup,
+.sd-split-run {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.sd-split-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+ul.sd-warn {
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+@media (max-width: 720px) {
+  .sd-pay-bar .sd-seg {
+    width: 100%;
+  }
+  .sd-pay-bar .sd-seg button {
+    flex: 1 1 45%;
+    justify-content: center;
+  }
+  .sd-input {
+    max-width: none;
+  }
+}
+.sd-field .sd-seg {
+  justify-self: start;
+  max-width: 100%;
+}
