@@ -263,11 +263,14 @@ export async function createCard(
       if (open)
         throw new AppError('CONFLICT', 'You already have a card request in progress for this product.', 409);
       await enforceVelocity(tx, ctx.userId, feeCents);
-      await tx.insert(cardProfiles).values({
-        userId: ctx.userId,
-        emailEnc: encryptCardData(email, profileContext(ctx.userId)),
-        aliasEnc: input.alias ? encryptCardData(input.alias, profileContext(ctx.userId)) : null,
-      });
+      const [profile] = await tx
+        .insert(cardProfiles)
+        .values({
+          userId: ctx.userId,
+          emailEnc: encryptCardData(email, profileContext(ctx.userId)),
+          aliasEnc: input.alias ? encryptCardData(input.alias, profileContext(ctx.userId)) : null,
+        })
+        .returning({ id: cardProfiles.id });
       const [card] = await tx
         .insert(cards)
         .values({
@@ -287,6 +290,8 @@ export async function createCard(
           amountUsdCents: feeCents,
           fundingWallet: ctx.address.toLowerCase(),
           ipHash: ctx.ipHash,
+          // Snapshot of the profile used for this card: two cards can never cross emails.
+          invoice: { profileId: profile?.id },
           status: blocked ? 'failed' : 'created',
           error: blocked ? 'LIVE_WRITES_DISABLED' : null,
         })

@@ -428,3 +428,107 @@ describe('reveal and Apple Pay', () => {
     void armApplePay;
   });
 });
+
+describe('review-gate fixes', () => {
+  const hook = (raw: string) =>
+    kit.app.request('/v1/webhooks/izipay', {
+      method: 'POST',
+      body: raw,
+      headers: {
+        'content-type': 'application/json',
+        'x-izipay-signature': createHmac('sha256', HOOK_SECRET).update(raw).digest('hex'),
+      },
+    });
+
+  test('replayed topup.completed transaction_id never completes another top-up', async () => {
+    const { u, cardId } = await issued();
+    const a = await body(await u.call('POST', `/v1/app/cards/${cardId}/topups`, { amountUsdCents: '1000' }));
+    await submitOne();
+    await provider.sandboxConfirm(invoiceOf(await opRow(a.operation.id))?.paymentId as string);
+    await settle();
+    const doneA = await opRow(a.operation.id);
+    expect(doneA.status).toBe('completed');
+    expect(doneA.providerTxnId).toBeTruthy();
+    const b = await body(await u.call('POST', `/v1/app/cards/${cardId}/topups`, { amountUsdCents: '1000' }));
+    // identical signed requests within one second trip the replay guard (safely retried), so space them out
+    await new Promise((r) => setTimeout(r, 1100));
+    await submitOne();
+    expect((await opRow(b.operation.id)).status).toBe('awaiting_payment');
+    const providerCardId = (await cardRow(cardId)).providerCardId;
+    await hook(
+      JSON.stringify({
+        id: 'replay-1',
+        type: 'topup.completed',
+        data: { card_id: providerCardId, transaction_id: doneA.providerTxnId },
+      }),
+    );
+    await settle();
+    expect((await opRow(b.operation.id)).status).toBe('awaiting_payment');
+    const ev = (await dbRef.db.select().from(cardWebhookEvents)).find(
+      (e) => e.providerEventId === 'replay-1',
+    );
+    expect(ev?.error).toBe('duplicate transaction_id');
+    // an id-less completion is never guessed onto the open top-up
+    await hook(
+      JSON.stringify({ id: 'replay-2', type: 'topup.completed', data: { card_id: providerCardId } }),
+    );
+    await settle();
+    expect((await opRow(b.operation.id)).status).toBe('awaiting_payment');
+  });
+
+  test('processing past invoice expiry + grace goes to review, never completed or failed', async () => {
+    const { u, cardId } = await issued();
+    const t = await body(await u.call('POST', `/v1/app/cards/${cardId}/topups`, { amountUsdCents: '1000' }));
+    await submitOne();
+    const op = await opRow(t.operation.id);
+    const old = new Date(Date.now() - 31 * 60_000).toISOString();
+    await dbRef.db
+      .update(cardOperations)
+      .set({ status: 'processing', invoice: { ...invoiceOf(op), expiresAt: old } })
+      .where(eq(cardOperations.id, op.id));
+    await expireInvoices();
+    expect((await opRow(op.id)).status).toBe('review');
+    // within grace it stays processing
+    const t2Card = await issued();
+    const t2 = await body(
+      await t2Card.u.call('POST', `/v1/app/cards/${t2Card.cardId}/topups`, { amountUsdCents: '1000' }),
+    );
+    await submitOne();
+    const op2 = await opRow(t2.operation.id);
+    await dbRef.db
+      .update(cardOperations)
+      .set({
+        status: 'processing',
+        invoice: { ...invoiceOf(op2), expiresAt: new Date(Date.now() - 60_000).toISOString() },
+      })
+      .where(eq(cardOperations.id, op2.id));
+    await expireInvoices();
+    expect((await opRow(op2.id)).status).toBe('processing');
+  });
+
+  test('input validation: email, alias, finish, product', async () => {
+    const u = await kit.as(kit.newUser());
+    const bad = (b: object) =>
+      u.call('POST', '/v1/app/cards', { product: 'mastercard', email: 'v@example.com', ...b });
+    expect((await bad({ email: `${'a'.repeat(250)}@example.com` })).status).toBe(400);
+    expect((await bad({ email: 'not-an-email' })).status).toBe(400);
+    expect((await bad({ alias: 'x'.repeat(65) })).status).toBe(400);
+    expect((await bad({ finish: 'bad finish!' })).status).toBe(400);
+    expect((await bad({ product: 'visa' })).status).toBe(400);
+  });
+
+  test('issue operation snapshots its profile, so cards never cross emails', async () => {
+    const { opId } = await issued();
+    const op = await opRow(opId);
+    const profileId = (op.invoice as { profileId?: string }).profileId;
+    expect(profileId).toBeTruthy();
+    expect(
+      (
+        await dbRef.db
+          .select()
+          .from(cardProfiles)
+          .where(eq(cardProfiles.id, profileId as string))
+      ).length,
+    ).toBe(1);
+  });
+});

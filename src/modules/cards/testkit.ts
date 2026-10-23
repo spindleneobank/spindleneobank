@@ -33,11 +33,10 @@ export type Kit = {
 
 /** Fresh DB handle (no truncation: tests use unique users), in-process izipay mock, scoped Redis keys. */
 export async function bootCards(opts: { stepDelayMs?: number; timeoutMs?: number } = {}): Promise<Kit> {
-  // B12 uses its own database so other agents' truncations never race these tests.
-  const base = process.env.TEST_DATABASE_URL || 'postgres://spindle:spindle@127.0.0.1:7232/spindle_test';
-  const u = new URL(base);
-  u.pathname = '/spindle_test_b12';
-  process.env.TEST_DATABASE_URL = u.toString();
+  // Defaults to the private spindle_test_b12 database; an explicit TEST_DATABASE_URL (name included) is honoured.
+  if (!process.env.TEST_DATABASE_URL) {
+    process.env.TEST_DATABASE_URL = 'postgres://spindle:spindle@127.0.0.1:7232/spindle_test_b12';
+  }
   const { setupTestDb } = await import('../../../test/db-setup');
   const t = await setupTestDb();
   dbRef.db = t.db;
@@ -78,6 +77,9 @@ export async function bootCards(opts: { stepDelayMs?: number; timeoutMs?: number
     encKey: randomBytes(32).toString('hex'),
     rateBudgetOverride: 1000,
     requestTimeoutMs: 600,
+    txVisibleWaitMs: 30,
+    processingGraceMs: 30 * 60_000,
+    submittedTimeoutMs: 10 * 60_000,
     nodeEnv: 'test',
     relayMode: 'live',
     maxOpsPerDay: 3,

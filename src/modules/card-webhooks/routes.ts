@@ -6,7 +6,7 @@ import { logger } from '../../lib/logger';
 import { dbRef } from '../auth/constants';
 import { deliverOtp } from '../cards/applePay';
 import { otpFromEvent, parseProviderJson, sanitizeEvent, sha256, verifyWebhook } from '../cards/domain';
-import { cardSettings } from '../cards/settings';
+import { assertProductionSafe, cardSettings } from '../cards/settings';
 
 const MAX_BODY = 64 * 1024;
 
@@ -15,6 +15,7 @@ const MAX_BODY = 64 * 1024;
  * Stored events are allowlisted ids only: OTP codes go straight to the encrypted Redis cache, never to the DB.
  */
 export default function cardWebhooks(app: Hono<Env>): void {
+  assertProductionSafe();
   app.post('/v1/webhooks/izipay', async (c) => {
     c.header('cache-control', 'no-store');
     const raw = Buffer.from(await c.req.arrayBuffer());

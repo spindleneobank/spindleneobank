@@ -25,7 +25,7 @@ import {
 } from './domain';
 import { ProviderError, provider } from './provider';
 import { getPricing, invoiceOf, type OpRow, REJECTED_TEXT, REVIEW_TEXT, type StoredInvoice } from './service';
-import { cardsEnabled, decryptCardData, profileContext, providerScope } from './settings';
+import { cardSettings, cardsEnabled, decryptCardData, profileContext, providerScope } from './settings';
 
 const FUNDING_REVIEW = 'The provider used an unexpected funding source. Contact support before continuing.';
 const later = (ms: number) => new Date(Date.now() + ms);
@@ -147,10 +147,16 @@ async function buildRequest(op: OpRow): Promise<{ body: string; providerCardId?:
   const [card] = await dbRef.db.select().from(cards).where(eq(cards.id, op.cardId));
   if (!card) throw new ProviderError('not_sent', 'invalid_response');
   if (op.kind === 'issue') {
+    const profileId = record(op.invoice).profileId;
+    // The profile snapshotted at creation; only legacy rows fall back to the latest one.
     const [profile] = await dbRef.db
       .select()
       .from(cardProfiles)
-      .where(eq(cardProfiles.userId, op.userId))
+      .where(
+        typeof profileId === 'string'
+          ? and(eq(cardProfiles.id, profileId), eq(cardProfiles.userId, op.userId))
+          : eq(cardProfiles.userId, op.userId),
+      )
       .orderBy(desc(cardProfiles.createdAt))
       .limit(1);
     if (!profile?.emailEnc) throw new ProviderError('not_sent', 'invalid_response');
@@ -266,7 +272,7 @@ async function applySubmitResult(op: OpRow, result: unknown) {
           ...(invoice.amountUsd ? { amountUsd: invoice.amountUsd } : {}),
           ...(invoice.amountOnCardUsd ? { amountOnCardUsd: invoice.amountOnCardUsd } : {}),
         };
-        extra.invoice = value;
+        extra.invoice = { ...record(current.invoice), ...value };
       }
       const txnId = op.kind === 'topup' ? identifier(data.transaction_id) : null;
       if (txnId) extra.providerTxnId = txnId;
@@ -324,6 +330,16 @@ export async function expireInvoices() {
       });
       if (op.kind === 'issue') await setCardStatus(tx, op.cardId, 'failed');
     });
+  }
+  // Paid (processing) but no provider confirmation long after the invoice expired: a human decides.
+  const processing = await dbRef.db
+    .select()
+    .from(cardOperations)
+    .where(eq(cardOperations.status, 'processing'));
+  for (const op of processing) {
+    const inv = invoiceOf(op);
+    if (!inv || new Date(inv.expiresAt).getTime() + cardSettings.processingGraceMs >= Date.now()) continue;
+    await updateOperation(op.id, 'review');
   }
 }
 
@@ -536,7 +552,7 @@ export async function processOneEvent(): Promise<boolean> {
       }
       const type = event.type ?? '';
       if (type === 'card.paid' && identifier(payload.topup_id)) {
-        const [op] = await findTopup(tx, card.id, payload);
+        const [op] = await findTopup(tx, card.id, payload, null);
         if (!op) return false;
         await setOperation(tx, op, 'processing');
       } else if (type === 'card.paid' || type === 'card.issued' || type === 'card.failed') {
@@ -557,9 +573,25 @@ export async function processOneEvent(): Promise<boolean> {
           await setCardStatus(tx, card.id, 'failed');
         }
       } else if (type === 'topup.completed') {
-        const [op] = await findTopup(tx, card.id, payload);
-        if (!op) return false;
         const txnId = identifier(payload.transaction_id);
+        if (txnId) {
+          // A transaction id already recorded on any operation is a replay: it may only (re)confirm that
+          // very operation while it is still open on this card, never another one.
+          const [seen] = await tx
+            .select()
+            .from(cardOperations)
+            .where(eq(cardOperations.providerTxnId, txnId));
+          if (seen && (seen.cardId !== card.id || seen.kind !== 'topup' || seen.status === 'completed')) {
+            logger.warn({ eventId: event.id }, 'duplicate topup.completed transaction_id dropped');
+            await tx
+              .update(cardWebhookEvents)
+              .set({ processedAt: new Date(), error: 'duplicate transaction_id' })
+              .where(eq(cardWebhookEvents.id, event.id));
+            return true;
+          }
+        }
+        const [op] = await findTopup(tx, card.id, payload, txnId, payload._firstSeen as string | undefined);
+        if (!op) return false;
         await setOperation(tx, op, 'completed', txnId && !op.providerTxnId ? { providerTxnId: txnId } : {});
         await getRedis()
           .del(`cards:txsync:${card.id}`)
@@ -605,7 +637,13 @@ export async function processOneEvent(): Promise<boolean> {
  * The topup an event refers to. `topup.completed` from izipay carries only card_id + transaction_id, so when no
  * id matches, the card's single open top-up (at most one per card by construction) is the match.
  */
-async function findTopup(tx: Tx, cardId: string, payload: Record<string, unknown>): Promise<OpRow[]> {
+async function findTopup(
+  tx: Tx,
+  cardId: string,
+  payload: Record<string, unknown>,
+  txnId: string | null,
+  firstSeen?: string,
+): Promise<OpRow[]> {
   const ops = await tx
     .select()
     .from(cardOperations)
@@ -619,7 +657,6 @@ async function findTopup(tx: Tx, cardId: string, payload: Record<string, unknown
     .for('update');
   const paymentId = identifier(payload.payment_id);
   const topupId = identifier(payload.topup_id);
-  const txnId = identifier(payload.transaction_id);
   const byId = ops.filter((o) => {
     const inv = invoiceOf(o);
     return (
@@ -629,7 +666,23 @@ async function findTopup(tx: Tx, cardId: string, payload: Record<string, unknown
     );
   });
   if (byId.length === 1) return byId;
-  if (byId.length === 0 && ops.length === 1 && !paymentId && !topupId && !ops[0]?.providerTxnId) return ops;
+  // Fallback: the card's single open top-up, only if it was submitted before the event arrived and the
+  // event carries a transaction id to record on it.
+  const seenAt = firstSeen ? new Date(firstSeen).getTime() : Number.NaN;
+  const only = ops[0];
+  if (
+    byId.length === 0 &&
+    ops.length === 1 &&
+    only &&
+    txnId &&
+    !paymentId &&
+    !topupId &&
+    !only.providerTxnId &&
+    invoiceOf(only) &&
+    only.createdAt.getTime() < seenAt
+  ) {
+    return ops;
+  }
   return [];
 }
 

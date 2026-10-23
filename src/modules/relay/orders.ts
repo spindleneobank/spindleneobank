@@ -48,13 +48,21 @@ function sumUsd(fees: Record<string, { amountUsd?: string }>): string {
   return `${micros / 1_000_000n}.${(micros % 1_000_000n).toString().padStart(6, '0')}`;
 }
 
+type DbTx = Parameters<Parameters<typeof dbRef.db.transaction>[0]>[0];
+
+/** One quote at a time per operation: the operation row stays locked until the order row is written. */
 export async function createRelayQuote(userId: string, address: string, operationId: string) {
   assertRelayModeSafe();
   if (!/^[0-9a-f-]{36}$/i.test(operationId)) throw new AppError('NOT_FOUND', 'Not found');
-  const [op] = await dbRef.db
+  return dbRef.db.transaction((tx) => quoteLocked(tx, userId, address, operationId));
+}
+
+async function quoteLocked(dtx: DbTx, userId: string, address: string, operationId: string) {
+  const [op] = await dtx
     .select()
     .from(cardOperations)
     .where(and(eq(cardOperations.id, operationId), eq(cardOperations.userId, userId)))
+    .for('update')
     .limit(1);
   if (!op) throw new AppError('NOT_FOUND', 'Not found');
   const invoice = invoiceOf(op);
@@ -63,7 +71,7 @@ export async function createRelayQuote(userId: string, address: string, operatio
   if (new Date(invoice.expiresAt).getTime() <= Date.now())
     throw new AppError('CONFLICT', 'The invoice has expired.', 409);
   const dest = DEST[invoice.network];
-  const existing = await dbRef.db.select().from(relayOrders).where(eq(relayOrders.cardOperationId, op.id));
+  const existing = await dtx.select().from(relayOrders).where(eq(relayOrders.cardOperationId, op.id));
   if (existing.some((o) => ['submitted', 'pending', 'success'].includes(o.status))) {
     throw new AppError('CONFLICT', 'A payment for this invoice is already in progress.', 409);
   }
@@ -104,7 +112,7 @@ export async function createRelayQuote(userId: string, address: string, operatio
     stub,
     user: address.toLowerCase(),
   };
-  const order = await dbRef.db.transaction(async (tx) => {
+  const order = await (async (tx: DbTx) => {
     // Older unsent quotes are superseded.
     await tx
       .update(relayOrders)
@@ -126,7 +134,7 @@ export async function createRelayQuote(userId: string, address: string, operatio
       })
       .returning();
     return row!;
-  });
+  })(dtx);
   return {
     relayOrderId: order.id,
     requestId: order.requestId,
@@ -171,7 +179,21 @@ export async function markSubmitted(
     return { status: order.status as RelayStatus };
   if (!['quoted', 'signing'].includes(order.status))
     throw new AppError('CONFLICT', 'This payment can no longer be changed.', 409);
-  const check = await verifyTx(hash as `0x${string}`, address, item.to);
+  // The tx must become visible (pending or mined) within the wait window; otherwise 409 and the order stays put.
+  let check = await verifyTx(hash as `0x${string}`, address, item.to);
+  const deadline = Date.now() + cardSettings.txVisibleWaitMs;
+  while (check === 'unknown' && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, Math.min(2000, Math.max(10, deadline - Date.now()))));
+    check = await verifyTx(hash as `0x${string}`, address, item.to);
+  }
+  if (check === 'unknown') {
+    if (order.status === 'quoted') await setOrder(order.id, 'signing', ['quoted']);
+    throw new AppError(
+      'CONFLICT',
+      'The transaction is not visible on chain yet. Try again in a moment.',
+      409,
+    );
+  }
   if (check === 'mismatch')
     throw new AppError('VALIDATION', 'That transaction does not match the quoted step.');
   if (check === 'reverted') throw new AppError('VALIDATION', 'That transaction failed on chain.');
@@ -235,7 +257,10 @@ async function pollOne(order: OrderRow) {
   if (quote.stub) {
     assertRelayModeSafe();
     const receipt = await chainDeps.getReceipt(hash).catch(() => null);
-    if (!receipt) return;
+    if (!receipt) {
+      await expireStale(order);
+      return;
+    }
     if (receipt.status === 'reverted') {
       await setOrder(order.id, 'failed', ['submitted', 'pending']);
       return;
@@ -256,7 +281,17 @@ async function pollOne(order: OrderRow) {
   else if (result === 'failure') {
     if (await setOrder(order.id, 'failed', ['submitted', 'pending']))
       await updateOperation(order.cardOperationId, 'review');
-  } else if (order.status === 'submitted') await setOrder(order.id, 'pending', ['submitted']);
+  } else {
+    if (!receipt) await expireStale(order);
+    else if (order.status === 'submitted') await setOrder(order.id, 'pending', ['submitted']);
+  }
+}
+
+/** A deposit that never produced a receipt is dropped: the order becomes `expired` and can be re-quoted. */
+async function expireStale(order: OrderRow) {
+  if (Date.now() - order.updatedAt.getTime() > cardSettings.submittedTimeoutMs) {
+    await setOrder(order.id, 'expired', ['submitted', 'pending']);
+  }
 }
 
 /** Polls active orders (called every tick of the cards job, ~10 s). */

@@ -11,7 +11,13 @@ import {
   signRequest,
   verifyWebhook,
 } from './domain';
-import { assertRelayModeSafe, cardSettings, decryptCardData, encryptCardData } from './settings';
+import {
+  assertProductionSafe,
+  assertRelayModeSafe,
+  cardSettings,
+  decryptCardData,
+  encryptCardData,
+} from './settings';
 
 describe('domain', () => {
   test('signRequest matches the documented HMAC input', () => {
@@ -99,6 +105,24 @@ describe('settings', () => {
       expect(() => assertRelayModeSafe()).toThrow(/stub/);
       Object.assign(cardSettings, { nodeEnv: 'development' });
       expect(() => assertRelayModeSafe()).not.toThrow();
+    } finally {
+      Object.assign(cardSettings, prev);
+    }
+  });
+
+  test('production refuses IZIPAY_MODE=mock and RELAY_MODE=stub (fail fast)', () => {
+    const prev = {
+      mode: cardSettings.mode,
+      relayMode: cardSettings.relayMode,
+      nodeEnv: cardSettings.nodeEnv,
+    };
+    try {
+      Object.assign(cardSettings, { nodeEnv: 'production', mode: 'mock', relayMode: 'live' });
+      expect(() => assertProductionSafe()).toThrow(/mock/);
+      Object.assign(cardSettings, { mode: 'live', relayMode: 'stub' });
+      expect(() => assertProductionSafe()).toThrow(/stub/);
+      Object.assign(cardSettings, { mode: 'live', relayMode: 'live' });
+      expect(() => assertProductionSafe()).not.toThrow();
     } finally {
       Object.assign(cardSettings, prev);
     }

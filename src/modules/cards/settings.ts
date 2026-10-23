@@ -31,6 +31,12 @@ export const cardSettings = {
   maxUnpaidInvoices: 1,
   minTopupCents: 500n,
   maxCardCents: 1_000_000n,
+  /** Processing ops whose invoice expired this long ago without provider confirmation go to review. */
+  processingGraceMs: 30 * 60_000,
+  /** markSubmitted waits this long for the tx to become visible. */
+  txVisibleWaitMs: 60_000,
+  /** Submitted relay orders without a receipt after this long become `expired` (re-quotable). */
+  submittedTimeoutMs: 10 * 60_000,
 };
 
 export const providerScope = () => `izipay:${cardSettings.mode}:${cardSettings.accountRef}`;
@@ -39,6 +45,14 @@ export const liveWritesBlocked = () => cardSettings.mode === 'live' && !cardSett
 export const cardsEnabled = () =>
   Boolean(cardSettings.apiKey && cardSettings.apiSecret && cardSettings.encKey) &&
   (cardSettings.mode === 'mock' || cardSettings.apiKey.startsWith('izpk_live_'));
+
+/** Fail fast: mock izipay and the Relay stub are dev-only. */
+export function assertProductionSafe(): void {
+  assertRelayModeSafe();
+  if (cardSettings.mode === 'mock' && cardSettings.nodeEnv === 'production') {
+    throw new Error('IZIPAY_MODE=mock is forbidden when NODE_ENV=production');
+  }
+}
 
 export const unavailable = () =>
   new AppError('UPSTREAM_UNAVAILABLE', 'Cards are temporarily unavailable.', 503);

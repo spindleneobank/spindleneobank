@@ -1,9 +1,13 @@
 import type { Context, Hono } from 'hono';
-import type { ZodType, z } from 'zod';
+import { type ZodType, z } from 'zod';
 import { AppError } from '../../lib/errors';
 import type { Env } from '../../lib/http';
 import { clientIp, hashIp, rateLimit } from '../../lib/ratelimit';
-import { PostCardsReq, PostCardTopupsReq, PostRelayOrderSubmittedReq } from '../../shared/api/cards';
+import {
+  PostCardsReq as BaseCardsReq,
+  PostCardTopupsReq,
+  PostRelayOrderSubmittedReq,
+} from '../../shared/api/cards';
 import { PageQuery } from '../../shared/api/common';
 import { requireFreshAuth, requireSession } from '../auth/middleware';
 import { createRelayQuote, markSubmitted } from '../relay/orders';
@@ -14,10 +18,32 @@ import {
   getOperation,
   getPricingView,
   getTransactions,
+  ISSUABLE_PRODUCTS,
   listCards,
   revealCard,
   userIdFor,
 } from './service';
+import { assertProductionSafe } from './settings';
+
+// Stricter than the shared schema: issuable products only, bounded email/alias/finish.
+const PostCardsReq = BaseCardsReq.extend({
+  product: z.enum(ISSUABLE_PRODUCTS),
+  email: z.string().trim().max(254).email(),
+  alias: z
+    .string()
+    .trim()
+    .max(64)
+    .refine(
+      (v) => ![...v].some((ch) => ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127),
+      'no control characters',
+    )
+    .optional(),
+  finish: z
+    .string()
+    .max(32)
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .optional(),
+});
 
 async function body<T extends ZodType>(
   c: { req: { json: () => Promise<unknown> } },
@@ -33,6 +59,7 @@ const sensitiveLimit = rateLimit({ name: 'cards_sensitive', key: byUser, points:
 const writeLimit = rateLimit({ name: 'cards_write', key: byUser, points: 20, windowSec: 600 });
 
 export default function cardRoutes(app: Hono<Env>): void {
+  assertProductionSafe();
   const me = async (c: Context<Env>) => {
     const address = byUser(c);
     return { address, userId: await userIdFor(address), ipHash: hashIp(clientIp(c)) };

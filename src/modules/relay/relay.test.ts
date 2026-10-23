@@ -425,4 +425,41 @@ describe('relay orders', () => {
     // confirm is not repeated
     await pollRelayOrders();
   });
+
+  test('markSubmitted: invisible tx -> 409 and the order is not advanced; stale submitted orders expire', async () => {
+    const { u, opId } = await waitingIssue();
+    const q = (await (await u.call('POST', `/v1/app/card-operations/${opId}/relay-quote`)).json()) as any;
+    chainDeps.getReceipt = (async () => null) as never;
+    chainDeps.getTransaction = (async () => null) as never;
+    const res = await u.call('POST', `/v1/app/relay-orders/${q.relayOrderId}/submitted`, {
+      step: 'deposit',
+      txHash: `0x${'55'.repeat(32)}`,
+    });
+    expect(res.status).toBe(409);
+    expect(['quoted', 'signing']).toContain((await orderStatus(q.relayOrderId)) as string);
+    // a submitted order with no receipt after the timeout becomes expired (re-quotable)
+    const w = await submittedOrder();
+    chainDeps.getReceipt = (async () => null) as never;
+    statusReply = 'waiting';
+    Object.assign(cardSettings, { submittedTimeoutMs: -1 });
+    try {
+      await pollRelayOrders();
+    } finally {
+      Object.assign(cardSettings, { submittedTimeoutMs: 10 * 60_000 });
+    }
+    expect(await orderStatus(w.orderId)).toBe('expired');
+    expect((await w.u.call('POST', `/v1/app/card-operations/${w.opId}/relay-quote`)).status).toBe(200);
+  });
+
+  test('concurrent relay-quote requests leave exactly one live quote', async () => {
+    const { u, opId } = await waitingIssue();
+    const results = await Promise.all(
+      [1, 2, 3].map(() => u.call('POST', `/v1/app/card-operations/${opId}/relay-quote`)),
+    );
+    expect(results.every((r) => r.status === 200)).toBe(true);
+    const states = (
+      await dbRef.db.select().from(relayOrders).where(eq(relayOrders.cardOperationId, opId))
+    ).map((o) => o.status);
+    expect(states.filter((s) => s === 'quoted')).toHaveLength(1);
+  });
 });
