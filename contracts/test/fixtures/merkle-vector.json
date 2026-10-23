@@ -1,0 +1,54 @@
+{
+  "types": ["address", "uint256"],
+  "root": "0x4e9ed6321077e464cd1dae7ad743159bcf78399f054c151659893620f8f4b838",
+  "totalEarned": "5126956831",
+  "leaves": [
+    {
+      "owner": "0x1111111111111111111111111111111111111111",
+      "cumulative": "1000000",
+      "leaf": "0xddee0dce62a8bda7483bd90da773da562d1723ee0cd269d42cfe0ce366f69bbf",
+      "proof": [
+        "0xe17e2469047adc6db21d0ec305f3d9cb275607495e7ef0363a7609b1e77073ae",
+        "0x313f356149b4b2f20b41e240e7b1481c37e9a81789eec51a0f1cf8fc458e208e"
+      ]
+    },
+    {
+      "owner": "0x2222222222222222222222222222222222222222",
+      "cumulative": "2500000",
+      "leaf": "0xfcc31e7265f1287e5549ed818544c17b47bca8d8c2ff8a5314d7c330c17d9eb8",
+      "proof": [
+        "0x3b267bd4cd2bb800d2670c800332262ed103062c454909cbe70f4574bb338b9f",
+        "0x3fc5f719ab8e6b9fee5b07b843a9366d9f4c234b0eec15530bdf9f291e42cdb5"
+      ]
+    },
+    {
+      "owner": "0x3333333333333333333333333333333333333333",
+      "cumulative": "42",
+      "leaf": "0xe17e2469047adc6db21d0ec305f3d9cb275607495e7ef0363a7609b1e77073ae",
+      "proof": [
+        "0xddee0dce62a8bda7483bd90da773da562d1723ee0cd269d42cfe0ce366f69bbf",
+        "0x313f356149b4b2f20b41e240e7b1481c37e9a81789eec51a0f1cf8fc458e208e"
+      ]
+    },
+    {
+      "owner": "0x4444444444444444444444444444444444444444",
+      "cumulative": "123456789",
+      "leaf": "0xdb70e30818a215b40029bbe6be8adb68d78ef4b5338b36d7fdd7bec0af1d8327",
+      "proof": [
+        "0x7a27013985bb7e33282a6f9e9ac48f5c867cd45cc191dbe0e654d45b39ad830f",
+        "0xfcc31e7265f1287e5549ed818544c17b47bca8d8c2ff8a5314d7c330c17d9eb8",
+        "0x3fc5f719ab8e6b9fee5b07b843a9366d9f4c234b0eec15530bdf9f291e42cdb5"
+      ]
+    },
+    {
+      "owner": "0x5555555555555555555555555555555555555555",
+      "cumulative": "5000000000",
+      "leaf": "0x7a27013985bb7e33282a6f9e9ac48f5c867cd45cc191dbe0e654d45b39ad830f",
+      "proof": [
+        "0xdb70e30818a215b40029bbe6be8adb68d78ef4b5338b36d7fdd7bec0af1d8327",
+        "0xfcc31e7265f1287e5549ed818544c17b47bca8d8c2ff8a5314d7c330c17d9eb8",
+        "0x3fc5f719ab8e6b9fee5b07b843a9366d9f4c234b0eec15530bdf9f291e42cdb5"
+      ]
+    }
+  ]
+}
