@@ -44,10 +44,16 @@ export async function readEthUsdMicros(
 ): Promise<bigint> {
   const read = (functionName: 'token0' | 'token1') =>
     publicClient.readContract({ address: pool, abi: uniswapV3PoolAbi, functionName });
-  const [slot0, token0] = await Promise.all([
+  const [slot0, token0, token1] = await Promise.all([
     publicClient.readContract({ address: pool, abi: uniswapV3PoolAbi, functionName: 'slot0' }),
     read('token0'),
+    read('token1'),
   ]);
+  const pair = [token0, token1].map((t) => t.toLowerCase()).sort();
+  const expected = [KNOWN.USDG, KNOWN.WETH].map((t) => t.toLowerCase()).sort();
+  if (pair[0] !== expected[0] || pair[1] !== expected[1]) {
+    throw new AppError('CHAIN_STATE', `pool ${pool} is not a USDG/WETH pool`, 500);
+  }
   return ethUsdMicrosFromSqrtPrice({
     sqrtPriceX96: slot0[0],
     usdgIsToken0: token0.toLowerCase() === KNOWN.USDG.toLowerCase(),

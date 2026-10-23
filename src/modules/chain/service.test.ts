@@ -1,18 +1,22 @@
 import { describe, expect, test } from 'bun:test';
 import { runGasMonitor } from './jobs';
-import { type KeeperState, type KvStore, keeperLevel, keeperState } from './service';
+import { type KeeperState, type KvStore, keeperLevel, keeperState, resolveEthUsd } from './service';
 
 const memKv = (): KvStore & { data: Map<string, unknown> } => {
   const data = new Map<string, unknown>();
   return { data, get: async (k) => data.get(k), set: async (k, v) => void data.set(k, v) };
 };
-const stateFor = (balanceWei: bigint, level: KeeperState['level']): KeeperState => ({
+const stateFor = (
+  balanceWei: bigint,
+  level: KeeperState['level'],
+  checkedAt = new Date(0).toISOString(),
+): KeeperState => ({
   address: '0x000000000000000000000000000000000000dEaD',
   balanceWei: balanceWei.toString(),
   ethUsdMicros: '2400000000',
   gasPriceWei: '100000000',
   level,
-  checkedAt: new Date(0).toISOString(),
+  checkedAt,
 });
 
 describe('gas monitor levels', () => {
@@ -46,8 +50,18 @@ describe('gas monitor levels', () => {
 
   test('keeperState reads stored kv value', async () => {
     const kv = memKv();
-    const s = stateFor(5n, 'critical');
+    const s = stateFor(5n, 'critical', new Date().toISOString());
     kv.data.set('keeper', s);
     expect(await keeperState(kv)).toEqual(s);
+  });
+
+  test('ethUsd never silently 0: keep recent previous, else null', () => {
+    const now = new Date('2026-01-01T01:00:00Z');
+    const recent = stateFor(1n, 'ok', new Date(now.getTime() - 60_000).toISOString());
+    const old = stateFor(1n, 'ok', new Date(now.getTime() - 16 * 60_000).toISOString());
+    expect(resolveEthUsd(5n, undefined, now)).toBe('5');
+    expect(resolveEthUsd(null, recent, now)).toBe('2400000000');
+    expect(resolveEthUsd(null, old, now)).toBeNull();
+    expect(resolveEthUsd(null, undefined, now)).toBeNull();
   });
 });

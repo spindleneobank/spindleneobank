@@ -9,7 +9,8 @@ export type KeeperLevel = 'ok' | 'low' | 'critical';
 export type KeeperState = {
   address: Address;
   balanceWei: string;
-  ethUsdMicros: string;
+  /** USDG micros per ETH; null = unknown (consumers such as x402 must treat null as disabled/conservative). */
+  ethUsdMicros: string | null;
   gasPriceWei: string;
   level: KeeperLevel;
   checkedAt: string;
@@ -41,16 +42,31 @@ export const pgKv: KvStore = {
 };
 
 /** Computes the keeper state live from the chain. */
-export async function computeKeeperState(now = new Date()): Promise<KeeperState> {
+export const KEEPER_STATE_MAX_AGE_MS = 15 * 60_000;
+
+/** On price failure keep the previous value if it is under 15 minutes old, else null (never a silent 0). */
+export function resolveEthUsd(
+  fresh: bigint | null,
+  previous: KeeperState | undefined,
+  now: Date,
+): string | null {
+  if (fresh !== null) return fresh.toString();
+  if (previous?.ethUsdMicros && now.getTime() - Date.parse(previous.checkedAt) < KEEPER_STATE_MAX_AGE_MS) {
+    return previous.ethUsdMicros;
+  }
+  return null;
+}
+
+export async function computeKeeperState(now = new Date(), previous?: KeeperState): Promise<KeeperState> {
   const [balance, gasPrice, ethUsd] = await Promise.all([
     keeperBalance(),
     publicClient.getGasPrice(),
-    getEthUsdMicros().catch(() => 0n),
+    getEthUsdMicros().catch(() => null),
   ]);
   return {
     address: keeperAccount().address,
     balanceWei: balance.toString(),
-    ethUsdMicros: ethUsd.toString(),
+    ethUsdMicros: resolveEthUsd(ethUsd, previous, now),
     gasPriceWei: gasPrice.toString(),
     level: keeperLevel(balance),
     checkedAt: now.toISOString(),
@@ -60,6 +76,7 @@ export async function computeKeeperState(now = new Date()): Promise<KeeperState>
 /** Last gas-monitor result from kv('keeper'), or computed live if missing. */
 export async function keeperState(kv: KvStore = pgKv): Promise<KeeperState> {
   const stored = await kv.get(KEEPER_KV_KEY).catch(() => undefined);
-  if (stored && typeof stored === 'object') return stored as KeeperState;
-  return computeKeeperState();
+  const prev = stored && typeof stored === 'object' ? (stored as KeeperState) : undefined;
+  if (prev && Date.now() - Date.parse(prev.checkedAt) < KEEPER_STATE_MAX_AGE_MS) return prev;
+  return computeKeeperState(new Date(), prev);
 }
