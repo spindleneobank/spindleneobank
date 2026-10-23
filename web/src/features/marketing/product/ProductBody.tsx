@@ -4,6 +4,7 @@ import { Appear, LiquidMetal } from '../../../components/marketing/motion';
 import tree from '../../../content/marketing/product-tree.json';
 import { ChatPanel } from './ChatPanel';
 import { HeroShader } from './HeroShader';
+import { TabGroup } from './TabGroup';
 import { Typewriter } from './Typewriter';
 import { useHeroGraph } from './useHeroGraph';
 import { useMotionVisible } from './useMotionVisible';
@@ -17,6 +18,7 @@ import './product-extra.css';
 
 const data = tree as unknown as {
   chat: { names: string[]; states: PNode[] } | null;
+  tabs: { states: PNode[] } | null;
   faq: { initial: number; single: boolean; items: { opened: PNode; closed: PNode }[] } | null;
   root: { cls: string; style: Record<string, string> };
   tree: PNode;
@@ -73,6 +75,7 @@ const makeOverride = (faqOpen: number, toggleFaq: (i: number) => void): Override
       </div>
     );
   }
+  if (p && p['data-pp-tabs'] && data.tabs) return <TabGroup key={key} states={data.tabs.states} override={chatOverride} />;
   if (p && p['data-pp-typewriter'])
     return <Typewriter key={key} style={p.style as never} cursor={JSON.parse(String(p['data-pp-cursor'] ?? '{}'))} />;
   if (p && p['data-pp-chat'] && data.chat) return <ChatPanel key={key} states={data.chat.states} override={chatOverride} />;
