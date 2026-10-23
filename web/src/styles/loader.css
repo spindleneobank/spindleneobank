@@ -1,10 +1,11 @@
+/* Preloader: verbatim from the old brand-v2.css (+ the sp-intro gating). */
 .sp-loader {
   position: fixed;
   inset: 0;
   z-index: 2147483647;
   display: grid;
   place-items: center;
-  background: var(--sp-night);
+  background: #0b0b10;
   color: #eddbd0;
   font-family: Inter, Arial, sans-serif;
   transition:
@@ -106,4 +107,18 @@
   100% {
     width: 100%;
   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-loader {
+    display: none;
+  }
+  .sp-loader * {
+    animation: none !important;
+  }
+}
+html:not(.sp-intro) #sp-preloader {
+  display: none;
+}
+html.sp-intro:has(#sp-preloader:not(.gone)) {
+  overflow: hidden;
 }

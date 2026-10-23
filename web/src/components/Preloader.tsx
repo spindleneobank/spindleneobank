@@ -12,30 +12,23 @@ export function Preloader() {
   const [gone, setGone] = useState(false);
   const [count, setCount] = useState(1);
   useEffect(() => {
-    let seen = false;
-    try {
-      seen = sessionStorage.getItem(KEY) === '1';
-    } catch {
-      // ignore
-    }
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const enabled = document.documentElement.classList.contains('sp-intro');
+    let finished = false;
+    const ticker = enabled ? setInterval(() => setCount((c) => Math.min(94, c + 7)), 65) : 0;
     const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearInterval(ticker);
       setDone(true);
+      setTimeout(() => setGone(true), 220);
       try {
         sessionStorage.setItem(KEY, '1');
       } catch {
         // ignore
       }
-      setTimeout(() => setGone(true), 340);
     };
-    if (seen || reduced) {
-      finish();
-      return;
-    }
-    const ticker = setInterval(() => setCount((c) => Math.min(94, c + 7)), 65);
     const cap = setTimeout(finish, 5000);
-    const min = new Promise((r) => setTimeout(r, 900));
-    Promise.all([document.fonts?.ready ?? Promise.resolve(), min]).then(finish, finish);
+    (document.fonts?.ready ?? Promise.resolve()).then(finish, finish);
     return () => {
       clearInterval(ticker);
       clearTimeout(cap);
@@ -53,7 +46,12 @@ export function Preloader() {
         <div className="sp-loader-word">Spindle</div>
         <div className="sp-loader-grid" aria-hidden="true">
           {Array.from({ length: 105 }, (_, i) => (
-            <i key={i} style={{ '--i': i, '--c': RAMP[i % RAMP.length] } as React.CSSProperties} />
+            <i
+              key={i}
+              style={
+                { '--i': i, '--c': RAMP[(((i % 15) % 6) + Math.floor(i / 15)) % 6] } as React.CSSProperties
+              }
+            />
           ))}
         </div>
         <div className="sp-loader-progress">

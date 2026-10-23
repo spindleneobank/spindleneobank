@@ -7,11 +7,13 @@ import {
   useLocation,
 } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { MarketingShell } from '../components/marketing/shell';
 import { Preloader } from '../components/Preloader';
-import { SiteFooter } from '../components/SiteFooter';
-import { SiteHeader } from '../components/SiteHeader';
 import { ToastProvider } from '../components/Toast';
 import appCss from '../styles/index.css?url';
+
+/** First lines of the old preloader.js: arm the intro class before first paint (html.sp-intro shows #sp-preloader). */
+const INTRO_SCRIPT = `(()=>{let seen=false;try{seen=sessionStorage.getItem('spindle-intro-v2')==='1'}catch{}const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;if(!reduced&&(!seen||new URLSearchParams(location.search).has('intro')))document.documentElement.classList.add('sp-intro')})()`;
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -26,6 +28,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: 'theme-color', content: '#0e0c12' },
     ],
+    scripts: [{ children: INTRO_SCRIPT }],
     links: [
       { rel: 'stylesheet', href: appCss },
       { rel: 'icon', type: 'image/svg+xml', href: '/assets/brand/mark.svg' },
@@ -36,7 +39,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
@@ -60,11 +63,9 @@ function RootComponent() {
           ) : (
             <>
               <Preloader />
-              <SiteHeader />
-              <main id="main">
+              <MarketingShell>
                 <Outlet />
-              </main>
-              <SiteFooter />
+              </MarketingShell>
             </>
           )}
         </ToastProvider>
