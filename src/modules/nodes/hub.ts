@@ -26,6 +26,7 @@ import {
   type StatusMsg,
   type WelcomeMsg,
 } from '../../shared/node-protocol';
+import { onNodeAttestation } from '../attest/hooks';
 import { dbRef } from '../auth/constants';
 import {
   consumeTokenTx,
@@ -335,7 +336,8 @@ export class NodeHub {
       case 'probe.result':
         return this.onProbeResult(s, msg);
       case 'attest.refresh':
-        return; // sealed lane (S1)
+        if (s.node && s.nodeKey) void onNodeAttestation(s.node.id, s.nodeKey, msg.attestation); // sealed lane (S1)
+        return;
     }
   }
 
@@ -573,6 +575,7 @@ export class NodeHub {
     s.lastSeen = Date.now();
     this.sessions.set(node.id, s);
     await this.persistModels(s);
+    void onNodeAttestation(node.id, node.nodeKey, hello.attestation); // sealed lane (S1)
     this.emit('nodeOnline', node.id);
   }
 

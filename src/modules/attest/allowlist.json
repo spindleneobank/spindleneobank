@@ -1,0 +1,8 @@
+{
+  "_comment": "Measurement allowlist for the sealed lane. Fail-closed: an empty list rejects every node. Fill from a real dstack build (see docs/plan/sealed-testing.md). All values lowercase hex without 0x.",
+  "mrTd": [],
+  "rtmr0": [],
+  "rtmr1": [],
+  "rtmr2": [],
+  "composes": []
+}
