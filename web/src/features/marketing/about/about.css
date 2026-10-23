@@ -23,7 +23,7 @@
     --ab-gx: 24px;
     --ab-sec-top: 80px;
     --ab-sec-bot: 80px;
-    --ab-title-bot: 48px;
+    --ab-title-bot: 80px;
     --ab-h2: 30.72px;
     --ab-h2-lh: 37.4784px;
     --ab-h2-ls: -0.768px;
@@ -66,7 +66,6 @@
   align-items: center;
   justify-content: center;
   overflow: clip;
-  padding: 0 var(--ab-pad);
 }
 .ab-wrap {
   position: relative;
@@ -214,6 +213,7 @@
   width: 100%;
   max-width: 1300px;
   margin: 0 auto;
+  width: calc(100% - 2 * var(--ab-pad));
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -285,7 +285,7 @@
 /* idea (scroll reveal text + tags) --------------------------------------- */
 .ab-idea {
   position: relative;
-  width: 100%;
+  width: calc(100% - 2 * var(--ab-pad));
   max-width: 1300px;
   margin: 0 auto;
   height: 100vh;
@@ -547,7 +547,7 @@
     grid-template-columns: 1fr;
   }
   .ab-tl-i {
-    height: 260px;
+    height: 255px;
   }
   .ab-tl-t {
     padding: 40px 16px;
@@ -744,6 +744,8 @@
 
 /* inside spindle --------------------------------------------------------- */
 .ab-inside {
+  padding-left: var(--ab-pad);
+  padding-right: var(--ab-pad);
   padding-top: var(--ab-sec-top);
   padding-bottom: var(--ab-sec-bot);
 }
@@ -757,6 +759,7 @@
   overflow: clip;
 }
 .ab-inside-h {
+  align-items: flex-start;
   display: flex;
   flex-direction: column;
   gap: 16px;
