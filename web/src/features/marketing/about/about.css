@@ -547,6 +547,9 @@
   .ab .ab-team-w {
     padding-top: 79px;
   }
+  .ab .ab-team {
+    padding-bottom: 149px;
+  }
 }
 @media (max-width: 809.98px) {
   .ab-tl-grid {
@@ -565,6 +568,12 @@
   .ab-team .ab-title,
   .ab-career .ab-title {
     --ab-title-bot: 60px;
+  }
+  .ab .ab-team-w {
+    padding-top: 32px;
+  }
+  .ab .ab-team {
+    padding-bottom: 100px;
   }
   .ab .ab-vi-t {
     width: 100%;
