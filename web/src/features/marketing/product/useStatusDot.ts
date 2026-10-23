@@ -10,12 +10,18 @@ export function useStatusDot(root: RefObject<HTMLElement | null>) {
     if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const dots = [...el.querySelectorAll<HTMLElement>('.framer-1f2j1ga')];
     const anims = dots.map((d) =>
-      d.animate([{ opacity: 1, transform: 'rotate(0deg)' }, { opacity: 0.3, transform: 'rotate(360deg)' }], {
-        duration: 800,
-        easing: 'cubic-bezier(0.42, 0, 0.58, 1)',
-        iterations: Number.POSITIVE_INFINITY,
-        direction: 'alternate',
-      }),
+      d.animate(
+        [
+          { opacity: 1, transform: 'rotate(0deg)' },
+          { opacity: 0.3, transform: 'rotate(360deg)' },
+        ],
+        {
+          duration: 800,
+          easing: 'cubic-bezier(0.42, 0, 0.58, 1)',
+          iterations: Number.POSITIVE_INFINITY,
+          direction: 'alternate',
+        },
+      ),
     );
     const io = new IntersectionObserver((es) => {
       for (const e of es) {

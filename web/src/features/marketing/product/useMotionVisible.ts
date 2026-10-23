@@ -11,7 +11,8 @@ export function useMotionVisible(root: RefObject<HTMLElement | null>, selector =
     const cards = [...el.querySelectorAll<HTMLElement>(selector)];
     const io = new IntersectionObserver(
       (entries) => {
-        for (const e of entries) e.target.classList.toggle('sp-motion-visible', e.isIntersecting && !document.hidden);
+        for (const e of entries)
+          e.target.classList.toggle('sp-motion-visible', e.isIntersecting && !document.hidden);
       },
       { threshold: 0.1 },
     );

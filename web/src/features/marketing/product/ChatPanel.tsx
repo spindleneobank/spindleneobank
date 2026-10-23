@@ -13,7 +13,13 @@ const EASE = 'cubic-bezier(0.44, 0, 0.56, 1)';
 
 type Snap = { o: string; t: string };
 
-export function ChatPanel({ states, override }: { states: PNode[]; override?: Parameters<typeof renderNode>[3] }): ReactNode {
+export function ChatPanel({
+  states,
+  override,
+}: {
+  states: PNode[];
+  override?: Parameters<typeof renderNode>[3];
+}): ReactNode {
   const last = states.length - 1;
   // SSR / no-JS / reduced motion show the final state; the client replays the sequence from the first.
   const [i, setI] = useState(last);
@@ -62,7 +68,12 @@ export function ChatPanel({ states, override }: { states: PNode[]; override?: Pa
         const host = c.closest('p');
         const n = seen.get(host) ?? 0;
         seen.set(host, n + 1);
-        c.animate([{ opacity: 0.001 }, { opacity: 1 }], { duration: 10, delay: 300 + n * 50, easing: EASE, fill: 'backwards' });
+        c.animate([{ opacity: 0.001 }, { opacity: 1 }], {
+          duration: 10,
+          delay: 300 + n * 50,
+          easing: EASE,
+          fill: 'backwards',
+        });
       }
     }
     prev.current = now;
@@ -70,7 +81,7 @@ export function ChatPanel({ states, override }: { states: PNode[]; override?: Pa
 
   return (
     <div ref={box} style={{ display: 'contents' }}>
-      {renderNode(states[i] as PNode, "s", "chat", override)}
+      {renderNode(states[i] as PNode, 's', 'chat', override)}
     </div>
   );
 }

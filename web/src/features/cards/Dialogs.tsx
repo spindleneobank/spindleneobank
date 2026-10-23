@@ -437,7 +437,9 @@ function ApplePayBody({ cardId, onClose }: { cardId: string; onClose: () => void
         <>
           <ol className="cd-howto">
             <li>On your iPhone, open Wallet and add this card. Choose to verify by email.</li>
-            <li>Your code shows up here as soon as it arrives. Codes received in the last 10 minutes show too.</li>
+            <li>
+              Your code shows up here as soon as it arrives. Codes received in the last 10 minutes show too.
+            </li>
           </ol>
           <div role="status">
             <StatusPill tone="info">Waiting for the code</StatusPill>

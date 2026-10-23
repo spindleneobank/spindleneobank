@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { useVisibleBox } from './useVisibleBox';
 import { DEFAULTS, FlutedRenderer } from './flutedSwirl';
+import { useVisibleBox } from './useVisibleBox';
 
 /** Settings of the old product page's "Hero Shader" (Fluted Swirl instance). */
 const PROPS = {
   ...DEFAULTS,
   colorA: 'rgba(89, 62, 78, 1)',
   colorB: 'rgb(240, 240, 240)',
-  palette: ['rgb(196, 191, 183)', 'rgb(166, 89, 30)', 'rgb(143, 143, 143)', 'rgb(155, 170, 207)', 'rgb(60, 83, 133)'],
+  palette: [
+    'rgb(196, 191, 183)',
+    'rgb(166, 89, 30)',
+    'rgb(143, 143, 143)',
+    'rgb(155, 170, 207)',
+    'rgb(60, 83, 133)',
+  ],
   aberration: DEFAULTS.aberration * 0.9,
   paletteGain: DEFAULTS.paletteGain,
   interactive: true,
@@ -38,7 +44,15 @@ export function HeroShader() {
     // A fresh canvas per effect run: dispose() loses the GL context, and StrictMode re-runs effects on the same node.
     const canvas = document.createElement('canvas');
     canvas.setAttribute('aria-hidden', 'true');
-    Object.assign(canvas.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', display: 'block', opacity: '0', transition: 'opacity 0.6s ease' });
+    Object.assign(canvas.style, {
+      position: 'absolute',
+      inset: '0',
+      width: '100%',
+      height: '100%',
+      display: 'block',
+      opacity: '0',
+      transition: 'opacity 0.6s ease',
+    });
     el.appendChild(canvas);
     cv.current = canvas;
     let r: InstanceType<typeof FlutedRenderer>;
@@ -52,7 +66,8 @@ export function HeroShader() {
     const tablet = matchMedia('(max-width: 1199.98px)');
     const reduce = matchMedia('(prefers-reduced-motion: reduce)');
     const fine = matchMedia('(pointer: fine)');
-    const conn = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    const conn = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string } })
+      .connection;
     const saver = () => !!conn?.saveData || /(^|-)2g$/.test(conn?.effectiveType ?? '');
     const animated = () => !phone.matches && !reduce.matches && !saver();
     let visible = false;
@@ -69,7 +84,12 @@ export function HeroShader() {
     let degraded = false;
     const size = () => {
       const b = el.getBoundingClientRect();
-      r.resize(b.width, b.height, Math.min(window.devicePixelRatio || 1, Math.min(maxDpr, tablet.matches ? 1.5 : 2)), 4.2e6);
+      r.resize(
+        b.width,
+        b.height,
+        Math.min(window.devicePixelRatio || 1, Math.min(maxDpr, tablet.matches ? 1.5 : 2)),
+        4.2e6,
+      );
     };
     const still = () => {
       size();
@@ -171,7 +191,15 @@ export function HeroShader() {
   }, [shown]);
 
   return (
-    <div ref={box} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', background: PROPS.colorB }}>
-    </div>
+    <div
+      ref={box}
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        background: PROPS.colorB,
+      }}
+    ></div>
   );
 }

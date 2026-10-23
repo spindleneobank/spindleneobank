@@ -1,26 +1,37 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { type Breakpoint, useBreakpoint } from '../../../components/marketing/motion';
-import desktopHtml from './markup/desktop.html?raw';
-import phoneHtml from './markup/phone.html?raw';
-import tabletHtml from './markup/tablet.html?raw';
-import desktopStates from './markup/desktop.states.json';
-import phoneStates from './markup/phone.states.json';
-import tabletStates from './markup/tablet.states.json';
 import { type GroupStates, initGroups, initVideos } from './behaviors';
 import { type ChatState, initChat } from './chat';
-import desktopChat from './markup/desktop.chat.json';
-import phoneChat from './markup/phone.chat.json';
-import tabletChat from './markup/tablet.chat.json';
-import { initApiConsole, initCapabilityNav, initOrbit, initQuoteAppear, initReceiptReveals, initTicker } from './motion';
-import { initWorkflow } from './workflow';
-import { initShaders } from './shaders';
 import { mountDigitalPreview } from './digitalPreview';
+import desktopChat from './markup/desktop.chat.json';
+import desktopHtml from './markup/desktop.html?raw';
+import desktopStates from './markup/desktop.states.json';
+import phoneChat from './markup/phone.chat.json';
+import phoneHtml from './markup/phone.html?raw';
+import phoneStates from './markup/phone.states.json';
+import tabletChat from './markup/tablet.chat.json';
+import tabletHtml from './markup/tablet.html?raw';
+import tabletStates from './markup/tablet.states.json';
+import {
+  initApiConsole,
+  initCapabilityNav,
+  initOrbit,
+  initQuoteAppear,
+  initReceiptReveals,
+  initTicker,
+} from './motion';
+import { initShaders } from './shaders';
+import { initWorkflow } from './workflow';
 import './home.generated.css';
 import './home.css';
 
 const TREES: Record<Breakpoint, string> = { desktop: desktopHtml, tablet: tabletHtml, phone: phoneHtml };
-const STATES: Record<Breakpoint, GroupStates> = { desktop: desktopStates, tablet: tabletStates, phone: phoneStates };
+const STATES: Record<Breakpoint, GroupStates> = {
+  desktop: desktopStates,
+  tablet: tabletStates,
+  phone: phoneStates,
+};
 const CHAT: Record<Breakpoint, ChatState[]> = { desktop: desktopChat, tablet: tabletChat, phone: phoneChat };
 const ORDER: Breakpoint[] = ['desktop', 'tablet', 'phone'];
 
@@ -60,7 +71,8 @@ export function HomePage() {
     if (!el || !live) return;
     const disposers: Array<() => void> = [];
     const open = (host: Element) => {
-      const to = (host as HTMLElement).dataset.spDashboardPreview === 'footer' ? '/dashboard?tab=cards' : '/dashboard';
+      const to =
+        (host as HTMLElement).dataset.spDashboardPreview === 'footer' ? '/dashboard?tab=cards' : '/dashboard';
       location.assign(to);
     };
     const onClick = (e: MouseEvent) => {
@@ -81,9 +93,20 @@ export function HomePage() {
     if (tree) {
       disposers.push(initGroups(tree, STATES[bp]));
       disposers.push(initVideos(tree));
-      disposers.push(initOrbit(tree), initApiConsole(tree), initCapabilityNav(tree), initShaders(tree), initChat(tree, CHAT[bp]), initReceiptReveals(tree), initTicker(tree), initQuoteAppear(tree), initWorkflow(tree));
+      disposers.push(
+        initOrbit(tree),
+        initApiConsole(tree),
+        initCapabilityNav(tree),
+        initShaders(tree),
+        initChat(tree, CHAT[bp]),
+        initReceiptReveals(tree),
+        initTicker(tree),
+        initQuoteAppear(tree),
+        initWorkflow(tree),
+      );
     }
-    for (const host of el.querySelectorAll<HTMLElement>('[data-sp-dashboard-preview]')) disposers.push(mountDigitalPreview(host));
+    for (const host of el.querySelectorAll<HTMLElement>('[data-sp-dashboard-preview]'))
+      disposers.push(mountDigitalPreview(host));
     el.addEventListener('click', onClick, true);
     el.addEventListener('keydown', onKey, true);
     return () => {

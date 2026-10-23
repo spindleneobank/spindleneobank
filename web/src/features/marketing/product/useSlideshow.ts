@@ -10,7 +10,8 @@ const MOVE_MS = 900;
 const EASE = 'cubic-bezier(0.44, 0, 0.56, 1)';
 const SET = 8;
 
-const x = (ul: HTMLElement) => Number.parseFloat(/translateX\((-?[\d.]+)px/.exec(ul.style.transform)?.[1] ?? '0');
+const x = (ul: HTMLElement) =>
+  Number.parseFloat(/translateX\((-?[\d.]+)px/.exec(ul.style.transform)?.[1] ?? '0');
 
 function mount(ul: HTMLElement) {
   const items = [...ul.children] as HTMLElement[];
@@ -34,7 +35,10 @@ function mount(ul: HTMLElement) {
     }
     const to = base + dir * step;
     anim?.finish();
-    anim = ul.animate([{ transform: `translateX(${base}px)` }, { transform: `translateX(${to}px)` }], { duration: MOVE_MS, easing: EASE });
+    anim = ul.animate([{ transform: `translateX(${base}px)` }, { transform: `translateX(${to}px)` }], {
+      duration: MOVE_MS,
+      easing: EASE,
+    });
     anim.onfinish = () => {
       ul.style.transform = `translateX(${to}px)`;
     };
@@ -59,7 +63,9 @@ function mount(ul: HTMLElement) {
   const go = () => {
     if (!timer && !document.hidden) timer = window.setTimeout(tick, EVERY_MS - MOVE_MS);
   };
-  const io = new IntersectionObserver((es) => (es.some((e) => e.isIntersecting) ? go() : stop()), { threshold: 0.1 });
+  const io = new IntersectionObserver((es) => (es.some((e) => e.isIntersecting) ? go() : stop()), {
+    threshold: 0.1,
+  });
   io.observe(ul.closest('section') ?? ul); // the track itself is translated out of its clip box
   const vis = () => (document.hidden ? stop() : undefined);
   document.addEventListener('visibilitychange', vis);
@@ -80,7 +86,12 @@ export function useSlideshow(root: RefObject<HTMLElement | null>) {
     const setup = () => {
       for (const o of offs) o();
       offs = [...el.querySelectorAll<HTMLElement>('section.framer-slideshow ul')]
-        .filter((u) => u.getClientRects().length > 0 && /translateX/.test(u.style.transform) && u.children.length >= SET * 2)
+        .filter(
+          (u) =>
+            u.getClientRects().length > 0 &&
+            /translateX/.test(u.style.transform) &&
+            u.children.length >= SET * 2,
+        )
         .map(mount);
     };
     setup();

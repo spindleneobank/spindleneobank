@@ -9,10 +9,12 @@ export function useOrbit(root: RefObject<HTMLElement | null>) {
     if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const hosts = [...el.querySelectorAll<HTMLElement>('[data-framer-name="Rotating Orbit"]')];
     const parts = hosts.map((orbit) => {
-      const arms = [...orbit.querySelectorAll<HTMLElement>(':scope > [data-framer-name^="Orbit Arm"]')].map((arm) => ({
-        badge: arm.firstElementChild as HTMLElement | null,
-        angle: Number.parseFloat(/rotate\((-?[\d.]+)deg\)/.exec(arm.style.transform)?.[1] ?? '0'),
-      }));
+      const arms = [...orbit.querySelectorAll<HTMLElement>(':scope > [data-framer-name^="Orbit Arm"]')].map(
+        (arm) => ({
+          badge: arm.firstElementChild as HTMLElement | null,
+          angle: Number.parseFloat(/rotate\((-?[\d.]+)deg\)/.exec(arm.style.transform)?.[1] ?? '0'),
+        }),
+      );
       orbit.style.willChange = 'transform';
       for (const a of arms) if (a.badge) a.badge.style.willChange = 'transform';
       return { orbit, arms, on: true };

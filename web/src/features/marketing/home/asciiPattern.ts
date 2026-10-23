@@ -22,7 +22,8 @@ const SETTINGS = {
 };
 
 const mapRange = (e: number, t: number, n: number, r: number, i: number) => ((e - t) / (n - t)) * (i - r) + r;
-const dist = (a: number[], b: number[]) => Math.hypot((b[0] as number) - (a[0] as number), (b[1] as number) - (a[1] as number));
+const dist = (a: number[], b: number[]) =>
+  Math.hypot((b[0] as number) - (a[0] as number), (b[1] as number) - (a[1] as number));
 /** easing(-1): e => 1 - (1 - clamp(e)) ** 3 */
 const smooth = (e: number) => 1 - (1 - Math.max(0, Math.min(1, e))) ** 3;
 
@@ -78,10 +79,20 @@ export function mountAsciiPattern(canvas: HTMLCanvasElement): () => void {
         const px = [Math.floor(r), Math.floor(y)] as number[];
         const o = [(2 * ((px[0] as number) - b / 2)) / L, (2 * ((px[1] as number) - x / 2)) / L];
         (o as number[])[0] = (o[0] as number) * aspect;
-        const f = S.mode % 2 === 0 ? Math.atan2((cA[1] as number) - (o[1] as number), (cA[0] as number) - (o[0] as number)) : dist(o, cA);
-        const p = S.mode === 0 ? Math.atan2((cB[1] as number) - (o[1] as number), (cB[0] as number) - (o[0] as number)) : dist(o, cB);
+        const f =
+          S.mode % 2 === 0
+            ? Math.atan2((cA[1] as number) - (o[1] as number), (cA[0] as number) - (o[0] as number))
+            : dist(o, cA);
+        const p =
+          S.mode === 0
+            ? Math.atan2((cB[1] as number) - (o[1] as number), (cB[0] as number) - (o[0] as number))
+            : dist(o, cB);
         const v = smooth((Math.cos(f * R) * Math.cos(p * Z) + 1) / 2);
-        ctx.fillText(S.characters.charAt(Math.floor(v * S.characters.length)), px[0] as number, px[1] as number);
+        ctx.fillText(
+          S.characters.charAt(Math.floor(v * S.characters.length)),
+          px[0] as number,
+          px[1] as number,
+        );
       }
   };
   const resize = () => {

@@ -39,9 +39,20 @@ function mount(svg: SVGSVGElement) {
   // breakpoint variants render hidden siblings: only the displayed ones belong to this layout
   const shown = (e: Element) => getComputedStyle(e).display !== 'none';
   const paths = [...svg.querySelectorAll<SVGPathElement>(':scope > path')].filter(shown);
-  const slotGroups = [...svg.querySelectorAll<SVGGElement>(':scope > g')].filter((g) => g.querySelectorAll(':scope > path').length >= STREAKS && g.querySelector(':scope > g > g > circle') && g.querySelector(':scope > g > g > text'));
+  const slotGroups = [...svg.querySelectorAll<SVGGElement>(':scope > g')].filter(
+    (g) =>
+      g.querySelectorAll(':scope > path').length >= STREAKS &&
+      g.querySelector(':scope > g > g > circle') &&
+      g.querySelector(':scope > g > g > text'),
+  );
   if (paths.length < 5 || slotGroups.length < SLOTS) return () => {};
-  const [p1, p2, p2r, p3, p3r] = paths as [SVGPathElement, SVGPathElement, SVGPathElement, SVGPathElement, SVGPathElement];
+  const [p1, p2, p2r, p3, p3r] = paths as [
+    SVGPathElement,
+    SVGPathElement,
+    SVGPathElement,
+    SVGPathElement,
+    SVGPathElement,
+  ];
   const slots: Slot[] = slotGroups.slice(-SLOTS).map((g) => {
     const sp = [...g.querySelectorAll<SVGPathElement>(':scope > path')];
     const dot = g.querySelector(':scope > g') as SVGGElement;
@@ -51,7 +62,8 @@ function mount(svg: SVGSVGElement) {
     return {
       dot,
       // the halo circle has one sibling per breakpoint variant: take the displayed one
-      halo: ([...dot.children].filter((c) => c.tagName === 'circle' && shown(c))[0] ?? dot.children[0]) as SVGCircleElement,
+      halo: ([...dot.children].filter((c) => c.tagName === 'circle' && shown(c))[0] ??
+        dot.children[0]) as SVGCircleElement,
       square,
       core: square.querySelector('circle') as SVGCircleElement,
       pill,
@@ -108,10 +120,11 @@ function mount(svg: SVGSVGElement) {
       const a = Math.max(0, from);
       const b = Math.min(l, to);
       let d = '';
-      if (b > a) for (let i = 0; i <= 3; i++) {
-        const pt = p.getPointAtLength(a + ((b - a) * i) / 3);
-        d += i === 0 ? `M ${pt.x} ${pt.y}` : ` L ${pt.x} ${pt.y}`;
-      }
+      if (b > a)
+        for (let i = 0; i <= 3; i++) {
+          const pt = p.getPointAtLength(a + ((b - a) * i) / 3);
+          d += i === 0 ? `M ${pt.x} ${pt.y}` : ` L ${pt.x} ${pt.y}`;
+        }
       el.setAttribute('d', d);
       el.style.stroke = ink;
       el.style.opacity = `${Math.max(0, (1 - n / STREAKS) * 0.85 * fade)}`;
@@ -175,10 +188,16 @@ function mount(svg: SVGSVGElement) {
       }
       const e = ease(prog);
       const ink = stage === 1 ? STAGE1_INK : stage === 2 ? RED : approve ? APPROVE_INK : RED;
-      const tail = h > (STAGE_AT[3] as number) ? 1 - (h - (STAGE_AT[3] as number)) / (LIFE - (STAGE_AT[3] as number)) : 1;
+      const tail =
+        h > (STAGE_AT[3] as number)
+          ? 1 - (h - (STAGE_AT[3] as number)) / (LIFE - (STAGE_AT[3] as number))
+          : 1;
       const pulse = 1 + 0.1 * Math.sin(now / 110 + c * 1.7);
       const out = (v: number) => 1 - (1 - cl(v)) ** 3;
-      const scale = stage < 3 ? Math.min(out(prog / 0.25), 1 - cl((prog - 0.75) / 0.25) ** 3) : (0.4 + 0.6 * out((h - (STAGE_AT[2] as number)) / 480)) * tail * pulse;
+      const scale =
+        stage < 3
+          ? Math.min(out(prog / 0.25), 1 - cl((prog - 0.75) / 0.25) ** 3)
+          : (0.4 + 0.6 * out((h - (STAGE_AT[2] as number)) / 480)) * tail * pulse;
       if (s.dot.style.opacity !== '1') s.dot.style.opacity = '1';
       place(s, path, e, scale);
       const sq = stage < 3 ? 'block' : 'none';
@@ -209,7 +228,9 @@ function mount(svg: SVGSVGElement) {
     if (!raf && !document.hidden) raf = requestAnimationFrame(frame);
   };
   const host = svg.parentElement ?? svg;
-  const io = new IntersectionObserver((es) => (es.some((x) => x.isIntersecting) ? go() : stop()), { threshold: 0.2 });
+  const io = new IntersectionObserver((es) => (es.some((x) => x.isIntersecting) ? go() : stop()), {
+    threshold: 0.2,
+  });
   io.observe(host);
   const vis = () => (document.hidden ? stop() : undefined);
   document.addEventListener('visibilitychange', vis);
@@ -228,9 +249,11 @@ export function useWorkflowSignal(root: RefObject<HTMLElement | null>) {
     let offs: (() => void)[] = [];
     const setup = () => {
       for (const o of offs) o();
-      offs = [...el.querySelectorAll<SVGSVGElement>('svg[data-workflow-overlay]')].filter((s) => getComputedStyle(s).display !== 'none' && s.getClientRects().length > 0).map((s) => {
-        return mount(s);
-      });
+      offs = [...el.querySelectorAll<SVGSVGElement>('svg[data-workflow-overlay]')]
+        .filter((s) => getComputedStyle(s).display !== 'none' && s.getClientRects().length > 0)
+        .map((s) => {
+          return mount(s);
+        });
     };
     setup();
     // the displayed variant changes with the breakpoint
