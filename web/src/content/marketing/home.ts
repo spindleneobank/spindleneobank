@@ -14,7 +14,10 @@ export const homeMeta: PageMeta = {
 
 export const hero = {
   eyebrow: 'Compute meets payout choice',
-  title: 'A neobank for GPU work. Earn in USDG. Choose how you get paid.',
+  title: 'A neobank for GPU work.',
+  subtitle: 'Earn in USDG. Choose how you get paid.',
+  image: '/assets/graphics/dashboard-overview-v9.png',
+  imageAlt: 'Illustrative Spindle dashboard with sample data: USDG balance, virtual card, recent activity',
   lead: 'Register a node, serve AI jobs, and claim verified earnings to your own wallet. From there, fund a virtual card or swap into a Stock Token.',
   ctas: [CTA_DASHBOARD, CTA_NODE],
 };
@@ -69,7 +72,7 @@ export type Role = {
   body: string;
   bullets: string[];
   cta: Cta;
-  image: string;
+  media: string;
   alt: string;
 };
 
@@ -88,8 +91,8 @@ export const roles = {
         'Signed receipts for completed AI work',
       ],
       cta: CTA_NODE,
-      image: '/assets/media/pink-lagoon-figure-brand-v8.webp',
-      alt: 'A figure in a suit with a flower-head standing in a pink lagoon',
+      media: 'skeleton-flower-field-brand-v8',
+      alt: 'A skeleton in a suit standing in a field of flowers at dusk',
     },
     {
       id: 'builders',
@@ -102,7 +105,7 @@ export const roles = {
         'USDG balance or per-call x402 payment',
       ],
       cta: CTA_API,
-      image: '/assets/media/pink-cloud-eye-brand-v8.webp',
+      media: 'pink-cloud-eye-brand-v8',
       alt: 'A large eye formed in pink clouds',
     },
     {
@@ -116,8 +119,8 @@ export const roles = {
         'Attestation checks for eligible sealed-lane nodes (in testing)',
       ],
       cta: CTA_DASHBOARD,
-      image: '/assets/media/sunken-stone-giant-brand-v8.webp',
-      alt: 'A stone giant half submerged in water',
+      media: 'sunken-stone-giant-brand-v8',
+      alt: 'A stone giant in still water',
     },
     {
       id: 'developers',
@@ -130,8 +133,8 @@ export const roles = {
         'Use a USDG balance or a per-call payment flow',
       ],
       cta: CTA_API,
-      image: '/assets/media/stone-retro-computer-brand-v8.webp',
-      alt: 'A retro computer carved from stone',
+      media: 'stone-retro-computer-brand-v8',
+      alt: 'A retro computer made of stone',
     },
   ] satisfies Role[],
 };
@@ -165,14 +168,20 @@ export const flows = {
     {
       tag: 'Work to receipt',
       body: 'Install a node. Serve suitable AI jobs. Follow the signed receipt to a claim.',
+      image: '/assets/stock/concrete-blocks-web-v10.webp',
+      stat: { value: '2', label: 'compute lanes: open, and sealed (in testing)' },
     },
     {
       tag: 'Receipt to epoch',
       body: 'Verified work enters an hourly cumulative Merkle root posted on Robinhood Chain.',
+      image: null,
+      stat: null,
     },
     {
       tag: 'Epoch to wallet',
       body: 'After the 1h claim delay, prove your entitlement and claim USDG to your wallet.',
+      image: null,
+      stat: null,
     },
   ],
 };
@@ -259,4 +268,63 @@ export const closing = {
   title: 'Your compute. Your payout.',
   body: 'Explore how Spindle connects GPU supply, verifiable AI work and a choice of payout routes on Robinhood Chain.',
   ctas: [CTA_DASHBOARD, { label: 'Explore lanes', to: '/compute-lanes', variant: 'secondary' } as Cta],
+};
+
+export const marquee = [
+  'Sealed lane (in testing)',
+  'USDG',
+  'Receipts',
+  'Open lane',
+  'Stock Tokens',
+  'Virtual card',
+  'USDG',
+];
+
+export const featureTabs = [
+  {
+    id: 'verified-work',
+    label: 'Verified Work',
+    icon: 'gpu',
+    title: 'Every completed job leaves a receipt.',
+    body: 'Signed work records link your node, the job and its metering to an hourly receipt root.',
+    panel: 'receipt',
+  },
+  {
+    id: 'node-dashboard',
+    label: 'Node Dashboard',
+    icon: 'overview',
+    title: 'One view from node to claim.',
+    body: 'Node status, job receipts and claims in one place. Preview data shows the intended flow.',
+    panel: 'dashboard',
+  },
+  {
+    id: 'claim-routing',
+    label: 'Claim Routing',
+    icon: 'routes',
+    title: 'Claim to your wallet, then choose.',
+    body: 'Claims land in your wallet in USDG. Then fund a virtual card or swap into a Stock Token, each as a separate step you sign.',
+    panel: 'claim',
+  },
+  {
+    id: 'compute-stack',
+    label: 'Compute Stack',
+    icon: 'stack',
+    title: 'A stack built around verifiable compute.',
+    body: 'Docker nodes, an OpenAI-compatible API and on-chain receipts connect providers with AI demand.',
+    panel: 'stack',
+  },
+] as const;
+
+export const receiptDemo = {
+  title: 'Inspect receipt',
+  tag: 'Illustrative flow',
+  question: 'How does completed work become a payout?',
+  answer:
+    'Each completed job emits a signed receipt. Verified earnings accrue in USDG and enter an hourly Merkle root.',
+  input: 'Which payout?',
+};
+
+export const howVisuals = {
+  receipt: ['receipt.cose', 'Job proof', 'epoch.root', 'Merkle proof'],
+  payout: ['Claim USDG to wallet', 'Fund a virtual card', 'Swap to a Stock Token'],
 };

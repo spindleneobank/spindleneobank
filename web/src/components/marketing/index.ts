@@ -3,5 +3,7 @@ export * from './CompareTable';
 export * from './FlowDiagram';
 export * from './head';
 export * from './LaneCard';
+export * from './light';
+export * from './Pill';
 export * from './Reveal';
 export * from './types';

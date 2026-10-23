@@ -1,33 +1,37 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { ApiConsole } from '../../components/ApiConsole';
-import { DashboardPreview } from '../../components/DashboardPreview';
 import { Eyebrow } from '../../components/Eyebrow';
 import { FAQ } from '../../components/FAQ';
 import {
   ClosingCta,
   CtaRow,
-  FeatureGrid,
-  FlowDiagram,
-  PageHero,
+  FeatureTabs,
+  HowColumns,
+  LightHero,
+  Marquee,
+  MediaBand,
   pageHead,
   Reveal,
-  StepList,
 } from '../../components/marketing';
 import { PixelIcon } from '../../components/PixelIcon';
 import { Section } from '../../components/Section';
 import { Tabs } from '../../components/Tabs';
+import { VideoPanel } from '../../components/VideoPanel';
 import {
   apiBlock,
-  capabilities,
   claimFlow,
   closing,
   evidence,
   faq,
+  featureTabs,
   flows,
   hero,
   homeMeta,
   howItWorks,
+  howVisuals,
+  marquee,
   network,
+  receiptDemo,
   roles,
   specNotes,
 } from '../../content/marketing/home';
@@ -39,81 +43,102 @@ export const Route = createFileRoute('/(marketing)/')({
 
 function Home() {
   return (
-    <>
-      <PageHero
+    <div className="spm-page">
+      <LightHero
         eyebrow={hero.eyebrow}
         title={hero.title}
+        subtitle={hero.subtitle}
         lead={hero.lead}
         ctas={hero.ctas}
-        aside={<DashboardPreview />}
       />
+      <MediaBand image={hero.image} alt={hero.imageAlt} />
+      <Marquee items={marquee} />
 
       <Section
         id="capabilities"
-        eyebrow={capabilities.eyebrow}
-        title={capabilities.title}
-        lead={capabilities.lead}
-      >
-        <FeatureGrid items={capabilities.items} />
-      </Section>
-
-      <Section
-        id="claim-flow"
         tone="paper"
-        eyebrow={claimFlow.eyebrow}
-        title={claimFlow.title}
-        lead={claimFlow.lead}
+        eyebrow="Capabilities"
+        title="From GPU registration to payout choice. Four core capabilities, designed to work together."
       >
-        <FlowDiagram nodes={claimFlow.nodes} branches={claimFlow.branches} />
+        <FeatureTabs items={featureTabs} receipt={receiptDemo} claim={claimFlow} />
       </Section>
 
-      <Section id="roles" eyebrow={roles.eyebrow} title={roles.title}>
-        <Tabs
-          label="Network roles"
-          items={roles.items.map((r) => ({
-            id: r.id,
-            label: r.label,
-            content: (
-              <div className="spm-role-body">
-                <div>
-                  <h3>{r.title}</h3>
-                  <p className="sp-lead">{r.body}</p>
-                  <ul className="spm-bullets">
-                    {r.bullets.map((b) => (
-                      <li key={b}>
-                        <PixelIcon name="check" size={14} />
-                        {b}
-                      </li>
-                    ))}
-                  </ul>
-                  <CtaRow ctas={[r.cta]} />
+      <section id="roles" className="sp-section spm-roles">
+        <div className="sp-container">
+          <header className="sp-section-head">
+            <Eyebrow tone="dark">{roles.eyebrow}</Eyebrow>
+            <h2>{roles.title}</h2>
+          </header>
+          <Tabs
+            label="Network roles"
+            items={roles.items.map((r) => ({
+              id: r.id,
+              label: r.label,
+              content: (
+                <div className="spm-role-body">
+                  <div>
+                    <h3>{r.title}</h3>
+                    <p className="sp-lead">{r.body}</p>
+                    <ul className="spm-bullets">
+                      {r.bullets.map((b) => (
+                        <li key={b}>
+                          <PixelIcon name="check" size={14} />
+                          {b}
+                        </li>
+                      ))}
+                    </ul>
+                    <CtaRow ctas={[r.cta]} />
+                  </div>
+                  <VideoPanel
+                    src={`/assets/media/${r.media}-desktop.mp4`}
+                    poster={`/assets/media/${r.media}.webp`}
+                    label={r.alt}
+                  />
                 </div>
-                <img src={r.image} alt={r.alt} loading="lazy" decoding="async" width={900} height={1125} />
-              </div>
-            ),
-          }))}
-        />
+              ),
+            }))}
+          />
+        </div>
+      </section>
+
+      <Section id="how-it-works" tone="paper" eyebrow={howItWorks.eyebrow} title={howItWorks.title}>
+        <HowColumns steps={howItWorks.steps} chips={howVisuals.receipt} payouts={howVisuals.payout} />
       </Section>
 
-      <Section id="how-it-works" tone="night" eyebrow={howItWorks.eyebrow} title={howItWorks.title}>
-        <StepList steps={howItWorks.steps} />
-      </Section>
-
-      <Section id="flows" eyebrow={flows.eyebrow} title={flows.title}>
-        <ul className="spm-grid">
+      <Section id="flows" tone="paper" eyebrow={flows.eyebrow} title={flows.title}>
+        <ul className="spm-flows">
           {flows.items.map((f, i) => (
             <li key={f.tag}>
-              <Reveal delay={i * 0.06} className="spm-card">
-                <span className="spm-note-tag">Illustrative flow</span>
-                <h3>{f.tag}</h3>
-                <p>{f.body}</p>
+              <Reveal delay={i * 0.06} className="spm-flow-card spm-br">
+                <span className="spm-note-tag">{f.tag}</span>
+                <div>
+                  {f.image ? (
+                    <img src={f.image} alt="" loading="lazy" decoding="async" width={140} height={100} />
+                  ) : null}
+                  <blockquote>{f.body}</blockquote>
+                </div>
+                {f.stat ? (
+                  <div className="spm-flow-foot">
+                    <span>
+                      Spindle network
+                      <br />
+                      Illustrative flow
+                    </span>
+                    <span>
+                      <strong>{f.stat.value}</strong>
+                      {f.stat.label}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="spm-flow-dot" aria-hidden="true" />
+                )}
               </Reveal>
             </li>
           ))}
         </ul>
       </Section>
 
-      <Section id="network" eyebrow={network.eyebrow} title={network.title}>
+      <Section id="network" tone="paper" eyebrow={network.eyebrow} title={network.title}>
         <ul className="spm-stats">
           {network.stats.map((s) => (
             <li key={s.label}>
@@ -126,22 +151,31 @@ function Home() {
 
       <Section
         id="evidence"
-        tone="night"
+        tone="paper"
         eyebrow={evidence.eyebrow}
         title={evidence.title}
         lead={evidence.lead}
       >
-        <FeatureGrid items={evidence.items.map((i) => ({ ...i, body: '' }))} />
+        <ul className="spm-evidence">
+          {evidence.items.map((e, i) => (
+            <li key={e.title} className="spm-br">
+              <Reveal delay={i * 0.06}>
+                <PixelIcon name={e.icon} size={44} />
+                <p>{e.title}</p>
+              </Reveal>
+            </li>
+          ))}
+        </ul>
       </Section>
 
       <Section id="api" tone="night" eyebrow={apiBlock.eyebrow} title={apiBlock.title} lead={apiBlock.body}>
-        <div className="spm-home-preview">
+        <div className="spm-api-wrap">
           <ApiConsole />
           <CtaRow ctas={[apiBlock.cta]} />
         </div>
       </Section>
 
-      <Section id="notes" eyebrow={specNotes.eyebrow} title={specNotes.title}>
+      <Section id="notes" tone="paper" eyebrow={specNotes.eyebrow} title={specNotes.title}>
         <ul className="spm-grid">
           {specNotes.items.map((n, i) => (
             <li key={n.title}>
@@ -166,6 +200,6 @@ function Home() {
       </section>
 
       <ClosingCta {...closing} />
-    </>
+    </div>
   );
 }

@@ -22,6 +22,8 @@ export const sealedLane = {
   title: 'Confidential GPU execution',
   body: 'Built for sensitive prompts on eligible confidential-computing hardware. It is in testing: invited testers with the hardware are verifying it, and it is not offered for production traffic yet.',
   icon: 'sealed',
+  stat: '01',
+  statLabel: 'Compute design',
   details: [
     'TDX confidential environment',
     'Encrypted prompts through OHTTP',
@@ -40,6 +42,8 @@ export const openLane = {
   title: 'Flexible GPU capacity',
   body: 'For non-sensitive workloads. The node operator can see requests and responses, so this lane is not private from the operator.',
   icon: 'open',
+  stat: '02',
+  statLabel: 'Compute design',
   details: [
     'RTX 3090 / 4090 / 5090 class',
     'Public-model batch inference',
@@ -51,6 +55,9 @@ export const openLane = {
 };
 
 export const sharedProof = {
+  stat: '1h',
+  statLabel: 'Receipt epoch',
+  badge: 'Both lanes',
   eyebrow: 'Shared proof',
   title: 'Evidence across both lanes',
   items: [

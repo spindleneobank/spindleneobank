@@ -11,6 +11,7 @@ export const solutionsMeta: PageMeta = {
 export const solutionsHero = {
   eyebrow: 'Solutions by network role',
   title: 'Find your place in the compute flow',
+  image: '/assets/stock/node-board-v10.webp',
   lead: 'Supply suitable GPUs, build AI applications, operate nodes or explore the claim design. Each role shares a receipt-backed view of the work.',
   ctas: [CTA_DASHBOARD, CTA_NODE] as Cta[],
   chips: ['Register a node', 'Serve suitable jobs', 'Verify signed work', 'Claim to your wallet'],
@@ -25,6 +26,7 @@ export type RoleBlock = {
   cta: Cta;
   image: string;
   alt: string;
+  caption: string;
 };
 
 export const roleBlocks: RoleBlock[] = [
@@ -39,8 +41,9 @@ export const roleBlocks: RoleBlock[] = [
       'Signed receipts for completed AI work',
     ],
     cta: CTA_NODE,
-    image: '/assets/media/pink-lagoon-figure-brand-v8.webp',
+    image: '/assets/stock/role-gpu-cooling-v10.webp',
     alt: 'A flower-headed figure in a pink lagoon',
+    caption: 'Show the route from GPU to a signed receipt...',
   },
   {
     id: 'ai-builders',
@@ -53,8 +56,9 @@ export const roleBlocks: RoleBlock[] = [
       'USDG balance or per-call x402 payment',
     ],
     cta: CTA_API,
-    image: '/assets/media/pink-cloud-eye-brand-v8.webp',
+    image: '/assets/stock/node-board-v10.webp',
     alt: 'An eye in pink clouds',
+    caption: 'Choose the right lane for this AI workload...',
   },
   {
     id: 'node-operators',
@@ -67,8 +71,9 @@ export const roleBlocks: RoleBlock[] = [
       'Attestation checks for eligible sealed-lane nodes (in testing)',
     ],
     cta: CTA_DASHBOARD,
-    image: '/assets/media/sunken-stone-giant-brand-v8.webp',
+    image: '/assets/stock/compute-wires-web-v10.webp',
     alt: 'A stone giant in still water',
+    caption: 'Inspect the node identity and receipt proof...',
   },
   {
     id: 'developers',
@@ -81,8 +86,9 @@ export const roleBlocks: RoleBlock[] = [
       'Use a USDG balance or a per-call payment flow',
     ],
     cta: CTA_API,
-    image: '/assets/media/stone-retro-computer-brand-v8.webp',
+    image: '/assets/stock/work-circuits-v10.webp',
     alt: 'A retro computer made of stone',
+    caption: 'Send a request through the compatible API...',
   },
   {
     id: 'claims',
@@ -95,9 +101,16 @@ export const roleBlocks: RoleBlock[] = [
       'Card funding follows third-party program terms',
     ],
     cta: CTA_DASHBOARD,
-    image: '/assets/media/skeleton-flower-field-brand-v8.webp',
+    image: '/assets/stock/claim-refraction-v10.webp',
     alt: 'A skeleton in a field of flowers',
+    caption: 'Compare USDG, Stock Token and card claims...',
   },
+];
+
+export const foundationImages = [
+  '/assets/stock/node-components-v10.webp',
+  '/assets/stock/receipt-connectors-v10.webp',
+  '/assets/stock/network-core-v10.webp',
 ];
 
 export const foundation = {

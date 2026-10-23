@@ -20,7 +20,7 @@ export const Route = createFileRoute('/(marketing)/verification')({
 function Verification() {
   const { quote, ...hero } = verificationHero;
   return (
-    <>
+    <div className="spm-page">
       <PageHero
         {...hero}
         extra={
@@ -29,7 +29,7 @@ function Verification() {
           </blockquote>
         }
         aside={
-          <div className="spm-panel">
+          <div className="spm-panel spm-br">
             <div>
               <small className="spm-note-tag">{evidenceSteps.eyebrow}</small>
               <h2>{evidenceSteps.title}</h2>
@@ -54,7 +54,7 @@ function Verification() {
           </div>
         }
       />
-      <Section id="safeguards" eyebrow={safeguards.eyebrow} title={safeguards.title}>
+      <Section id="safeguards" tone="night" eyebrow={safeguards.eyebrow} title={safeguards.title}>
         <FeatureGrid items={safeguards.items} />
       </Section>
       <Section id="limits" tone="night" eyebrow={limits.eyebrow} title={limits.title}>
@@ -65,6 +65,6 @@ function Verification() {
         </ul>
       </Section>
       <ClosingCta {...closing} />
-    </>
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import { Eyebrow } from '../Eyebrow';
 import { PixelIcon } from '../PixelIcon';
 import { Section } from '../Section';
 import './marketing.css';
+import { Pill } from './Pill';
 import { Reveal } from './Reveal';
 import type { Cta, Feature, Step } from './types';
 
@@ -39,7 +40,7 @@ export function PageHero({
     <section className="spm-hero">
       <div className="sp-container spm-hero-grid" data-aside={aside ? 'yes' : 'no'}>
         <div className="spm-hero-copy">
-          <Eyebrow tone="light">{eyebrow}</Eyebrow>
+          <Pill tone="dark">{eyebrow}</Pill>
           <h1>{title}</h1>
           <p className="spm-hero-lead">{lead}</p>
           {ctas ? <CtaRow ctas={ctas} /> : null}
@@ -105,8 +106,9 @@ export function SplitFeature({
   cta,
   image,
   alt,
+  caption,
   flip,
-  tone = 'paper',
+  tone = 'night',
 }: {
   id?: string;
   eyebrow: string;
@@ -116,6 +118,7 @@ export function SplitFeature({
   cta: Cta;
   image: string;
   alt: string;
+  caption?: string;
   flip?: boolean;
   tone?: 'paper' | 'night';
 }) {
@@ -137,7 +140,13 @@ export function SplitFeature({
           <CtaRow ctas={[cta]} />
         </Reveal>
         <Reveal delay={0.1} className="spm-split-media">
-          <img src={image} alt={alt} loading="lazy" decoding="async" width={900} height={1125} />
+          <img src={image} alt={alt} loading="lazy" decoding="async" width={900} height={700} />
+          {caption ? (
+            <p className="spm-media-cap">
+              <PixelIcon name="check" size={12} />
+              {caption}
+            </p>
+          ) : null}
         </Reveal>
       </div>
     </Section>

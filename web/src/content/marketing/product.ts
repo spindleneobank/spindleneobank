@@ -54,6 +54,12 @@ export const networkDiagram = {
   ],
 };
 
+export const heroBand = {
+  image: '/assets/graphics/dashboard-overview-v9.png',
+  alt: 'Illustrative Spindle dashboard with sample data',
+  bg: '/assets/stock/diagonal-monochrome-web-v10.webp',
+};
+
 export const capabilities = {
   eyebrow: 'Capabilities',
   title: 'Everything between the AI request and the provider claim',
@@ -61,19 +67,22 @@ export const capabilities = {
     {
       icon: 'receipts',
       title: 'Work recorded in signed receipts',
+      panel: 'receipt' as const,
       body: 'The node signs a COSE receipt for each job. Verification checks its signature, job billing and measured units before the work enters the USDG earnings ledger.',
     },
     {
       icon: 'overview',
       title: 'Follow nodes, receipts and claims',
+      panel: 'dashboard' as const,
       body: 'The dashboard brings node state, compute lane, receipt epochs and claims into one view. Preview records on this site illustrate the flow; they are not live network metrics.',
     },
     {
       icon: 'api',
       title: 'A familiar interface for AI builders',
+      panel: 'stack' as const,
       body: 'Chat completions, embeddings and images, with a compute-lane header.',
     },
-  ] satisfies Feature[],
+  ],
 };
 
 export const flow = {
