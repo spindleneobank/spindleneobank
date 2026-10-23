@@ -165,7 +165,7 @@ export const invoice = (p: Payment) => ({
   expires_at: p.expires_at,
 });
 
-export const publicCard = (c: Card, reveal = false) => ({
+export const publicCard = (c: Card) => ({
   card_id: c.card_id,
   client_card_ref: c.client_card_ref,
   cardholder_email: c.cardholder_email,

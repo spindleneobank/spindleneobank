@@ -67,7 +67,8 @@ async function call(
       ...headers,
     },
   });
-  return { status: res.status, json: (await res.json()) as any };
+  // biome-ignore lint/suspicious/noExplicitAny: loose JSON in tests
+  return { status: res.status, json: (await res.json()) as Record<string, any> };
 }
 
 async function issueCard(ref = 'ref-1', cardType = 'mastercard') {
