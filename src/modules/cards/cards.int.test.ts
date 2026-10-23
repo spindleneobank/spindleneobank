@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm';
 import { createWalletClient, encodeFunctionData, http, parseAbi } from 'viem';
 import { account } from '../../../dev/lib/accounts';
 import { ANVIL_URL, chain, publicClient, rpc } from '../../../dev/lib/chain';
+import { FORK_SKIP_MESSAGE, forkHealthy } from '../../../test/fork';
 import { cardOperations, cards } from '../../db/schema';
 import { closeQueues } from '../../lib/queue';
 import { closeRedis, getRedis } from '../../lib/redis';
@@ -18,6 +19,9 @@ import { chainDeps, pollRelayOrders } from '../relay/orders';
 import { processOneEvent, submitOne, syncOneCard } from './reconcile';
 import { cardSettings } from './settings';
 import { bootCards, type Kit } from './testkit';
+
+const healthy = await forkHealthy();
+if (!healthy) console.warn(`[skip] ${import.meta.file}: ${FORK_SKIP_MESSAGE}`);
 
 const USDG = '0x5fc5360d0400a0fd4f2af552add042d716f1d168' as const;
 const POOL = '0x69bfaf19c9f377bb306a89aed9f6b07e2c1a8d9a' as const;
@@ -38,6 +42,7 @@ let liquidityGap = false;
 const realChain = { ...chainDeps };
 
 beforeAll(async () => {
+  if (!healthy) return;
   snapshot = await rpc<string>('evm_snapshot');
   const code = Bun.spawnSync(
     ['forge', 'inspect', 'src/dev/RelayStubDepository.sol:RelayStubDepository', 'deployedBytecode'],
@@ -78,6 +83,7 @@ beforeAll(async () => {
 }, 60_000);
 
 afterAll(async () => {
+  if (!healthy) return;
   Object.assign(chainDeps, realChain);
   await kit?.stop();
   if (snapshot) await rpc('evm_revert', [snapshot]);
@@ -119,7 +125,7 @@ async function pay(u: Awaited<ReturnType<Kit['as']>>, opId: string): Promise<boo
   return true;
 }
 
-describe('card flows end to end (mock izipay + real Relay quotes + stub deposit)', () => {
+describe.skipIf(!healthy)('card flows end to end (mock izipay + real Relay quotes + stub deposit)', () => {
   test('issue -> topup -> reveal -> apple pay -> fault', async () => {
     const u = await kit.as(userAddr);
 

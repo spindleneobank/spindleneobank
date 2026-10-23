@@ -145,7 +145,11 @@ export interface StakingParams {
 const PARAMS_TTL_MS = 10 * 60_000;
 let paramsCache: { at: number; value: StakingParams } | null = null;
 
+let pinnedForTest: StakingParams | null = null;
+
+/** Test hook: pins the params so background refreshes (hub start, shared Redis cache) cannot replace them. */
 export function setStakingParamsForTest(value: StakingParams | null): void {
+  pinnedForTest = value;
   paramsCache = value ? { at: Date.now(), value } : null;
 }
 
@@ -154,6 +158,7 @@ let lastAttempt = 0;
 
 /** Reads min stakes / token / delay: memory, then Redis (10 min), then chain. Usable from api and worker. */
 export async function stakingParams(force = false): Promise<StakingParams> {
+  if (pinnedForTest) return pinnedForTest;
   if (!force && paramsCache && Date.now() - paramsCache.at < PARAMS_TTL_MS) return paramsCache.value;
   try {
     const raw = await getRedis().get(REDIS_KEY);

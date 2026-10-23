@@ -33,6 +33,7 @@ beforeAll(async () => {
   await nodeHub.start({ redis: false });
 });
 afterAll(async () => {
+  setStakingParamsForTest(null);
   await nodeHub.stop();
   srv.stop();
   await t.close();

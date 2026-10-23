@@ -2,10 +2,14 @@ import { describe, expect, test } from 'bun:test';
 import { KNOWN, rhc } from '@spindle/shared/chain';
 import { type Address, createTestClient, createWalletClient, http, parseEther, publicActions } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import { FORK_SKIP_MESSAGE, forkHealthy } from '../../../test/fork';
 import { config } from '../../config';
 import { erc20Abi, peripheryAbi, stockAddresses, swapRouter02Abi } from './abi';
 import { chainQuoteDeps, quote } from './quote';
 import { verifyStockToken } from './verify';
+
+const healthy = await forkHealthy();
+if (!healthy) console.warn(`[skip] ${import.meta.file}: ${FORK_SKIP_MESSAGE}`);
 
 // Runs against the anvil RHC fork (RPC_URLS[0], default 127.0.0.1:7245 when not set).
 const rpcUrl = config.RPC_URLS[0] ?? 'http://127.0.0.1:7245';
@@ -16,7 +20,7 @@ const test_ = createTestClient({ chain: rhc, mode: 'anvil', transport: http(rpcU
 const account = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
 const wallet = createWalletClient({ account, chain: rhc, transport: http(rpcUrl) });
 
-describe('stocks on the RHC fork', () => {
+describe.skipIf(!healthy)('stocks on the RHC fork', () => {
   test('periphery addresses have code and point at the pinned factory', async () => {
     for (const addr of [a.quoter, a.router]) {
       expect(((await test_.getCode({ address: addr })) ?? '0x').length).toBeGreaterThan(2);

@@ -9,10 +9,14 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { account } from '../../../dev/lib/accounts';
 import { ANVIL_URL, chain, rpc } from '../../../dev/lib/chain';
 import type { TestDb } from '../../../test/db-setup';
+import { FORK_SKIP_MESSAGE, forkHealthy } from '../../../test/fork';
 import { buyerBalances, buyers, nodes, users } from '../../db/schema';
 import { requireAddress } from '../../lib/contracts';
 import { readCursor } from './cursor';
 import { defaultDeps, type IndexerDeps, runIndexOnce, viemIndexerClient } from './indexer';
+
+const healthy = await forkHealthy();
+if (!healthy) console.warn(`[skip] ${import.meta.file}: ${FORK_SKIP_MESSAGE}`);
 
 let t: TestDb;
 let snap: string;
@@ -24,6 +28,7 @@ const mine = (n: number) => rpc('anvil_mine', [`0x${n.toString(16)}`]);
 const send = async (hash: `0x${string}`) => pub.waitForTransactionReceipt({ hash });
 
 beforeAll(async () => {
+  if (!healthy) return;
   const u = new URL(
     process.env.TEST_DATABASE_URL ?? 'postgres://spindle:spindle@127.0.0.1:7232/spindle_test_b6',
   );
@@ -47,12 +52,13 @@ beforeAll(async () => {
   deps = { ...defaultDeps(), db: t.db, redis, client: viemIndexerClient(), deployBlock: start };
 });
 afterAll(async () => {
+  if (!healthy) return;
   if (snap) await rpc('evm_revert', [snap]);
   await redis?.quit();
   await t?.close();
 });
 
-describe('indexer on anvil', () => {
+describe.skipIf(!healthy)('indexer on anvil', () => {
   setDefaultTimeout(120_000);
   const buyer = account(5);
   const owner = account(6);
