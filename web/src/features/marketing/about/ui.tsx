@@ -103,7 +103,7 @@ export function RevealText({ paragraphs }: { paragraphs: string[] }) {
       // like the old effect, only track the block while it is on screen
       if (force !== true) {
         const r = el.getBoundingClientRect();
-        if (r.bottom < 0 || r.top > vh) return;
+        if (r.bottom < 0 || r.top > vh * 1.25) return;
       }
       const s = top - 0.9 * vh;
       const e = bottom - 0.8 * vh;

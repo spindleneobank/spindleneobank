@@ -838,6 +838,9 @@
   height: 496.2px;
 }
 @media (max-width: 1199.98px) {
+  .ab .ab-team .ab-badge-in {
+    color: #f3dacd;
+  }
   .ab-inside-c {
     gap: 48px;
   }
@@ -847,6 +850,9 @@
   }
 }
 @media (max-width: 809.98px) {
+  .ab .ab-inside-c {
+    gap: 55px;
+  }
   .ab-pics {
     flex-direction: column;
     align-items: stretch;
@@ -966,7 +972,7 @@
     width: 100%;
     gap: 16px;
   }
-  .ab-rl-l {
+  .ab .ab-rl-l {
     flex-direction: column;
     align-items: stretch;
     justify-content: center;
