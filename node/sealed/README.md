@@ -8,13 +8,13 @@ Everything is behind `SEALED_LANE_ENABLED=false` on the backend by default.
 
 Files:
 
-| File | Purpose |
-|---|---|
-| `Dockerfile.sealed` | vLLM + agent + NVIDIA attestation tooling, `SPINDLE_SEALED=1` |
-| `app-compose.json` | dstack app-compose; its hash is measured into RTMR3 and pinned in the backend allowlist |
-| `compose-hash.sh` | prints `sha256(app-compose.json)` |
-| `collect_gpu_evidence.py` | GPU evidence for NRAS (called by `src/sealed/nvidia.ts`) |
-| `../src/sealed/*` | agent side: dstack quote, evidence, HPKE, job sealing |
+| File                      | Purpose                                                                                 |
+| ------------------------- | --------------------------------------------------------------------------------------- |
+| `Dockerfile.sealed`       | vLLM + agent + NVIDIA attestation tooling, `SPINDLE_SEALED=1`                           |
+| `app-compose.json`        | dstack app-compose; its hash is measured into RTMR3 and pinned in the backend allowlist |
+| `compose-hash.sh`         | prints `sha256(app-compose.json)`                                                       |
+| `collect_gpu_evidence.py` | GPU evidence for NRAS (called by `src/sealed/nvidia.ts`)                                |
+| `../src/sealed/*`         | agent side: dstack quote, evidence, HPKE, job sealing                                   |
 
 ## Operator steps (TDX host with H100/H200 in CC mode)
 
@@ -48,7 +48,6 @@ Files:
 Verified in unit tests with real public fixtures: DCAP verification of a real TDX quote with recorded Intel collateral,
 HPKE end to end. Verified with synthetic fixtures: binding, event-log replay, allowlist, NRAS JWT handling, relay and billing.
 **Not exercised on real hardware** (listed in detail with runbook steps in `docs/plan/sealed-testing.md`):
-
 1. `src/sealed/dstack.ts`: the `/var/run/dstack.sock` `GetQuote` request/response shape.
 2. A real dstack RTMR3 event log (event names, digest recipe, `compose-hash` payload) replayed by `replayRtmr3`.
 3. `report_data` acceptance by a real quote (64-byte layout) through the full verifier.

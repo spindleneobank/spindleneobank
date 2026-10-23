@@ -71,8 +71,7 @@ export async function sealedChat(opts: {
   let buf = '';
   for await (const part of res.body as unknown as AsyncIterable<Uint8Array>) {
     buf += decoder.decode(part, { stream: true });
-    let i: number;
-    while ((i = buf.indexOf('\n\n')) >= 0) {
+    for (let i = buf.indexOf('\n\n'); i >= 0; i = buf.indexOf('\n\n')) {
       const line = buf.slice(0, i);
       buf = buf.slice(i + 2);
       if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
