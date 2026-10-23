@@ -106,7 +106,7 @@ export function ApiKeys() {
         {(list) =>
           list.length === 0 ? (
             <EmptyState icon="code" title="No API keys yet">
-              Create a key to call the OpenAI-compatible API with your prepaid balance.
+              Create a key to call the OpenAI-compatible API with your credit balance.
             </EmptyState>
           ) : (
             <RowTable

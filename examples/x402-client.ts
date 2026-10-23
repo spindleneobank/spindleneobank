@@ -1,4 +1,4 @@
-// x402 "exact": pay per call with a signed Permit2 cap, no account or API key.
+// x402 "exact": pay per call with a signed Permit2 cap, no API key needed.
 //   PRIVATE_KEY=0x... bun x402-client.ts      (dev: an anvil test key; SPINDLE_API_URL, RPC_URL optional)
 import { privateKeyToAccount } from 'viem/accounts';
 import {

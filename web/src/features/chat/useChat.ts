@@ -24,13 +24,13 @@ export function classifyError(e: unknown): { kind: ChatErrorKind; message: strin
       case 'NO_CAPACITY':
         return { kind: 'no_capacity', message: 'No node is serving this model right now.' };
       case 'INSUFFICIENT_BALANCE':
-        return { kind: 'insufficient_balance', message: 'Your prepaid balance is too low for this message.' };
+        return { kind: 'insufficient_balance', message: 'Your credit balance is too low for this message.' };
       case 'SESSION_EXHAUSTED':
         return { kind: 'session_exhausted', message: 'This session has no spendable budget left.' };
       case 'X402_DISABLED':
         return {
           kind: 'disabled',
-          message: 'x402 payments are switched off right now. Use prepaid balance.',
+          message: 'x402 payments are switched off right now. Use credit balance.',
         };
       default:
         return { kind: 'other', message: e.message };

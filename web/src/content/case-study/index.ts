@@ -35,7 +35,7 @@ export const FLOWS: Flow[] = [
     image: '/assets/stock/stone-helix-web-v10.webp',
     start:
       'Illustrative flow: a node operator needs to connect completed AI work to the node that served it, the units billed and the earnings recorded. A hardware label alone does not establish that work occurred. Registered node identity and signed receipts are the common references for this path.',
-    flow: 'The node signs a COSE receipt for each job. A verifier checks its signature, the job-to-billing match and token counts against the gateway. Eligible sealed-lane nodes attach attestation evidence. Metering applies the rate card to verified work, then an epoch builder records cumulative entitlement in an hourly Merkle root on Robinhood Chain.',
+    flow: 'The node signs a COSE receipt for each job. A verifier checks its signature, the job-to-billing match and token counts against the gateway. Eligible nodes in the sealed lane (in testing) attach attestation evidence. Metering applies the rate card to verified work, then an epoch builder records cumulative entitlement in an hourly Merkle root on Robinhood Chain.',
     outcome:
       'The intended outcome is a traceable path from node identity to signed work and an hourly receipt epoch. This explains the architecture and is not a deployed customer result. A receipt evidences execution on the measured stack; it does not prove the output was correct.',
     facts: [

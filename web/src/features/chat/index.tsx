@@ -177,7 +177,7 @@ export default function ChatTab() {
   return (
     <div className="sd-overview">
       <PageHead eyebrow="PAY PER MESSAGE" line1="Talk to the" line2="network.">
-        Sign one session, or spend your prepaid balance. <br />
+        Sign one session, or spend your credit balance. <br />
         You are charged for actual usage, never more.
       </PageHead>
       <section className="sd-box sd-flat chat-box">
@@ -237,10 +237,10 @@ export default function ChatTab() {
                     type="button"
                     aria-pressed={mode === 'balance'}
                     disabled={balance === 0n || chat.busy}
-                    title={balance === 0n ? 'Your prepaid balance is empty' : undefined}
+                    title={balance === 0n ? 'Your credit balance is empty' : undefined}
                     onClick={() => setMode('balance')}
                   >
-                    Prepaid {usd(balance)}
+                    Credit {usd(balance)}
                   </button>
                 </div>
               </div>
@@ -280,7 +280,7 @@ export default function ChatTab() {
             </div>
             {!x402On ? (
               <p className="chat-hint chat-bad" role="status">
-                x402 sessions are switched off right now (the settlement keeper is paused). Prepaid balance
+                x402 sessions are switched off right now (the settlement keeper is paused). Credit balance
                 still works.
               </p>
             ) : null}
@@ -298,14 +298,14 @@ export default function ChatTab() {
                   <p>
                     x402 sessions are unavailable right now.{' '}
                     {balance > 0n ? (
-                      'Switch to Prepaid balance to chat.'
+                      'Switch to Credit balance to chat.'
                     ) : (
                       <>
                         Add funds under{' '}
                         <Link to="/dashboard/$tab" params={{ tab: 'developers' }}>
                           Developers
                         </Link>{' '}
-                        to chat with prepaid balance.
+                        to chat with credit balance.
                       </>
                     )}
                   </p>
@@ -470,7 +470,7 @@ export default function ChatTab() {
                 <p className="chat-hint">Authorize a session above to send messages.</p>
               ) : null}
               {mode === 'balance' && balance === 0n ? (
-                <p className="chat-hint">Your prepaid balance is empty.</p>
+                <p className="chat-hint">Your credit balance is empty.</p>
               ) : null}
               <label className="sp-sr-only" htmlFor="chat-input">
                 Message
@@ -499,7 +499,7 @@ export default function ChatTab() {
                   </CTA>
                 )}
                 <span className="chat-note">
-                  {mode === 'balance' ? 'Paid from prepaid balance' : 'Paid from your x402 session'} ·{' '}
+                  {mode === 'balance' ? 'Paid from credit balance' : 'Paid from your x402 session'} ·{' '}
                   {lane === 'open' ? 'Open lane' : 'Sealed lane'}
                 </span>
               </div>

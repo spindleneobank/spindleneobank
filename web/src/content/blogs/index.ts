@@ -131,7 +131,7 @@ export const POSTS: Post[] = [
     sections: [
       {
         heading: 'Hardware determines the available lane',
-        body: 'A node agent benchmarks the GPU and detects confidential-compute capability during onboarding. The design separates sealed-lane eligible confidential hardware from consumer GPUs and other open-lane hardware. A scheduler routes each job according to both the workload and the node’s capabilities.',
+        body: 'A node agent benchmarks the GPU and detects confidential-compute capability during onboarding. The design separates eligible confidential hardware for the sealed lane (in testing) from consumer GPUs and other open-lane hardware. A scheduler routes each job according to both the workload and the node’s capabilities.',
       },
       {
         heading: 'Match jobs to suitable nodes',
@@ -170,7 +170,7 @@ export const POSTS: Post[] = [
       },
       {
         heading: 'Make the limits visible',
-        body: 'Completed buyer-funded work determines earnings. A node’s hardware does not create a guaranteed payment, and consumer GPUs are not confidential compute. These limits matter when comparing the open and sealed lanes or deciding whether to supply a GPU.',
+        body: 'Completed buyer-funded work determines earnings. A node’s hardware does not create a guaranteed payment, and consumer GPUs are not confidential compute. These limits matter when comparing the open lane and the sealed lane (in testing) or deciding whether to supply a GPU.',
       },
     ],
   },

@@ -258,6 +258,10 @@ export const faq = {
       a: 'Claims always go to your wallet first and you pay the gas. From there you can fund a virtual card in one flow, or swap into a curated Stock Token with a quote and a price-impact warning. Card programs follow third-party terms.',
     },
     {
+      q: 'Who issues the card and the Stock Tokens?',
+      a: 'The virtual card is issued by a third-party card program, so availability, regions, limits and verification requirements are theirs. Stock Tokens are issued by third parties and carry no shareholder rights. Spindle shows the quote and price impact before you sign a swap.',
+    },
+    {
       q: 'How does node onboarding work?',
       a: 'Install the node agent, benchmark the GPU, then register the node with a wallet transaction. Staking is optional: it places the node in a priority tier for routing and is not needed to serve.',
     },

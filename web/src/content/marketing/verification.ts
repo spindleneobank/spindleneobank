@@ -68,8 +68,10 @@ export const limits = {
     'A receipt proves execution on the measured stack. It does not prove the output was correct.',
     'Open-lane work is visible to the node operator.',
     'Probe results are self-reported by the node; canaries reduce, but do not remove, the chance of a dishonest node.',
-    'Sealed-lane attestation is in testing and is not yet independently verified on production hardware.',
+    'Sealed-lane attestation is in testing and is not yet independently verified on production hardware. The sealed lane supports Intel TDX only.',
     'Consumer GPUs are not confidential.',
+    'The virtual card is issued by a third-party card program. Availability, regions, limits and verification requirements are theirs, not Spindle’s.',
+    'Stock Tokens are issued by third parties and carry no shareholder rights. A swap shows its quote and price impact first, and is not investment advice.',
   ],
 };
 
