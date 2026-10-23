@@ -1,0 +1,25 @@
+# Build context for docs/deploy/backend.Dockerfile (dev compose and prod release). Keep the lockfile
+# manifests (workspaces), src, drizzle, dev, contracts/gas and contracts/deployments.
+**/node_modules
+.git
+.worktrees
+static
+data
+*.log
+.env*
+.playwright-cli
+# frontend and node-agent sources are not part of the backend image (only their package.json is needed)
+web/*
+!web/package.json
+node/*
+!node/package.json
+# foundry project: only the gas table and deployment records are read at runtime
+contracts/lib
+contracts/out
+contracts/cache
+contracts/broadcast
+contracts/src
+contracts/test
+contracts/script
+contracts/docs
+contracts/deployments/*-fork.json
