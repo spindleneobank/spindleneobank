@@ -40,19 +40,23 @@ const checkout = (
   .replace(/[^a-z0-9]/g, '_');
 const testDb = `spindle_test_${checkout}`;
 
+// Redis keys (x402:*, counters, kv) are global per logical DB: give each checkout its own DB index (1-15; 0 is the
+// dev stack's) so parallel runs and the dev api never delete or mutate each other's keys.
+const redisDb = 1 + ([...checkout].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 15);
+
 const env = {
   ...process.env,
   TEST_DATABASE_URL:
     process.env.TEST_DATABASE_URL ??
     `postgres://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@127.0.0.1:7232/${testDb}`,
-  REDIS_URL: process.env.REDIS_URL ?? 'redis://127.0.0.1:7279',
+  REDIS_URL: process.env.REDIS_URL ?? `redis://127.0.0.1:7279/${redisDb}`,
   RPC_URLS: process.env.RPC_URLS ?? 'http://127.0.0.1:7245',
   IZIPAY_BASE_URL: process.env.IZIPAY_BASE_URL ?? 'http://127.0.0.1:7290/api/v1',
 };
 // bunfig ignores *.int.test.ts for the unit run; the integration run overrides the ignore list.
 const cmd = int
   ? ['bun', 'test', '--path-ignore-patterns=node_modules/**', ...(rest.length ? rest : ['.int.test.ts'])]
-  : ['bun', 'test', ...(rest.length ? rest : ['src', 'dev'])];
+  : ['bun', 'test', ...(rest.length ? rest : ['./src', './dev'])];
 const proc = Bun.spawn(cmd, {
   env,
   stdout: 'inherit',

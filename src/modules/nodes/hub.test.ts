@@ -216,7 +216,16 @@ describe('enrollment and auth', () => {
 
   test('binding signature recovers to the node key and registry domain', async () => {
     const { n, row } = await enrolled();
-    const [after] = await t.db.select().from(nodes).where(eq(nodes.id, row.id));
+    // The binding is persisted asynchronously after welcome: poll until it lands.
+    type NodeRow = typeof nodes.$inferSelect;
+    let after: NodeRow | undefined;
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      [after] = await t.db.select().from(nodes).where(eq(nodes.id, row.id));
+      if (after?.bindingSig && after.bindingDeadline != null) break;
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    expect(after?.bindingSig).toBeTruthy();
     const { recoverTypedDataAddress } = await import('viem');
     const td = nodeBindingTypedData({
       registry: nodeSettings.registry,
