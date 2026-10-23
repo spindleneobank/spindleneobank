@@ -45,7 +45,7 @@ const refusal = (code: string, message: string, headers?: Record<string, string>
   ...(headers ? { headers } : {}),
 });
 
-type Ref = { scheme: 'exact' | 'session'; paymentId: string };
+type Ref = { scheme: 'exact' | 'session'; paymentId: string; surcharge: string };
 
 /** Counts a payment that became `closing`; kicks the settle job once 20 are waiting. */
 export async function noteClosing(): Promise<void> {
@@ -127,7 +127,7 @@ export class X402Provider implements PaymentProvider {
       jobId: ctx.jobId,
       reservedMicros: ctx.maxChargeMicros,
       x402PaymentId: v.id,
-      ref: { scheme: 'exact', paymentId: v.paymentId } satisfies Ref,
+      ref: { scheme: 'exact', paymentId: v.paymentId, surcharge: v.surcharge.toString() } satisfies Ref,
     };
   }
 
@@ -154,8 +154,19 @@ export class X402Provider implements PaymentProvider {
       jobId: ctx.jobId,
       reservedMicros: ctx.maxChargeMicros,
       x402PaymentId: row.id,
-      ref: { scheme: 'session', paymentId: row.paymentId } satisfies Ref,
+      ref: {
+        scheme: 'session',
+        paymentId: row.paymentId,
+        surcharge: (row.surchargeMicros ?? 0n).toString(),
+      } satisfies Ref,
     };
+  }
+
+  responseHeaders(auth: Authorization, chargedMicros: bigint): Record<string, string> {
+    const ref = auth.ref as Ref | undefined;
+    if (!ref) return {};
+    const used = chargedMicros > auth.reservedMicros ? auth.reservedMicros : chargedMicros;
+    return { 'X-PAYMENT-RESPONSE': paymentResponseHeader(ref.paymentId, used, BigInt(ref.surcharge)) };
   }
 
   async finalize(auth: Authorization, chargeMicros: bigint): Promise<bigint> {

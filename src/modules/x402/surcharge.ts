@@ -14,6 +14,12 @@ import { type KvStore, pgKv } from '../chain/service';
  * this EXCLUDES the L1 data component, so the live value is `max(measured, eth_estimateGas delta per item)`.
  */
 export const X402_GAS_PER_ITEM = BigInt(gas.perItem);
+/** Per-batch fixed gas (C3), amortised over the expected batch size so small batches are not underpriced. */
+export const X402_GAS_BASE = BigInt(gas.base);
+export const X402_EXPECTED_BATCH_SIZE = 5n;
+/** perItem + base / expectedBatchSize (measured execution gas, before the L1 estimate). */
+export const X402_GAS_PER_ITEM_EFFECTIVE =
+  X402_GAS_PER_ITEM + X402_GAS_BASE / (X402_EXPECTED_BATCH_SIZE > 1n ? X402_EXPECTED_BATCH_SIZE : 1n);
 export const SURCHARGE_KV_KEY = 'x402:surcharge';
 export const SURCHARGE_MAX_AGE_MS = 15 * 60_000;
 const SAMPLE_BATCH = 5;
@@ -97,11 +103,13 @@ export async function gasPerItem(deps: Pick<SurchargeDeps, 'estimateBatchGas'>):
   try {
     const [one, many] = await Promise.all([deps.estimateBatchGas(1), deps.estimateBatchGas(SAMPLE_BATCH)]);
     const slope = (many - one) / BigInt(SAMPLE_BATCH - 1);
-    if (slope > X402_GAS_PER_ITEM) return { value: slope, source: 'estimate' };
+    // the estimate slope has no fixed batch cost, so amortise the measured base on top of it as well
+    const est = slope + X402_GAS_BASE / X402_EXPECTED_BATCH_SIZE;
+    if (est > X402_GAS_PER_ITEM_EFFECTIVE) return { value: est, source: 'estimate' };
   } catch (err) {
     logger.warn({ err: String(err) }, 'x402: settle gas estimate unavailable; using measured gas per item');
   }
-  return { value: X402_GAS_PER_ITEM, source: 'measured' };
+  return { value: X402_GAS_PER_ITEM_EFFECTIVE, source: 'measured' };
 }
 
 /** Recompute and persist kv('x402:surcharge'). A failed price read keeps the previous value for 15 min. */

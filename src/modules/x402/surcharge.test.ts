@@ -8,7 +8,10 @@ import {
   SURCHARGE_KV_KEY,
   type SurchargeDeps,
   surchargeFormula,
+  X402_EXPECTED_BATCH_SIZE,
+  X402_GAS_BASE,
   X402_GAS_PER_ITEM,
+  X402_GAS_PER_ITEM_EFFECTIVE,
 } from './surcharge';
 import { memKv } from './testing';
 
@@ -29,6 +32,10 @@ describe('surchargeFormula', () => {
   test('measured gas per item comes from the C3 file', () => {
     expect(X402_GAS_PER_ITEM).toBe(BigInt(gas.perItem));
     expect(X402_GAS_PER_ITEM).toBeGreaterThan(58_000n);
+  });
+
+  test('amortises the batch base over 5 items', () => {
+    expect(X402_GAS_PER_ITEM_EFFECTIVE).toBe(X402_GAS_PER_ITEM + X402_GAS_BASE / 5n);
   });
 
   test('is the minimum when gas is cheap', () => {
@@ -73,11 +80,11 @@ describe('surchargeFormula', () => {
 describe('gasPerItem (total gas incl. L1 via estimateGas)', () => {
   test('uses the estimate slope when it exceeds the measured execution gas', async () => {
     const r = await gasPerItem({ estimateBatchGas: async (n) => 100_000n + BigInt(n) * 90_000n });
-    expect(r).toEqual({ value: 90_000n, source: 'estimate' });
+    expect(r).toEqual({ value: 90_000n + X402_GAS_BASE / X402_EXPECTED_BATCH_SIZE, source: 'estimate' });
   });
   test('uses max(measured, estimate): a lower estimate never wins', async () => {
     const r = await gasPerItem({ estimateBatchGas: async (n) => 100_000n + BigInt(n) * 40_000n });
-    expect(r).toEqual({ value: X402_GAS_PER_ITEM, source: 'measured' });
+    expect(r).toEqual({ value: X402_GAS_PER_ITEM_EFFECTIVE, source: 'measured' });
   });
   test('falls back to measured when estimateGas fails', async () => {
     const r = await gasPerItem({
@@ -96,7 +103,7 @@ describe('refreshSurcharge / currentSurchargeMicros', () => {
     expect(rec.gasSource).toBe('estimate');
     expect(d.kv.get(SURCHARGE_KV_KEY)).resolves.toEqual(rec);
     // 2 x 200000 x 2e7 wei = 8e12 -> 8e-6 ETH x 3000 = $0.024
-    expect(await currentSurchargeMicros(d)).toBe(24_000n);
+    expect(await currentSurchargeMicros(d)).toBe(25_841n);
   });
 
   test('price read failure keeps the previous value for 15 minutes, then goes unknown', async () => {
@@ -129,6 +136,6 @@ describe('refreshSurcharge / currentSurchargeMicros', () => {
       ethUsdMicros: async () => 6000n * 1_000_000n,
     });
     const v = await currentSurchargeMicros(later);
-    expect(v).toBe(14_020n); // doubled ETH price -> doubled surcharge (7010 x 2)
+    expect(v).toBe(17_701n); // doubled ETH price; measured per-item + base/5 amortised
   });
 });

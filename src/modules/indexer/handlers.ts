@@ -323,6 +323,9 @@ export async function applyLog(tx: Tx, log: IndexedLog, ctx: HandlerCtx): Promis
         await warn(tx, ctx, 'indexer.unknown_payment', log, { paymentId });
         return {};
       }
+      // A settled payment is final: a later/duplicate SettleFailed (e.g. a spent nonce) must not overwrite it.
+      // Settled does overwrite failed, because the funds actually moved.
+      if (row.status === 'settled' && log.eventName === 'SettleFailed') return {};
       const closedAt = ctx.blockTime(log.blockNumber);
       const set =
         log.eventName === 'Settled'

@@ -220,6 +220,19 @@ describe('exact scheme', () => {
     expect(done).toMatchObject({ status: 'closing', usedMicros: 42_000n });
   });
 
+  test('responseHeaders builds X-PAYMENT-RESPONSE from the charge (clamped)', async () => {
+    const { body } = await challengeFor(100_000n);
+    const auth = (await authorizeWith(await pay(body))) as Authorization;
+    const h = x402Provider.responseHeaders?.(auth, 42_000n) ?? {};
+    expect(decodeHeader(h['X-PAYMENT-RESPONSE'])).toMatchObject({
+      used: '42000',
+      surcharge: '7000',
+      settlement: 'batched',
+    });
+    const big = x402Provider.responseHeaders?.(auth, 9_999_999n) ?? {};
+    expect(decodeHeader(big['X-PAYMENT-RESPONSE'])).toMatchObject({ used: '100000' });
+  });
+
   test('finalize clamps to the reservation', async () => {
     const { body } = await challengeFor(100_000n);
     const auth = (await authorizeWith(await pay(body))) as Authorization;
