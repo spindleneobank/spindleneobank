@@ -168,7 +168,7 @@ export const FLOWS: Flow[] = [
       },
       {
         t: 'p',
-        text: 'Illustrative flow: a GPU provider has verified USDG earnings and wants to choose a payout destination. Selling a separate earnings token is not part of the proposed flow. The provider instead compares a direct USDG wallet claim, a canonical Stock Token claim and a virtual card claim, subject to route conditions.',
+        text: 'Illustrative flow: a GPU provider has verified USDG earnings and wants to choose a payout destination. Selling a separate earnings token is not part of the proposed flow. The provider instead claims USDG to a wallet, then compares a Stock Token swap and virtual card funding, subject to route conditions.',
       },
       {
         t: 'img',
@@ -182,7 +182,7 @@ export const FLOWS: Flow[] = [
       },
       {
         t: 'p',
-        text: 'The claim service builds the selected route against the provider’s cumulative Merkle entitlement. The stock route checks the curated stock list and shows price impact before signing. The card step spends claimed USDG on-chain before issuance, tracks the request by claim ID and is designed to refund USDG after issuance failure. A split claim can combine routes.',
+        text: 'The claim service builds the selected route against the provider’s cumulative Merkle entitlement. The stock route checks the curated stock list and shows price impact before signing. The card step spends claimed USDG on-chain before issuance, tracks the request by claim ID and is designed to refund USDG after issuance failure. Each step is its own wallet action.',
       },
       {
         t: 'h4',
