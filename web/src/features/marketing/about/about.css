@@ -1280,15 +1280,19 @@
   .ab-soc button {
     display: grid;
     grid-template-columns: 21px auto;
+    grid-template-rows: 21px auto;
     column-gap: 8px;
-    row-gap: 4px;
+    row-gap: 8px;
     padding: 13px;
     align-items: center;
     justify-items: start;
-    min-height: 64px;
   }
   .ab-soc button svg {
-    grid-row: 1 / span 2;
+    grid-row: 1;
+  }
+  .ab-soc button small {
+    grid-column: 2;
+    grid-row: 2;
   }
   .ab-soc small {
     margin-left: 0;
