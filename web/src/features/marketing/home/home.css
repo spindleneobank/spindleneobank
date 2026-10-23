@@ -23,3 +23,8 @@
 .framer-x8qsM[data-hm-page='home'] {
   line-height: normal;
 }
+
+/* Framer hover variant of the "View all" links (background fills in instantly). */
+.framer-VSipU a.framer-yifr6[data-framer-name='Dark']:hover {
+  background-color: rgb(234, 224, 220) !important;
+}

@@ -147,3 +147,72 @@ export function initCapabilityNav(tree: HTMLElement): () => void {
     cancelAnimationFrame(raf);
   };
 }
+
+const EASE = 'cubic-bezier(0.44, 0, 0.56, 1)';
+
+function textP(root: ParentNode, text: string): HTMLElement | null {
+  for (const p of root.querySelectorAll<HTMLElement>('p')) if (p.textContent?.trim() === text) return p;
+  return null;
+}
+
+/** The "Inspect receipt" chat: the question types in (10ms per character, 50ms apart), then the rows fade up in turn. */
+export function initChat(tree: HTMLElement): () => void {
+  const thread = tree.querySelector<HTMLElement>('[data-framer-name="Conversation Thread"]');
+  if (!thread || reduced()) return () => {};
+  const anims: Animation[] = [];
+  const q = textP(thread, 'How does completed work become a payout?');
+  if (q?.firstChild?.nodeType === 3) {
+    const text = q.textContent ?? '';
+    q.textContent = '';
+    [...text].forEach((ch, n) => {
+      const s = document.createElement('span');
+      s.textContent = ch;
+      q.append(s);
+      anims.push(s.animate([{ opacity: 0.001 }, { opacity: 1 }], { duration: 10, delay: 300 + n * 50, easing: EASE, fill: 'backwards' }));
+    });
+  }
+  const rows = Array.from(thread.children) as HTMLElement[];
+  const starts = [0, 2800, 4600, 5500];
+  rows.forEach((row, i) => {
+    if (i === 0) return;
+    anims.push(
+      row.animate(
+        [
+          { opacity: 0, transform: 'translateY(16px)' },
+          { opacity: 1, transform: 'none' },
+        ],
+        { duration: 300, delay: starts[i] ?? 5500, easing: EASE, fill: 'backwards' },
+      ),
+    );
+  });
+  return () => {
+    for (const a of anims) a.cancel();
+  };
+}
+
+/** Receipt-flow cards: fade and settle into place the first time they scroll into view. */
+export function initReceiptReveals(tree: HTMLElement): () => void {
+  if (reduced()) return () => {};
+  const items: Array<[string, number, Keyframe, number]> = [
+    ['Receipt verified for the epoch', 2, { opacity: 0, transform: 'scale(0.97)' }, 784],
+    ['Receipt verified for the epoch', 1, { opacity: 0, transform: 'translateY(6px)' }, 471],
+    ['receipt.cose', 2, { opacity: 0, transform: 'translateX(-12px)' }, 523],
+    ['epoch.root', 2, { opacity: 0, transform: 'translateX(-12px)' }, 461],
+  ];
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      io.unobserve(e.target);
+      const [from, ms] = (e.target as HTMLElement & { _hm?: [Keyframe, number] })._hm ?? [{}, 400];
+      (e.target as HTMLElement).animate([from, { opacity: 1, transform: 'none' }], { duration: ms, easing: EASE, fill: 'backwards' });
+    }
+  }, { threshold: 0.2 });
+  for (const [text, up, from, ms] of items) {
+    let el: HTMLElement | null = textP(tree, text);
+    for (let i = 0; i < up && el; i++) el = el.parentElement;
+    if (!el) continue;
+    (el as HTMLElement & { _hm?: [Keyframe, number] })._hm = [from, ms];
+    io.observe(el);
+  }
+  return () => io.disconnect();
+}
