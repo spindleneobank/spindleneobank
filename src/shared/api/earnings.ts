@@ -11,7 +11,7 @@ export const Prefs = z
     notifications: z.boolean().optional(),
     cardFinish: z.string().optional(),
   })
-  .catchall(z.unknown());
+  .strict();
 export type Prefs = z.infer<typeof Prefs>;
 export const GetMeRes = z.object({
   address: Address,

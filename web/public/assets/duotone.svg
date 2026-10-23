@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg"><filter id="violet" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncR type="table" tableValues="0.025 0.14 0.37 0.985"/><feFuncG type="table" tableValues="0.018 0.11 0.31 0.85"/><feFuncB type="table" tableValues="0.055 0.26 0.57 0.78"/></feComponentTransfer></filter></svg>

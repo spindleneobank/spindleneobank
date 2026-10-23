@@ -1,0 +1,109 @@
+.sp-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: grid;
+  place-items: center;
+  background: var(--sp-night);
+  color: #eddbd0;
+  font-family: Inter, Arial, sans-serif;
+  transition:
+    opacity 0.32s ease,
+    visibility 0.32s;
+  isolation: isolate;
+}
+.sp-loader:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(#88709227 0.7px, transparent 0.7px);
+  background-size: 8px 8px;
+  mask-image: radial-gradient(ellipse at center, black, transparent 65%);
+  z-index: -1;
+}
+.sp-loader.gone {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.sp-loader-inner {
+  width: 260px;
+  text-align: center;
+}
+.sp-loader-word {
+  font-size: 31px;
+  letter-spacing: -1.7px;
+  font-weight: 400;
+  margin-bottom: 30px;
+}
+.sp-loader-grid {
+  display: grid;
+  grid-template-columns: repeat(15, 8px);
+  grid-template-rows: repeat(7, 8px);
+  gap: 4px;
+  justify-content: center;
+  margin: 0 auto 35px;
+  height: 80px;
+  align-content: center;
+}
+.sp-loader-grid > i {
+  width: 8px;
+  height: 8px;
+  background: var(--c);
+  opacity: 0.07;
+  animation: sp-pixel-load 1.25s steps(1, end) infinite;
+  animation-delay: calc(var(--i) * -0.035s);
+}
+.sp-loader-progress {
+  height: 2px;
+  background: #332433;
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+.sp-loader-progress > i {
+  height: 2px;
+  display: block;
+  width: 0;
+  background: linear-gradient(90deg, #6654a0, #ba6a93, #dd875f, #d9ac60);
+  animation: sp-load-bar 1.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.sp-loader-readout {
+  display: flex;
+  justify-content: space-between;
+  font: 7px monospace;
+  letter-spacing: 0.12em;
+  color: #967d98;
+}
+.sp-loader-caption {
+  font: 7px monospace;
+  letter-spacing: 0.14em;
+  color: #6e5679;
+  margin-top: 30px;
+}
+@keyframes sp-pixel-load {
+  0%,
+  100% {
+    opacity: 0.08;
+  }
+  20%,
+  45% {
+    opacity: 0.85;
+  }
+  65% {
+    opacity: 0.26;
+  }
+}
+@keyframes sp-load-bar {
+  0% {
+    width: 0;
+  }
+  40% {
+    width: 61%;
+  }
+  80% {
+    width: 89%;
+  }
+  100% {
+    width: 100%;
+  }
+}

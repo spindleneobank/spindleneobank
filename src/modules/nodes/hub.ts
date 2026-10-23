@@ -28,6 +28,7 @@ import {
 } from '../../shared/node-protocol';
 import { onNodeAttestation } from '../attest/hooks';
 import { dbRef } from '../auth/constants';
+import { markAvailable } from '../floor/availability';
 import {
   consumeTokenTx,
   createPairing,
@@ -965,6 +966,7 @@ export class NodeHub {
         this.closeConn(s, 1001, 'liveness timeout');
         continue;
       }
+      void markAvailable(s.node.id, now).catch(() => {}); // availability floor: one bit per minute
       if (now - s.lastPing >= nodeSettings.pingMs) {
         s.lastPing = now;
         this.send(s, { v: 1, type: 'ping' });
