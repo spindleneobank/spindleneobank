@@ -4,6 +4,7 @@ import { Appear, LiquidMetal } from '../../../components/marketing/motion';
 import tree from '../../../content/marketing/product-tree.json';
 import { ChatPanel } from './ChatPanel';
 import { HeroShader } from './HeroShader';
+import { useHeroGraph } from './useHeroGraph';
 import { useMotionVisible } from './useMotionVisible';
 import { useOrbit } from './useOrbit';
 import { type Override, type PNode, renderNode } from './render';
@@ -98,6 +99,7 @@ export function ProductBody() {
   const root = useRef<HTMLDivElement>(null);
   useMotionVisible(root);
   useOrbit(root);
+  useHeroGraph(root);
   return (
     <div ref={root} className={`pp-scope ${data.root.cls.split(/\s+/).slice(0, 2).join(' ')}`} style={data.root.style}>
       {renderNode(withTemplates(data.tree, tpl), 'root', '', override)}

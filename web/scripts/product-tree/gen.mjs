@@ -42,6 +42,8 @@ function norm(n, anc = []) {
   }
   // the old page resolves this background to the 800w stock file on every breakpoint (its script rewrites srcset after load)
   if (n.t === 'img' && /soap-film-web-v10/.test(a.src || '')) { delete a.srcset; delete a.sizes; }
+  // hero comet groups (g > 9 circles) rest at opacity 0 between cycles; a live hook animates them
+  if (n.t === 'g' && n.c.length === 9 && n.c.every((c) => typeof c !== 'string' && c.t === 'circle')) a.opacity = '0';
   const cls = a.class || ''; return { t: n.t, a, c: n.c.map((c) => norm(c, [...anc.slice(-8), cls])) };
 }
 const trees = Object.fromEntries(BPS.map((b) => [b, norm(X[b].tree)]));
