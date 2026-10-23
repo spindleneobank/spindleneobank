@@ -22,20 +22,35 @@ function mount(ul: HTMLElement) {
   const wrapAt = step * SET * 2;
   let timer = 0;
   let anim: Animation | null = null;
-  const tick = () => {
-    const from = x(ul);
-    let base = from;
-    if (-base >= wrapAt - step) {
+  const move = (dir: 1 | -1) => {
+    // dir -1: next (track moves left), dir 1: previous
+    let base = x(ul);
+    if (dir < 0 && -base >= wrapAt - step) {
       base += step * SET;
       ul.style.transform = `translateX(${base}px)`;
+    } else if (dir > 0 && -base < step * SET) {
+      base -= step * SET;
+      ul.style.transform = `translateX(${base}px)`;
     }
-    const to = base - step;
+    const to = base + dir * step;
+    anim?.finish();
     anim = ul.animate([{ transform: `translateX(${base}px)` }, { transform: `translateX(${to}px)` }], { duration: MOVE_MS, easing: EASE });
     anim.onfinish = () => {
       ul.style.transform = `translateX(${to}px)`;
     };
+  };
+  const tick = () => {
+    move(-1);
     timer = window.setTimeout(tick, EVERY_MS);
   };
+  // the section's pagination buttons (hidden in the old design, still wired): Previous / Next step one item
+  const section = ul.closest('section');
+  const prevBtn = section?.querySelector<HTMLButtonElement>('button[aria-label="Previous"]');
+  const nextBtn = section?.querySelector<HTMLButtonElement>('button[aria-label="Next"]');
+  const onPrev = () => move(1);
+  const onNext = () => move(-1);
+  prevBtn?.addEventListener('click', onPrev);
+  nextBtn?.addEventListener('click', onNext);
   const stop = () => {
     clearTimeout(timer);
     timer = 0;
@@ -51,6 +66,8 @@ function mount(ul: HTMLElement) {
   return () => {
     io.disconnect();
     document.removeEventListener('visibilitychange', vis);
+    prevBtn?.removeEventListener('click', onPrev);
+    nextBtn?.removeEventListener('click', onNext);
     stop();
   };
 }
