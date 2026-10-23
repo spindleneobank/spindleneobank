@@ -66,7 +66,7 @@ export function RolePage({ role }: { role: Role }) {
           </div>
         </div>
       </section>
-      <section className="ab-sec ab-career" data-framer-name="Career Section">
+      <section className="ab-sec ab-career ab-career-r" data-framer-name="Career Section">
         <div className="ab-title">
           <div className="ab-title-c is-center">
             <Badge tone="white">Network roles</Badge>

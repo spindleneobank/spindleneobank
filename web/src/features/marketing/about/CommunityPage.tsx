@@ -1,10 +1,10 @@
 import { Badge, CommunityCard } from './ui';
 
 const STATS = [
-  ['2', 'Lanes'],
-  ['03', 'Routes'],
-  ['01', 'Hour'],
-  ['01', 'Chain'],
+  ['2', 'LANES'],
+  ['03', 'ROUTES'],
+  ['01', 'HOUR'],
+  ['01', 'CHAIN'],
 ];
 
 export function CommunityPage() {
