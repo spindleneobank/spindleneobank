@@ -313,7 +313,7 @@ function Developers() {
 
             <Section id="x402" title="x402 per-call payment">
               <p>
-                No account and no key: send the request, receive a price, sign it with your wallet and retry.
+                No key to create: send the request, receive a price, sign it with your wallet and retry.
                 Payment uses Permit2 on USDG with a Spindle witness, on chain 4663.
               </p>
               <h3>1. The challenge</h3>
