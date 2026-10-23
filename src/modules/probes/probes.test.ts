@@ -3,6 +3,7 @@ import { desc, eq } from 'drizzle-orm';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
 import { nodes, probeResults, slashCases } from '../../db/schema';
 import { closeRedis } from '../../lib/redis';
+import { CLASS_EXPECTATIONS, fitModels } from '../../shared/gpu';
 import type { ProbeResultMsg } from '../../shared/node-protocol';
 import { dbRef } from '../auth/constants';
 import { slashingDeps, unsuspendNode } from '../slashing/service';
@@ -33,11 +34,27 @@ describe('evaluateProbe', () => {
     expect(e.classOk).toBe(false);
     expect(e.reasons.length).toBe(2);
   });
-  test('empty bench misses only when the node holds the reference model', () => {
+  test('empty bench is a miss when the node holds the reference model', () => {
     expect(evaluateProbe(2, GOOD_4090, undefined, { hasRefModel: true }).classOk).toBe(false);
-    const skipped = evaluateProbe(2, GOOD_4090, undefined, { hasRefModel: false });
-    expect(skipped.classOk).toBe(true);
-    expect(skipped.benchSkipped).toBe(true);
+  });
+  test('a GPU class without its reference model is a miss with a clear reason', () => {
+    const e = evaluateProbe(2, GOOD_4090, undefined, { hasRefModel: false });
+    expect(e.classOk).toBe(false);
+    expect(e.reasons.join()).toContain('reference model qwen2.5:7b is not installed');
+    // even with a (suspiciously) good bench result
+    expect(evaluateProbe(2, GOOD_4090, bench(80), { hasRefModel: false }).classOk).toBe(false);
+  });
+  test('CPU class 0 without the reference model is skipped, not missed', () => {
+    const e = evaluateProbe(0, gpu('cpu', 0), undefined, { hasRefModel: false });
+    expect(e.classOk).toBe(true);
+    expect(e.benchSkipped).toBe(true);
+  });
+  test('every GPU class receives its reference model in models.ensure', () => {
+    for (const c of [1, 2, 3, 4] as const) {
+      const exp = CLASS_EXPECTATIONS[c];
+      const ids = fitModels(exp.minVramMb).map((f) => f.model.id);
+      expect(ids).toContain(exp.refModel);
+    }
   });
   test('missing hardware report misses', () => {
     expect(evaluateProbe(2, undefined, bench(80), { hasRefModel: true }).classOk).toBe(false);
@@ -175,7 +192,31 @@ describe('probe flow', () => {
     try {
       expect(await scheduleProbes()).toHaveLength(1);
     } finally {
-      probeSettings.perTick = 5;
+      probeSettings.perTick = 12;
+    }
+  });
+
+  test('probes run concurrently up to the limit and stop starting new ones after the budget', async () => {
+    for (let i = 0; i < 6; i++) await makeNode();
+    let running = 0;
+    let peak = 0;
+    probeDeps.probe = async (_id, kind) => {
+      running++;
+      peak = Math.max(peak, running);
+      await Bun.sleep(30);
+      running--;
+      return kind === 'hardware'
+        ? { v: 1, type: 'probe.result', probeId: 'p', hardware: hw }
+        : { v: 1, type: 'probe.result', probeId: 'p', bench: bn };
+    };
+    expect((await scheduleProbes()).length).toBe(6);
+    expect(peak).toBe(3);
+    await t.db.update(nodes).set({ lastProbeAt: null });
+    probeSettings.tickBudgetMs = 0;
+    try {
+      expect(await scheduleProbes()).toEqual([]);
+    } finally {
+      probeSettings.tickBudgetMs = 4 * 60_000;
     }
   });
 });

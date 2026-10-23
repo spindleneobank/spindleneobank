@@ -19,7 +19,11 @@ export const probeSettings = {
   /** Per-node jitter so probes spread over this window instead of firing together. */
   jitterMs: 30 * 60_000,
   /** Probes started per scheduler tick. */
-  perTick: 5,
+  perTick: 12,
+  /** Probes run this many at a time. */
+  concurrency: 3,
+  /** No new probe starts after this long into a tick; must stay below the schedule interval (5 min). */
+  tickBudgetMs: 4 * 60_000,
   maxTokens: 128,
   prompt: 'Write one short paragraph about graphics cards.',
   missesToSuspend: 2,
@@ -49,7 +53,7 @@ export interface ProbeEval {
   reasons: string[];
   vramMb: number | null;
   tokPerSec: number | null;
-  /** The bench was skipped (the node does not hold the reference model): no verdict on speed. */
+  /** The bench was skipped (CPU class without the reference model): no verdict on speed. */
   benchSkipped: boolean;
 }
 
@@ -75,9 +79,12 @@ export function evaluateProbe(
   }
   let benchSkipped = false;
   const tokPerSec = bench?.tokPerSec ?? null;
-  if (!bench) {
-    if (opts.hasRefModel) reasons.push('no benchmark result');
-    else benchSkipped = true;
+  if (claimedClass > 0 && !opts.hasRefModel) {
+    // the reference model is in every GPU class's models.ensure set, so an honest node always has it
+    reasons.push(`reference model ${exp.refModel} is not installed`);
+  } else if (!bench) {
+    if (claimedClass === 0 && !opts.hasRefModel) benchSkipped = true;
+    else reasons.push('no benchmark result');
   } else if (bench.tokPerSec < exp.minTokPerSec) {
     reasons.push(`${bench.tokPerSec} tok/s < ${exp.minTokPerSec} tok/s on ${exp.refModel}`);
   }
@@ -166,11 +173,20 @@ export async function dueNodes(now = probeDeps.now()): Promise<string[]> {
     .map((r) => r.id);
 }
 
-/** One scheduler tick: probes up to `perTick` due nodes. */
+/** One scheduler tick: probes up to `perTick` due nodes, `concurrency` at a time, within the time budget. */
 export async function scheduleProbes(): Promise<string[]> {
-  const ids = (await dueNodes()).slice(0, probeSettings.perTick);
-  for (const id of ids) {
-    await probeNode(id).catch((err) => logger.error({ err: String(err), nodeId: id }, 'probe failed'));
-  }
-  return ids;
+  const queue = (await dueNodes()).slice(0, probeSettings.perTick);
+  const started: string[] = [];
+  const deadline = Date.now() + probeSettings.tickBudgetMs;
+  const worker = async () => {
+    for (;;) {
+      if (Date.now() >= deadline) return;
+      const id = queue.shift();
+      if (!id) return;
+      started.push(id);
+      await probeNode(id).catch((err) => logger.error({ err: String(err), nodeId: id }, 'probe failed'));
+    }
+  };
+  await Promise.all(Array.from({ length: probeSettings.concurrency }, worker));
+  return started;
 }
