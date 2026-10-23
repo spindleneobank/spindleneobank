@@ -1,5 +1,6 @@
 import { PutAdminModelsReq, PutAdminRateCardReq } from '@spindle/shared/api/admin';
 import type { Context, Hono } from 'hono';
+import { z } from 'zod';
 import { AppError } from '../../lib/errors';
 import type { Env } from '../../lib/http';
 import { requireAdmin } from '../auth/middleware';
@@ -14,6 +15,7 @@ import {
   overview,
   putModels,
   putRateCard,
+  setNodeHouse,
 } from './service';
 
 const actor = (c: Context<Env>): string => c.get('user')?.address ?? 'admin';
@@ -49,6 +51,11 @@ export const createAdminRoutes =
       return c.json(
         bigintSafe({ ...f, perEpoch: f.perEpoch.map((p) => ({ ...p, epoch: Number(p.epoch) })) }),
       );
+    });
+
+    app.post('/v1/admin/nodes/:id/house', requireAdmin, async (c) => {
+      const { isHouse } = await body(c, z.object({ isHouse: z.boolean() }));
+      return c.json(await setNodeHouse(c.req.param('id'), isHouse, actor(c), deps));
     });
 
     app.post('/v1/admin/jobs/:name/run', requireAdmin, async (c) => {

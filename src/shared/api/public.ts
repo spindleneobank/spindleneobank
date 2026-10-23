@@ -77,6 +77,13 @@ export const ReceiptView = z.object({
   nodeId: z.string(),
   onchainNodeId: z.string().nullable(),
   nodeKey: Address,
+  /** Uncompressed secp256k1 public key (hex) registered for the node. */
+  nodePubkey: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]+$/)
+    .optional(),
+  /** Node owner (earning) address. */
+  owner: Address.optional(),
   lane: z.enum(Lane),
   model: z.string(),
   usage: z.object({ p: z.number().int(), c: z.number().int(), n: z.number().int().optional() }),

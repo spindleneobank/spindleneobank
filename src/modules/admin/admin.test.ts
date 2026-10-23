@@ -58,6 +58,7 @@ const deps: AdminDeps = {
   refreshCatalog: async () => void refreshed++,
   addresses: () => ({ claims: CLAIMS, treasury: TREASURY }),
   now: () => new Date(),
+  houseOwner: () => '0x00000000000000000000000000000000000000f6',
 };
 const app = new Hono<Env>();
 app.onError(jsonError);
@@ -112,6 +113,7 @@ const routes: [string, string, unknown?][] = [
   ['PUT', '/v1/admin/models', { models: [] }],
   ['GET', '/v1/admin/floor'],
   ['POST', '/v1/admin/jobs/indexer/run'],
+  ['POST', '/v1/admin/nodes/00000000-0000-0000-0000-000000000000/house', { isHouse: true }],
 ];
 
 describe('auth', () => {
@@ -419,5 +421,57 @@ describe('floor + jobs', () => {
     epochSettings.epochSeconds = 3600;
     const r = await runAdminJob('floor-apply', ADMIN, { enqueue: async () => ({}) });
     expect(r).toMatchObject({ queued: true, mode: 'inline' });
+  });
+});
+
+describe('house node', () => {
+  const OTHER = '0x00000000000000000000000000000000000000a7';
+  const HOUSE = '0x00000000000000000000000000000000000000f6';
+  test('marks only the house owner node, audited, and can unmark', async () => {
+    {
+      const [u] = await t.db.insert(users).values({ address: HOUSE }).returning();
+      const mk = async (owner: string, userId: string, name: string) =>
+        (
+          await t.db
+            .insert(nodes)
+            .values({
+              owner,
+              userId,
+              nodeKey: owner,
+              nodePubkey: 'pk',
+              name,
+              engine: 'ollama',
+              gpuClass: 0,
+              lane: 'open',
+              status: 'online',
+            })
+            .returning()
+        )[0]?.id as string;
+      const houseId = await mk(HOUSE, u?.id as string, 'house');
+      const [o] = await t.db.insert(users).values({ address: OTHER }).returning();
+      const otherId = await mk(OTHER, o?.id as string, 'other');
+
+      expect((await call('POST', `/v1/admin/nodes/${otherId}/house`, adminH, { isHouse: true })).status).toBe(
+        400,
+      );
+      expect((await call('POST', `/v1/admin/nodes/${houseId}/house`, adminH, { isHouse: 'x' })).status).toBe(
+        400,
+      );
+      const ok = await call('POST', `/v1/admin/nodes/${houseId}/house`, adminH, { isHouse: true });
+      expect(ok.status).toBe(200);
+      expect((await t.db.select().from(nodes).where(eq(nodes.id, houseId)))[0]?.isHouse).toBe(true);
+      expect((await t.db.select().from(auditLog).where(eq(auditLog.action, 'admin.node.house'))).length).toBe(
+        1,
+      );
+      await call('POST', `/v1/admin/nodes/${houseId}/house`, adminH, { isHouse: false });
+      expect((await t.db.select().from(nodes).where(eq(nodes.id, houseId)))[0]?.isHouse).toBe(false);
+      expect(
+        (
+          await call('POST', '/v1/admin/nodes/00000000-0000-0000-0000-000000000000/house', adminH, {
+            isHouse: false,
+          })
+        ).status,
+      ).toBe(404);
+    }
   });
 });

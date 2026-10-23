@@ -269,6 +269,8 @@ export async function receiptView(jobId: string) {
       nodeId: row.n.id,
       onchainNodeId: row.n.onchainId === null ? null : row.n.onchainId.toString(),
       nodeKey: row.n.nodeKey,
+      nodePubkey: row.n.nodePubkey,
+      owner: row.n.owner,
       lane: (row.j.lane ?? 'open') as 'open' | 'sealed',
       model: row.j.model,
       usage: payload.usage ?? { p: 0, c: 0 },
