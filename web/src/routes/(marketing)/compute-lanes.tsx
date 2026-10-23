@@ -37,7 +37,7 @@ function ComputeLanes() {
       </Section>
       <Marquee items={marquee} />
       <Section id="compare" tone="night" eyebrow={compare.eyebrow} title={compare.title}>
-        <CompareTable columns={compare.columns} rows={compare.rows} />
+        <CompareTable columns={compare.columns} groups={compare.groups} />
       </Section>
       <ClosingCta {...closing} />
     </div>

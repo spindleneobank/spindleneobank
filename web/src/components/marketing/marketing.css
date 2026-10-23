@@ -1609,3 +1609,34 @@
 .spm-hero-media img {
   filter: url("/assets/duotone.svg#violet");
 }
+
+/* grouped compare rows (compute lanes): headings, no cell borders, dashed group dividers */
+.spm-table-wrap[data-grouped] {
+  border: 0;
+}
+.spm-table-wrap[data-grouped] .spm-table {
+  width: 100%;
+}
+.spm-table-wrap[data-grouped] thead th {
+  background: transparent;
+  border-bottom: 0;
+  font: 400 14px var(--sp-font-ui);
+  letter-spacing: 0;
+  text-transform: none;
+  color: #e9d6df;
+  padding-bottom: 24px;
+}
+.spm-table-wrap[data-grouped] th,
+.spm-table-wrap[data-grouped] td {
+  border-bottom: 0;
+  padding: 11px 16px 11px 0;
+  font-size: 13px;
+}
+.spm-table-wrap[data-grouped] tbody + tbody {
+  border-top: 1px dashed #382d47;
+}
+.spm-table-wrap[data-grouped] .spm-table-group th {
+  padding: 28px 0 12px;
+  font: 400 16px var(--sp-font-digital);
+  color: #f1e2d6;
+}

@@ -21,6 +21,16 @@ export const Route = createFileRoute('/(marketing)/about/')({
   component: About,
 });
 
+/** Decorative dashed pixel-frame tag (as on the old About page). */
+function PixelTag({ n, label, className }: { n: string; label: string; className: string }) {
+  return (
+    <div className={`f0n-pixtag ${className}`} aria-hidden="true">
+      <strong>{n}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
 function About() {
   return (
     <>
@@ -29,14 +39,14 @@ function About() {
         wide
         eyebrow="About Spindle"
         title="We connect GPU work to a payout you can choose"
-        media="/assets/stock/liquid-swirls.jpg"
+        media="/assets/stock/inside-glass-v10.webp"
       >
         <a href="#roles" className="sp-cta sp-cta-secondary">
           <span>Explore network roles</span>
         </a>
       </PageHero>
       <section className="f0n-section">
-        <div className="sp-container f0n-split">
+        <div className="sp-container f0n-idea-wrap">
           <div className="f0n-idea">
             <Eyebrow tone="light">The idea</Eyebrow>
             <p>
@@ -49,6 +59,9 @@ function About() {
               compute lanes, evidence and payout choice visible.
             </p>
           </div>
+          <PixelTag className="is-a" n="02" label="Compute lanes" />
+          <PixelTag className="is-b" n="03" label="Payout routes" />
+          <PixelTag className="is-c" n="M1" label="Specification build order" />
         </div>
       </section>
       <section className="f0n-section">
