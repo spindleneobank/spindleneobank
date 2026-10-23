@@ -121,7 +121,7 @@ describe('quote', () => {
     expect(q.swap.to).toBe(PINNED.ROUTER);
     expect(q.swap.functionName).toBe('exactInputSingle');
     expect(q.swap.value).toBe('0');
-    const p = q.swap.args[0];
+    const p = q.swap.args[0] as Record<string, unknown>;
     expect(p.recipient).toBe(USER);
     expect(p.tokenIn).toBe(USDG);
     expect(p.tokenOut).toBe(NVDA);
@@ -159,7 +159,7 @@ describe('quote', () => {
 
   test('token address is case-insensitive but only curated addresses resolve', async () => {
     const q = await quote(deps(), { ...req, token: NVDA.toUpperCase().replace('0X', '0x') });
-    expect(q.swap.args[0].tokenOut).toBe(NVDA);
+    expect((q.swap.args[0] as Record<string, unknown>).tokenOut).toBe(NVDA);
     const err = await quote(deps(), { ...req, token: USDG }).catch((e) => e);
     expect(err.status).toBe(400);
   });
