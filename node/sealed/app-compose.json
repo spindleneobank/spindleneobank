@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "name": "spindle-sealed-node",
+  "runner": "docker-compose",
+  "docker_compose_file": "services:\n  node:\n    image: REPLACE_REGISTRY/spindle-node-sealed@sha256:REPLACE_WITH_IMAGE_DIGEST\n    restart: unless-stopped\n    environment:\n      - SPINDLE_API_URL=${SPINDLE_API_URL}\n      - SPINDLE_TOKEN=${SPINDLE_TOKEN}\n      - SPINDLE_VLLM_MODEL=${SPINDLE_VLLM_MODEL}\n      - SPINDLE_SEALED=1\n      - DSTACK_SOCKET=/var/run/dstack.sock\n    volumes:\n      - /var/run/dstack.sock:/var/run/dstack.sock\n      - spindle-data:/data\n    deploy:\n      resources:\n        reservations:\n          devices:\n            - driver: nvidia\n              count: all\n              capabilities: [gpu]\nvolumes:\n  spindle-data:\n",
+  "kms_enabled": false,
+  "gateway_enabled": false,
+  "public_logs": false,
+  "public_sysinfo": false,
+  "allowed_envs": ["SPINDLE_API_URL", "SPINDLE_TOKEN", "SPINDLE_VLLM_MODEL"],
+  "no_instance_id": false,
+  "secure_time": false,
+  "tproxy_enabled": false
+}
