@@ -24,8 +24,8 @@ export default defineConfig(({ mode }) => {
         prerender: {
           enabled: true,
           crawlLinks: true,
-          // Header/footer link to marketing pages that F0m/F0n add later; flip to true once all exist.
-          failOnError: false,
+          // Every linked marketing route exists now: a broken link or render error fails the build.
+          failOnError: true,
           // Dashboard routes are not prerendered per page: they are served by the SPA shell below.
           filter: (page) => !(page.fromCrawl && page.path.startsWith('/dashboard')),
         },

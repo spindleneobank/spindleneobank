@@ -74,14 +74,41 @@ export const sharedProof = {
 export const compare = {
   eyebrow: 'Compare the design',
   title: 'Sealed and open, side by side',
-  columns: ['', 'Sealed lane (in testing)', 'Open lane'],
-  rows: [
-    ['Workload', 'Sensitive prompts', 'Non-sensitive, public models'],
-    ['GPU class', 'Eligible confidential-computing GPUs', 'RTX 3090 / 4090 / 5090 class and up'],
-    ['Private from the operator', 'Designed to be, with attestation', 'No'],
-    ['Evidence', 'Signed receipt plus attestation', 'Signed receipt'],
-    ['Metering', 'Job / tokens', 'GPU-hour or job / tokens'],
-    ['Root cadence', '1 hour', '1 hour'],
-    ['Status', 'In testing', 'Open design'],
+  columns: ['', 'Sealed lane (in testing)', 'Open lane', 'Shared proof'],
+  groups: [
+    {
+      title: 'Hardware & workload',
+      rows: [
+        ['Workload', 'Sensitive prompts', 'Non-sensitive, public models', '-'],
+        [
+          'GPU class',
+          'Eligible confidential-computing GPUs (TDX)',
+          'RTX 3090 / 4090 / 5090 class and up',
+          'Hardware capability checks',
+        ],
+        ['Private from the operator', 'Designed to be, with attestation', 'No', '-'],
+      ],
+    },
+    {
+      title: 'Receipts & execution',
+      rows: [
+        ['Evidence', 'Signed receipt plus attestation', 'Signed receipt', 'Receipts prove execution'],
+        ['Metering', 'Job / tokens', 'GPU-hour or job / tokens', 'Job-to-billing verification'],
+        ['Root cadence', '1 hour', '1 hour', 'Hourly cumulative Merkle roots'],
+      ],
+    },
+    {
+      title: 'Network integrity',
+      rows: [
+        ['Status', 'In testing', 'Open design', 'One verified work ledger'],
+        ['Node identity', 'Registered node', 'Registered node', 'Reputation-guided routing'],
+        [
+          'Output correctness',
+          'Not proven by receipts',
+          'Not proven by receipts',
+          'Canaries and probes reduce risk',
+        ],
+      ],
+    },
   ],
 };

@@ -213,6 +213,18 @@ export const apiBlock = {
   title: 'Built for AI workloads with a familiar API',
   body: 'The API supports chat completions, embeddings and images. Select the open lane today; the sealed lane is in testing. Illustration below uses no live requests.',
   cta: { label: 'Use the API', to: '/developers' } satisfies Cta,
+  ways: {
+    eyebrow: 'One compatible API',
+    title: 'Three ways to put compute to work.',
+    items: [
+      { title: 'Chat completions', body: 'Generate responses from suitable AI models.' },
+      { title: 'Embeddings', body: 'Turn inputs into vectors for AI workloads.' },
+      { title: 'Image generation', body: 'Route image workloads to eligible GPUs.' },
+    ],
+    note: 'Choose the open lane today; the sealed lane is in testing. Each completed job emits a signed receipt.',
+  },
+  image: '/assets/media/stone-retro-computer-brand-v8.webp',
+  imageAlt: 'A stone retro computer overgrown with mushrooms in a dark garden',
 };
 
 export const specNotes = {
@@ -256,6 +268,10 @@ export const faq = {
     {
       q: 'How do claims, cards and stocks work?',
       a: 'Claims always go to your wallet first and you pay the gas. From there you can fund a virtual card in one flow, or swap into a curated Stock Token with a quote and a price-impact warning. Card programs follow third-party terms.',
+    },
+    {
+      q: 'Who issues the card and the Stock Tokens?',
+      a: 'The virtual card is issued by a third-party card program, so availability, regions, limits and verification requirements are theirs. Stock Tokens are issued by third parties and carry no shareholder rights. Spindle shows the quote and price impact before you sign a swap.',
     },
     {
       q: 'How does node onboarding work?',

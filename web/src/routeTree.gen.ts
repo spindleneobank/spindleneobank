@@ -15,13 +15,16 @@ import { Route as marketing404RouteImport } from './routes/(marketing)/404'
 import { Route as marketingChangelogRouteImport } from './routes/(marketing)/changelog'
 import { Route as marketingCommunityRouteImport } from './routes/(marketing)/community'
 import { Route as marketingComputeLanesRouteImport } from './routes/(marketing)/compute-lanes'
+import { Route as marketingContactRouteImport } from './routes/(marketing)/contact'
 import { Route as marketingCookiePolicyRouteImport } from './routes/(marketing)/cookie-policy'
 import { Route as marketingDevelopersRouteImport } from './routes/(marketing)/developers'
+import { Route as marketingPricingRouteImport } from './routes/(marketing)/pricing'
 import { Route as marketingPrivacyPolicyRouteImport } from './routes/(marketing)/privacy-policy'
 import { Route as marketingProductRouteImport } from './routes/(marketing)/product'
 import { Route as marketingSolutionsRouteImport } from './routes/(marketing)/solutions'
 import { Route as marketingTermsConditionsRouteImport } from './routes/(marketing)/terms-conditions'
 import { Route as marketingVerificationRouteImport } from './routes/(marketing)/verification'
+import { Route as marketingWaitlistRouteImport } from './routes/(marketing)/waitlist'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardTabRouteImport } from './routes/dashboard/$tab'
 import { Route as marketingAboutIndexRouteImport } from './routes/(marketing)/about/index'
@@ -65,6 +68,11 @@ const marketingComputeLanesRoute = marketingComputeLanesRouteImport.update({
   path: '/compute-lanes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const marketingContactRoute = marketingContactRouteImport.update({
+  id: '/(marketing)/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const marketingCookiePolicyRoute = marketingCookiePolicyRouteImport.update({
   id: '/(marketing)/cookie-policy',
   path: '/cookie-policy',
@@ -73,6 +81,11 @@ const marketingCookiePolicyRoute = marketingCookiePolicyRouteImport.update({
 const marketingDevelopersRoute = marketingDevelopersRouteImport.update({
   id: '/(marketing)/developers',
   path: '/developers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingPricingRoute = marketingPricingRouteImport.update({
+  id: '/(marketing)/pricing',
+  path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const marketingPrivacyPolicyRoute = marketingPrivacyPolicyRouteImport.update({
@@ -99,6 +112,11 @@ const marketingTermsConditionsRoute =
 const marketingVerificationRoute = marketingVerificationRouteImport.update({
   id: '/(marketing)/verification',
   path: '/verification',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingWaitlistRoute = marketingWaitlistRouteImport.update({
+  id: '/(marketing)/waitlist',
+  path: '/waitlist',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
@@ -172,13 +190,16 @@ export interface FileRoutesByFullPath {
   '/changelog': typeof marketingChangelogRoute
   '/community': typeof marketingCommunityRoute
   '/compute-lanes': typeof marketingComputeLanesRoute
+  '/contact': typeof marketingContactRoute
   '/cookie-policy': typeof marketingCookiePolicyRoute
   '/developers': typeof marketingDevelopersRoute
+  '/pricing': typeof marketingPricingRoute
   '/privacy-policy': typeof marketingPrivacyPolicyRoute
   '/product': typeof marketingProductRoute
   '/solutions': typeof marketingSolutionsRoute
   '/terms-conditions': typeof marketingTermsConditionsRoute
   '/verification': typeof marketingVerificationRoute
+  '/waitlist': typeof marketingWaitlistRoute
   '/dashboard/$tab': typeof DashboardTabRoute
   '/': typeof marketingIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -198,13 +219,16 @@ export interface FileRoutesByTo {
   '/changelog': typeof marketingChangelogRoute
   '/community': typeof marketingCommunityRoute
   '/compute-lanes': typeof marketingComputeLanesRoute
+  '/contact': typeof marketingContactRoute
   '/cookie-policy': typeof marketingCookiePolicyRoute
   '/developers': typeof marketingDevelopersRoute
+  '/pricing': typeof marketingPricingRoute
   '/privacy-policy': typeof marketingPrivacyPolicyRoute
   '/product': typeof marketingProductRoute
   '/solutions': typeof marketingSolutionsRoute
   '/terms-conditions': typeof marketingTermsConditionsRoute
   '/verification': typeof marketingVerificationRoute
+  '/waitlist': typeof marketingWaitlistRoute
   '/dashboard/$tab': typeof DashboardTabRoute
   '/': typeof marketingIndexRoute
   '/dashboard': typeof DashboardIndexRoute
@@ -226,13 +250,16 @@ export interface FileRoutesById {
   '/(marketing)/changelog': typeof marketingChangelogRoute
   '/(marketing)/community': typeof marketingCommunityRoute
   '/(marketing)/compute-lanes': typeof marketingComputeLanesRoute
+  '/(marketing)/contact': typeof marketingContactRoute
   '/(marketing)/cookie-policy': typeof marketingCookiePolicyRoute
   '/(marketing)/developers': typeof marketingDevelopersRoute
+  '/(marketing)/pricing': typeof marketingPricingRoute
   '/(marketing)/privacy-policy': typeof marketingPrivacyPolicyRoute
   '/(marketing)/product': typeof marketingProductRoute
   '/(marketing)/solutions': typeof marketingSolutionsRoute
   '/(marketing)/terms-conditions': typeof marketingTermsConditionsRoute
   '/(marketing)/verification': typeof marketingVerificationRoute
+  '/(marketing)/waitlist': typeof marketingWaitlistRoute
   '/dashboard/$tab': typeof DashboardTabRoute
   '/(marketing)/': typeof marketingIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -255,13 +282,16 @@ export interface FileRouteTypes {
     | '/changelog'
     | '/community'
     | '/compute-lanes'
+    | '/contact'
     | '/cookie-policy'
     | '/developers'
+    | '/pricing'
     | '/privacy-policy'
     | '/product'
     | '/solutions'
     | '/terms-conditions'
     | '/verification'
+    | '/waitlist'
     | '/dashboard/$tab'
     | '/'
     | '/dashboard/'
@@ -281,13 +311,16 @@ export interface FileRouteTypes {
     | '/changelog'
     | '/community'
     | '/compute-lanes'
+    | '/contact'
     | '/cookie-policy'
     | '/developers'
+    | '/pricing'
     | '/privacy-policy'
     | '/product'
     | '/solutions'
     | '/terms-conditions'
     | '/verification'
+    | '/waitlist'
     | '/dashboard/$tab'
     | '/'
     | '/dashboard'
@@ -308,13 +341,16 @@ export interface FileRouteTypes {
     | '/(marketing)/changelog'
     | '/(marketing)/community'
     | '/(marketing)/compute-lanes'
+    | '/(marketing)/contact'
     | '/(marketing)/cookie-policy'
     | '/(marketing)/developers'
+    | '/(marketing)/pricing'
     | '/(marketing)/privacy-policy'
     | '/(marketing)/product'
     | '/(marketing)/solutions'
     | '/(marketing)/terms-conditions'
     | '/(marketing)/verification'
+    | '/(marketing)/waitlist'
     | '/dashboard/$tab'
     | '/(marketing)/'
     | '/dashboard/'
@@ -336,13 +372,16 @@ export interface RootRouteChildren {
   marketingChangelogRoute: typeof marketingChangelogRoute
   marketingCommunityRoute: typeof marketingCommunityRoute
   marketingComputeLanesRoute: typeof marketingComputeLanesRoute
+  marketingContactRoute: typeof marketingContactRoute
   marketingCookiePolicyRoute: typeof marketingCookiePolicyRoute
   marketingDevelopersRoute: typeof marketingDevelopersRoute
+  marketingPricingRoute: typeof marketingPricingRoute
   marketingPrivacyPolicyRoute: typeof marketingPrivacyPolicyRoute
   marketingProductRoute: typeof marketingProductRoute
   marketingSolutionsRoute: typeof marketingSolutionsRoute
   marketingTermsConditionsRoute: typeof marketingTermsConditionsRoute
   marketingVerificationRoute: typeof marketingVerificationRoute
+  marketingWaitlistRoute: typeof marketingWaitlistRoute
   marketingIndexRoute: typeof marketingIndexRoute
   marketingAboutRoleRoute: typeof marketingAboutRoleRoute
   marketingArchitectureSlugRoute: typeof marketingArchitectureSlugRoute
@@ -400,6 +439,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof marketingComputeLanesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(marketing)/contact': {
+      id: '/(marketing)/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof marketingContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(marketing)/cookie-policy': {
       id: '/(marketing)/cookie-policy'
       path: '/cookie-policy'
@@ -412,6 +458,13 @@ declare module '@tanstack/react-router' {
       path: '/developers'
       fullPath: '/developers'
       preLoaderRoute: typeof marketingDevelopersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/pricing': {
+      id: '/(marketing)/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof marketingPricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(marketing)/privacy-policy': {
@@ -447,6 +500,13 @@ declare module '@tanstack/react-router' {
       path: '/verification'
       fullPath: '/verification'
       preLoaderRoute: typeof marketingVerificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/waitlist': {
+      id: '/(marketing)/waitlist'
+      path: '/waitlist'
+      fullPath: '/waitlist'
+      preLoaderRoute: typeof marketingWaitlistRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/': {
@@ -556,13 +616,16 @@ const rootRouteChildren: RootRouteChildren = {
   marketingChangelogRoute: marketingChangelogRoute,
   marketingCommunityRoute: marketingCommunityRoute,
   marketingComputeLanesRoute: marketingComputeLanesRoute,
+  marketingContactRoute: marketingContactRoute,
   marketingCookiePolicyRoute: marketingCookiePolicyRoute,
   marketingDevelopersRoute: marketingDevelopersRoute,
+  marketingPricingRoute: marketingPricingRoute,
   marketingPrivacyPolicyRoute: marketingPrivacyPolicyRoute,
   marketingProductRoute: marketingProductRoute,
   marketingSolutionsRoute: marketingSolutionsRoute,
   marketingTermsConditionsRoute: marketingTermsConditionsRoute,
   marketingVerificationRoute: marketingVerificationRoute,
+  marketingWaitlistRoute: marketingWaitlistRoute,
   marketingIndexRoute: marketingIndexRoute,
   marketingAboutRoleRoute: marketingAboutRoleRoute,
   marketingArchitectureSlugRoute: marketingArchitectureSlugRoute,

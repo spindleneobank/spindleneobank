@@ -80,7 +80,7 @@ export function BalanceDeposit() {
     <section className="sd-box dv-balance">
       <div className="sd-box-top">
         <div>
-          <span className="sd-eyebrow">PREPAID CREDIT</span>
+          <span className="sd-eyebrow">API CREDIT</span>
           <h2>Balance</h2>
         </div>
         <PixelIcon name="wallet" size={21} />
@@ -116,7 +116,7 @@ export function BalanceDeposit() {
         }}
       </Boundary>
       <p className="dv-note">
-        Prepaid credit is non-refundable. Each deposit is split on-chain: 80% funds providers, 20% goes to
+        API credit is non-refundable. Each deposit is split on-chain: 80% funds providers, 20% goes to
         Spindle.
       </p>
 

@@ -30,7 +30,6 @@ function Community() {
         eyebrow="Community"
         title="Follow the network"
         lead="Explore Spindle’s compute and payout design. Community links and launch details are coming soon."
-        media="/assets/media/pink-lagoon-figure-brand-v8.webp"
       />
       <section className="f0n-section">
         <div className="sp-container f0n-grid-4">

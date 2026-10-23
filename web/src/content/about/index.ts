@@ -76,7 +76,7 @@ export const ROLES: Role[] = [
     ],
     considerations: [
       'Consumer GPUs belong in the non-private open lane',
-      'Eligible confidential GPUs may serve the sealed lane once it leaves testing',
+      'Eligible confidential GPUs may serve the sealed lane, which is in testing',
       'Demand and the posted rate card determine earnings',
       'There is no promise of income or GPU utilization',
     ],

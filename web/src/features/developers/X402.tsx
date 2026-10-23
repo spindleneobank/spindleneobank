@@ -46,7 +46,7 @@ export function X402Panel() {
             </div>
             {b.x402.enabled ? null : (
               <p className="dv-warn" role="status">
-                x402 temporarily unavailable — use an API key with prepaid balance.
+                x402 temporarily unavailable — use an API key with credit balance.
               </p>
             )}
           </>
@@ -61,7 +61,7 @@ export function X402Panel() {
           <strong>Session.</strong> Sign once for a spending cap and time limit, then make many calls with a
           session token. The surcharge is charged once per session.
         </li>
-        <li>No prepaid balance is needed; the payment is a signed Permit2 transfer settled in batches.</li>
+        <li>No credit balance is needed; the payment is a signed Permit2 transfer settled in batches.</li>
       </ul>
       {needsPermit2 ? (
         <div className="dv-permit">

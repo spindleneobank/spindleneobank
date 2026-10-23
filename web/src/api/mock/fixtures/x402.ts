@@ -53,7 +53,7 @@ export const x402Fixtures: MockFixtures = {
   },
   'POST /v1/x402/sessions': ({ body }) => {
     if (!x402Enabled()) {
-      throw new ApiError('PAYMENT_REQUIRED', 'x402 temporarily unavailable. Use prepaid balance.', 402);
+      throw new ApiError('PAYMENT_REQUIRED', 'x402 temporarily unavailable. Use credit balance.', 402);
     }
     const req = body as { payer: string; capMicros: string; ttlSec: number };
     const cap = BigInt(req.capMicros);
