@@ -35,15 +35,25 @@ export const claimFixtures: MockFixtures = {
       nextCursor: null,
     };
   },
-  'GET /v1/epochs/latest': ({ mode }) => {
-    if (mode === 'empty') throw new ApiError('NOT_FOUND', 'No epoch yet', 404);
-    return {
-      epoch: 1287,
-      root: hex('c'),
+  'GET /v1/epochs': ({ mode }) => {
+    if (mode === 'empty') return { items: [], nextCursor: null };
+    const mk = (epoch: number, ago: number, c: string, status: 'posted' | 'built') => ({
+      epoch,
+      root: hex(c),
       totalEarned: '9480000000',
-      postedAt: new Date(Date.now() - 38 * 60_000).toISOString(),
-      txHash: hex('d'),
-      claimableAt: new Date(Date.now() + 22 * 60_000).toISOString(),
+      owners: 31,
+      status,
+      postedAt: status === 'posted' ? new Date(Date.now() - ago).toISOString() : null,
+      txHash: status === 'posted' ? hex(c === 'c' ? 'd' : 'e') : null,
+      claimableAt: new Date(Date.now() - ago + 3_600_000).toISOString(),
+    });
+    return {
+      items: [
+        mk(1287, 38 * 60_000, 'c', 'posted'),
+        mk(1286, 98 * 60_000, '9', 'posted'),
+        mk(1285, 158 * 60_000, '8', 'posted'),
+      ],
+      nextCursor: null,
     };
   },
 };

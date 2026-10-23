@@ -102,18 +102,11 @@ export function useClaims() {
   });
 }
 
-export function useLatestEpoch() {
+export function useEpochs() {
   return useQuery({
     queryKey: dk.epoch,
     retry: false,
-    queryFn: async () => {
-      try {
-        return await apiFetch('/v1/epochs/latest', { schema: api.GetEpochsLatestRes });
-      } catch (e) {
-        if (e instanceof ApiError && e.status === 404) return null; // no epoch posted yet
-        throw e;
-      }
-    },
+    queryFn: () => apiFetch('/v1/epochs?limit=5', { schema: api.GetEpochsRes }),
   });
 }
 

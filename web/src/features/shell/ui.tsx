@@ -83,3 +83,87 @@ export const fmtTime = (iso: string) =>
     hour: '2-digit',
     minute: '2-digit',
   });
+
+/** Page hero: eyebrow, two-line headline (second line muted) and right-aligned subcopy. */
+export function PageHead({
+  eyebrow,
+  line1,
+  line2,
+  children,
+}: {
+  eyebrow: string;
+  line1: string;
+  line2: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="sd-hero">
+      <div>
+        <span className="sd-eyebrow">{eyebrow}</span>
+        <h1>
+          {line1}
+          <br />
+          <em>{line2}</em>
+        </h1>
+      </div>
+      {children ? <p>{children}</p> : null}
+    </div>
+  );
+}
+
+export type RowCol<T> = {
+  key: string;
+  header: string;
+  align?: 'right';
+  render: (row: T) => ReactNode;
+};
+
+/** Grid "table" that collapses to labelled cards on phones (no clipped columns, no horizontal scroll). */
+export function RowTable<T>({
+  caption,
+  cols,
+  rows,
+  rowKey,
+  template,
+  onRow,
+  className = '',
+}: {
+  className?: string;
+  caption: string;
+  cols: RowCol<T>[];
+  rows: T[];
+  rowKey: (r: T) => string;
+  template: string;
+  onRow?: (r: T) => void;
+}) {
+  return (
+    <div className={`sd-rt ${className}`} style={{ '--cols': template } as React.CSSProperties}>
+      <div className="sd-rt-head" aria-hidden="true">
+        {cols.map((c) => (
+          <span key={c.key} data-align={c.align}>
+            {c.header}
+          </span>
+        ))}
+      </div>
+      <ul className="sd-rt-body" aria-label={caption}>
+        {rows.map((r) => (
+          <li key={rowKey(r)} className="sd-rt-row">
+            {onRow ? (
+              <button
+                type="button"
+                className="sd-rt-hit"
+                aria-label={`Open ${rowKey(r)}`}
+                onClick={() => onRow(r)}
+              />
+            ) : null}
+            {cols.map((c) => (
+              <span key={c.key} data-label={c.header} data-align={c.align}>
+                {c.render(r)}
+              </span>
+            ))}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

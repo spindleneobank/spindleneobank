@@ -4,13 +4,13 @@ import { Dialog } from '../../components/Dialog';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { Money } from '../../components/Money';
+import { PixelIcon } from '../../components/PixelIcon';
 import { Skeleton } from '../../components/Skeleton';
 import { StatusPill } from '../../components/StatusPill';
-import { type Column, Table } from '../../components/Table';
 import { useToast } from '../../components/Toast';
 import { env } from '../../config';
 import { useReceipt, useReceipts } from '../shell/queries';
-import { fmtTime, Panel } from '../shell/ui';
+import { fmtTime, PageHead, RowTable } from '../shell/ui';
 
 type Lane = '' | 'sealed' | 'open';
 
@@ -96,33 +96,16 @@ export default function ActivityTab() {
   }, [text]);
   const list = useReceipts(lane, q);
   const rows = list.data?.pages.flatMap((p) => p.items) ?? [];
-  const cols: Column<(typeof rows)[number]>[] = [
-    { key: 'ts', header: 'Time', render: (r) => fmtTime(r.createdAt) },
-    {
-      key: 'model',
-      header: 'Model',
-      render: (r) => (
-        <button type="button" className="sd-link" onClick={() => setOpen(r.jobId)}>
-          {r.model}
-        </button>
-      ),
-    },
-    { key: 'lane', header: 'Lane', render: (r) => r.lane },
-    { key: 'node', header: 'Node', render: (r) => r.nodeName },
-    { key: 'st', header: 'Status', render: (r) => pill(r.status, r.verified) },
-    {
-      key: 'm',
-      header: 'Provider share',
-      align: 'right',
-      render: (r) => <Money micros={r.providerMicros} />,
-    },
-  ];
   return (
     <div className="sd-overview">
-      <h1>Activity</h1>
-      <Panel title="Receipts" eyebrow="Signed at the source">
+      <PageHead eyebrow="SIGNED AT THE SOURCE" line1="Every job" line2="leaves a trace.">
+        Each receipt is signed by the node that did the work. <br />
+        Open one to see how it was verified.
+      </PageHead>
+      <section className="sd-box sd-flat sd-activity-box">
         <div className="sd-filters">
           <label className="sd-search">
+            <PixelIcon name="search" size={16} />
             <span className="sp-sr-only">Search receipts</span>
             <input
               type="search"
@@ -153,21 +136,37 @@ export default function ActivityTab() {
             onRetry={() => void list.refetch()}
           />
         ) : null}
-        {list.data ? (
+        {list.data && rows.length === 0 ? (
+          <EmptyState icon="receipt" title={q || lane ? 'No receipts match' : 'Every job leaves a trace'}>
+            {q || lane ? 'Try a different search or lane.' : 'Your verified activity will appear here.'}
+          </EmptyState>
+        ) : null}
+        {list.data && rows.length > 0 ? (
           <>
-            <Table
+            <RowTable
               caption="Receipts"
-              columns={cols}
+              className="sd-rt-act"
+              template="1.1fr 1.6fr 0.7fr 1.1fr 1fr 1fr"
               rows={rows}
               rowKey={(r) => r.jobId}
-              empty={
-                <EmptyState
-                  icon="receipt"
-                  title={q || lane ? 'No receipts match' : 'Every job leaves a trace'}
-                >
-                  {q || lane ? 'Try a different search or lane.' : 'Your verified activity will appear here.'}
-                </EmptyState>
-              }
+              onRow={(r) => setOpen(r.jobId)}
+              cols={[
+                {
+                  key: 'ts',
+                  header: 'Time',
+                  render: (r) => <span className="sd-nowrap">{fmtTime(r.createdAt)}</span>,
+                },
+                { key: 'model', header: 'Model', render: (r) => <strong>{r.model}</strong> },
+                { key: 'lane', header: 'Lane', render: (r) => r.lane },
+                { key: 'node', header: 'Node', render: (r) => r.nodeName },
+                { key: 'st', header: 'Status', render: (r) => pill(r.status, r.verified) },
+                {
+                  key: 'm',
+                  header: 'Provider share',
+                  align: 'right',
+                  render: (r) => <Money micros={r.providerMicros} />,
+                },
+              ]}
             />
             {list.hasNextPage ? (
               <CTA
@@ -181,7 +180,7 @@ export default function ActivityTab() {
             ) : null}
           </>
         ) : null}
-      </Panel>
+      </section>
       <Detail jobId={open} onClose={() => setOpen(null)} />
     </div>
   );

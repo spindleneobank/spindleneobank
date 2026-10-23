@@ -8,7 +8,7 @@ import { Skeleton } from '../../components/Skeleton';
 import { useToast } from '../../components/Toast';
 import { chain } from '../../config';
 import { useSavePrefs } from '../shell/queries';
-import { Panel } from '../shell/ui';
+import { PageHead } from '../shell/ui';
 
 const LS_KEYS = ['spindle:tab', 'spindle:card-finish', 'spindle:chat-history'];
 const AFTER = [
@@ -29,8 +29,14 @@ export default function SettingsTab() {
 
   return (
     <div className="sd-overview">
-      <h1>Settings</h1>
-      <Panel title="Wallet">
+      <PageHead eyebrow="YOUR WORKSPACE" line1="Your account." line2="Your defaults.">
+        Wallet, claim defaults and how your card looks. <br />
+        Changes save as you make them.
+      </PageHead>
+      <section className="sd-box sd-flat">
+        <div className="sd-box-top">
+          <h2>Wallet</h2>
+        </div>
         <dl className="sd-kv sd-kv-col">
           <div>
             <dt>Address</dt>
@@ -50,8 +56,11 @@ export default function SettingsTab() {
             Sign out
           </CTA>
         </div>
-      </Panel>
-      <Panel title="Preferences">
+      </section>
+      <section className="sd-box sd-flat">
+        <div className="sd-box-top">
+          <h2>Preferences</h2>
+        </div>
         {me.isPending ? <Skeleton height={160} /> : null}
         {me.isError ? (
           <ErrorState
@@ -118,7 +127,7 @@ export default function SettingsTab() {
             Reset local UI settings
           </CTA>
         </div>
-      </Panel>
+      </section>
     </div>
   );
 }
