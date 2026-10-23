@@ -1,6 +1,7 @@
 import { createAppKit } from '@reown/appkit/react';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { createSIWEConfig } from '@reown/appkit-siwe';
+import { SIWE_STATEMENT_LOGIN, SIWE_STATEMENT_REAUTH } from '@spindle/shared/api';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useEffect } from 'react';
 import { createSiweMessage } from 'viem/siwe';
@@ -10,8 +11,8 @@ import { ApiError } from '../api/errors';
 import { setSession } from '../api/hooks';
 import { chain, env } from '../config';
 
-export const SIGN_IN_STATEMENT = 'Sign in to Spindle.';
-export const REAUTH_STATEMENT = 'Confirm a sensitive Spindle action.';
+export const SIGN_IN_STATEMENT = SIWE_STATEMENT_LOGIN;
+export const REAUTH_STATEMENT = SIWE_STATEMENT_REAUTH;
 
 let activeQueryClient: QueryClient | undefined;
 

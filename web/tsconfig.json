@@ -16,8 +16,8 @@
     "verbatimModuleSyntax": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@spindle/shared": ["./src/shared-stub/index.ts"],
-      "@spindle/shared/*": ["./src/shared-stub/*"]
+      "@spindle/shared": ["../src/shared/index.ts"],
+      "@spindle/shared/*": ["../src/shared/*"]
     }
   },
   "include": ["src", "vite.config.ts", "vitest.setup.ts"]

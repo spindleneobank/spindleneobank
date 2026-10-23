@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
     build: { assetsDir: '_app' },
     resolve: {
       alias: {
-        '@spindle/shared': r('./src/shared-stub/index.ts'),
+        '@spindle/shared': r('../src/shared'),
         '@': r('./src'),
       },
     },

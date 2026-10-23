@@ -1,9 +1,4 @@
-import {
-  meResponseSchema,
-  networkStatsSchema,
-  sessionResponseSchema,
-  verifyResponseSchema,
-} from '@spindle/shared';
+import * as api from '@spindle/shared/api';
 import { createSiweMessage } from 'viem/siwe';
 import { describe, expect, it } from 'vitest';
 import { apiFetch } from '../client';
@@ -38,23 +33,23 @@ describe('mock fixtures validate against the shared schemas', () => {
     }
   });
   it('network stats parse', async () => {
-    expect(networkStatsSchema.parse(await endpoints.networkStats()).nodesOnline).toBeGreaterThan(0);
+    expect(api.GetNetworkStatsRes.parse(await endpoints.networkStats()).nodesOnline).toBeGreaterThan(0);
   });
   it('auth flow: 401 -> verify -> session + me -> logout -> 401', async () => {
     sessionStorage.clear();
     await expect(endpoints.auth.session()).rejects.toMatchObject({ code: 'UNAUTHENTICATED', status: 401 });
-    const v = verifyResponseSchema.parse(await endpoints.auth.verify(siwe(), '0xsig'));
+    const v = api.PostAuthVerifyRes.parse(await endpoints.auth.verify(siwe(), '0xsig'));
     expect(v.address).toBe(address);
-    expect(sessionResponseSchema.parse(await endpoints.auth.session())).toMatchObject({
+    expect(api.GetAuthSessionRes.parse(await endpoints.auth.session())).toMatchObject({
       address,
       fresh: true,
     });
-    expect(meResponseSchema.parse(await endpoints.me()).address).toBe(address);
+    expect(api.GetMeRes.parse(await endpoints.me()).address).toBe(address);
     await endpoints.auth.logout();
     await expect(endpoints.me()).rejects.toBeInstanceOf(ApiError);
   });
   it('rejects unknown mocks and malformed shapes', async () => {
-    await expect(apiFetch('/v1/nope', { schema: networkStatsSchema })).rejects.toMatchObject({
+    await expect(apiFetch('/v1/nope', { schema: api.GetNetworkStatsRes })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
   });
