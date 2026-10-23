@@ -16,65 +16,83 @@ function Chrome() {
   const signedIn = auth.status === 'signed-in';
   const me = useMe(signedIn);
   const params = useParams({ strict: false }) as { tab?: string };
+  const tab = params.tab ?? 'overview';
   const tabs = TABS.filter((t) => !t.adminOnly || me.data?.isAdmin);
+  const connect =
+    signedIn && auth.session ? (
+      <button type="button" className="sd-btn sd-btn-wallet" onClick={() => void openAccount()}>
+        <PixelIcon name="wallet" size={14} />
+        {short(auth.session.address)}
+      </button>
+    ) : (
+      <button type="button" className="sd-btn" onClick={auth.signIn}>
+        <PixelIcon name="connect" size={14} />
+        Connect
+      </button>
+    );
   return (
     <div className="sd-shell" data-nav={open ? 'open' : 'closed'}>
-      <aside className="sd-sidebar" aria-label="Dashboard">
-        <Link to="/" className="sd-brand">
-          <img src="/assets/brand/mark.svg" alt="" width={26} height={26} />
-          <span>Spindle</span>
-        </Link>
-        <nav className="sd-nav" aria-label="Dashboard tabs">
-          {tabs.map((t) => (
+      <header className="sd-header">
+        <div className="sd-header-inner">
+          <Link to="/" className="sd-brand">
+            <img src="/assets/brand/mark.svg" alt="" width={28} height={28} />
+            <span>Spindle</span>
+          </Link>
+          <nav className="sd-nav" aria-label="Dashboard tabs">
+            {tabs.map((t) => (
+              <Link
+                key={t.id}
+                to="/dashboard/$tab"
+                params={{ tab: t.id }}
+                className={tab === t.id ? 'active' : ''}
+                onClick={() => setOpen(false)}
+              >
+                <PixelIcon name={t.icon} size={16} />
+                {t.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="sd-actions">
+            {connect}
             <Link
-              key={t.id}
               to="/dashboard/$tab"
-              params={{ tab: t.id }}
-              className={params.tab === t.id ? 'active' : ''}
-              onClick={() => setOpen(false)}
+              params={{ tab: 'settings' }}
+              className="sd-icon-btn"
+              aria-label="Settings"
             >
-              <PixelIcon name={t.icon} size={18} />
-              {t.label}
+              <PixelIcon name="settings" size={20} />
             </Link>
-          ))}
-        </nav>
-        <div className="sd-sidebar-bottom">
-          <span>ROBINHOOD CHAIN</span>
-          <Link to="/">← Back to site</Link>
+            <button
+              type="button"
+              className="sd-icon-btn sd-menu-btn"
+              aria-label="Menu"
+              aria-expanded={open}
+              onClick={() => setOpen((o) => !o)}
+            >
+              <PixelIcon name={open ? 'close' : 'menu'} size={20} />
+            </button>
+          </div>
         </div>
-      </aside>
-      <div className="sd-main">
-        <div className="sd-topbar">
-          <button
-            type="button"
-            className="sd-menu-btn"
-            aria-label="Menu"
-            aria-expanded={open}
-            onClick={() => setOpen((o) => !o)}
-          >
-            <PixelIcon name="menu" size={18} />
-          </button>
-          <span>Personal workspace / {params.tab ?? 'overview'}</span>
-          <span className="sd-wallet">
-            {signedIn && auth.session ? (
-              <button type="button" className="sd-wallet-btn" onClick={() => void openAccount()}>
-                {short(auth.session.address)}
-              </button>
-            ) : (
-              <button type="button" className="sd-wallet-btn" onClick={auth.signIn}>
-                Connect
-              </button>
-            )}
-          </span>
-        </div>
-        <main className="sd-content" id="main">
-          <SessionGate>
-            <Suspense fallback={<Skeleton height={240} />}>
-              <Outlet />
-            </Suspense>
-          </SessionGate>
-        </main>
+      </header>
+      <div className="sd-crumbs">
+        <span>
+          <i aria-hidden="true" /> Personal workspace <b>/ {tabs.find((t) => t.id === tab)?.label ?? tab}</b>
+        </span>
+        <span className="sd-chain">Robinhood chain</span>
       </div>
+      <main className="sd-content" id="main">
+        <SessionGate>
+          <Suspense fallback={<Skeleton height={240} />}>
+            <Outlet />
+          </Suspense>
+        </SessionGate>
+      </main>
+      <footer className="sd-foot">
+        <Link to="/">
+          <PixelIcon name="arrow-left" size={16} /> Back to the network
+        </Link>
+        <small>Spindle dashboard</small>
+      </footer>
     </div>
   );
 }
