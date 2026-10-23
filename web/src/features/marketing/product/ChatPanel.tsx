@@ -29,7 +29,10 @@ export function ChatPanel({ states, override }: { states: PNode[]; override?: Pa
 
   useEffect(() => {
     if (!started.current || i >= last) return;
-    const t = setTimeout(() => setI(i + 1), STEP_MS[i] ?? 1000);
+    // The old page reaches "2a Sent" at about 2.9s after load whatever the mount time (it mounts at ~0.5s); keep that alignment,
+    // but always type for at least a second.
+    const wait = i === 0 ? Math.max(1000, 2900 - performance.now()) : (STEP_MS[i] ?? 1000);
+    const t = setTimeout(() => setI(i + 1), wait);
     return () => clearTimeout(t);
   }, [i, last]);
 
