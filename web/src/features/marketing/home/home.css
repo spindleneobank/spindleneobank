@@ -18,3 +18,8 @@
     display: none !important;
   }
 }
+
+/* The old page inherited the browser default line-height from body; the app body sets 1.5. */
+.framer-x8qsM[data-hm-page='home'] {
+  line-height: normal;
+}
