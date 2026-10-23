@@ -8,6 +8,7 @@ import { routeModules } from './lib/modules';
 import { closeQueues } from './lib/queue';
 import { closeRedis } from './lib/redis';
 import { websocket } from './lib/ws';
+import { warmTokenizers } from './modules/gateway/tokenizer';
 import { nodeHub } from './modules/nodes/hub';
 
 export function buildApp(): Hono<Env> {
@@ -25,9 +26,17 @@ export function buildApp(): Hono<Env> {
         'x-spindle-pay',
         'x-spindle-session',
         'x-payment',
+        'x-spindle-lane',
       ],
       allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      exposeHeaders: ['x-request-id'],
+      exposeHeaders: [
+        'x-request-id',
+        'X-Spindle-Job-Id',
+        'X-Spindle-Receipt',
+        'X-Spindle-Charge-Micros',
+        'PAYMENT-REQUIRED',
+        'X-PAYMENT-RESPONSE',
+      ],
     }),
   );
   app.onError(jsonError);
@@ -40,6 +49,7 @@ const app = buildApp();
 const server = Bun.serve({ port: config.PORT, fetch: app.fetch, websocket });
 logger.info({ port: server.port }, 'api listening');
 void nodeHub.start().catch((err) => logger.error({ err }, 'node hub failed to start'));
+void warmTokenizers();
 
 let shuttingDown = false;
 async function shutdown(): Promise<void> {

@@ -1,9 +1,12 @@
 import type { Hono } from 'hono';
 import auth from '../modules/auth/routes';
+import buyers from '../modules/buyers/routes';
 import cardWebhooks from '../modules/card-webhooks/routes';
 import cardsJobs from '../modules/cards/jobs';
 import cardRoutes from '../modules/cards/routes';
 import chainJobs from '../modules/chain/jobs';
+import gatewayJobs from '../modules/gateway/jobs';
+import gateway from '../modules/gateway/routes';
 import health from '../modules/health/routes';
 import indexerJobs from '../modules/indexer/jobs';
 import nodesRoutes from '../modules/nodes/routes';
@@ -22,7 +25,15 @@ export const routeModules: readonly RouteModule[] = [
   health,
   stocks,
   nodesRoutes,
+  buyers,
+  gateway,
   cardRoutes,
   cardWebhooks,
 ] as const;
-export const jobModules: readonly JobModule[] = [chainJobs, stocksJobs, cardsJobs, indexerJobs] as const;
+export const jobModules: readonly JobModule[] = [
+  chainJobs,
+  stocksJobs,
+  cardsJobs,
+  indexerJobs,
+  gatewayJobs,
+] as const;

@@ -15,6 +15,8 @@ export interface GatewayView {
   inputDigest: string;
   /** Gateway token recount (HF tokenizer); undefined in the sealed lane. */
   recount?: { promptTokens: number; completionTokens: number };
+  /** true when the recount used the chars/3 fallback (no HF tokenizer); B7 skips the +-2% check. */
+  recountEstimated: boolean;
 }
 
 export type OnJobFinished = (jobId: string, done: JobDoneMsg, gatewayView: GatewayView) => Promise<void>;
