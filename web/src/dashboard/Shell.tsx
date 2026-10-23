@@ -5,6 +5,7 @@ import { SessionGate } from '../auth/SessionGate';
 import { useAuth } from '../auth/useAuth';
 import { PixelIcon } from '../components/PixelIcon';
 import { Skeleton } from '../components/Skeleton';
+import { ChainStatus, WrongChainBanner } from '../features/shell/WalletBar';
 import { openAccount, WalletProvider } from '../wallet/appkit';
 import { TABS } from './tabs';
 
@@ -54,6 +55,17 @@ function Chrome() {
           </nav>
           <div className="sd-actions">
             {connect}
+            {signedIn ? (
+              <button
+                type="button"
+                className="sd-icon-btn"
+                aria-label="Sign out"
+                title="Sign out"
+                onClick={() => void auth.signOut()}
+              >
+                <PixelIcon name="logout" size={20} />
+              </button>
+            ) : null}
             <Link
               to="/dashboard/$tab"
               params={{ tab: 'settings' }}
@@ -78,9 +90,10 @@ function Chrome() {
         <span>
           <i aria-hidden="true" /> Personal workspace <b>/ {tabs.find((t) => t.id === tab)?.label ?? tab}</b>
         </span>
-        <span className="sd-chain">Robinhood chain</span>
+        <ChainStatus />
       </div>
       <main className="sd-content" id="main">
+        {signedIn ? <WrongChainBanner /> : null}
         <SessionGate>
           <Suspense fallback={<Skeleton height={240} />}>
             <Outlet />
