@@ -237,13 +237,9 @@
   border-radius: 6px;
   overflow: clip;
   background: rgba(17, 15, 21, 0);
-  transition: background-color 0.4s cubic-bezier(0.44, 0, 0.56, 1);
 }
 .pg-arrow-dark {
   padding: 4px 6px;
-}
-.pg-arrow:hover {
-  background: var(--pg-bg);
 }
 .pg-arrow-text {
   display: flex;
@@ -533,10 +529,6 @@
   width: 100%;
   padding: 32px;
   background: rgba(17, 15, 21, 0);
-  transition: background-color 0.4s cubic-bezier(0.44, 0, 0.56, 1);
-}
-.pg-card:hover .pg-card-in {
-  background: rgba(40, 26, 39, 0.2);
 }
 .pg-card-img {
   position: relative;
@@ -545,12 +537,6 @@
   aspect-ratio: 10 / 7;
   border-radius: 8px;
   overflow: clip;
-}
-.pg-card-img .pg-photo img {
-  transition: transform 0.6s cubic-bezier(0.44, 0, 0.56, 1);
-}
-.pg-card:hover .pg-card-img .pg-photo img {
-  transform: scale(1.04);
 }
 .pg-card-text {
   display: flex;

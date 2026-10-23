@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router';
-import type { CSSProperties, ReactNode } from 'react';
+import { animate } from 'motion';
+import { type CSSProperties, type ReactNode, useRef } from 'react';
 import { LiquidMetal } from '../../../components/marketing/motion';
 import { MOBILE_SRC } from './mobile-src';
 import './p7.css';
@@ -63,8 +64,9 @@ export function ArrowLink({
   dir: 'back' | 'forward';
   variant?: 'primary' | 'dark';
 }) {
+  const hover = useHoverFill<HTMLAnchorElement>();
   return (
-    <Link to={to} className={`pg-arrow pg-arrow-${variant ?? 'primary'}`}>
+    <Link to={to} className={`pg-arrow pg-arrow-${variant ?? 'primary'}`} {...hover}>
       {dir === 'back' ? <i className="pg-arrow-icon pg-arrow-left" aria-hidden="true" /> : null}
       <span className="pg-arrow-text">
         <p className="pg-label-14">{label}</p>
@@ -76,4 +78,21 @@ export function ArrowLink({
 
 export function Section({ className, children }: { className: string; children: ReactNode }) {
   return <section className={className}>{children}</section>;
+}
+
+const FILL_OFF = 'rgba(17, 15, 21, 0)';
+const FILL_ON = 'rgb(17, 15, 21)';
+
+/** Framer hover variant: background fades to the page colour with a JS spring (bounce 0, 0.4 s). */
+export function useHoverFill<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const to = (color: string) => {
+    if (ref.current)
+      animate(ref.current, { backgroundColor: color }, { type: 'spring', bounce: 0, duration: 0.4 });
+  };
+  return {
+    ref,
+    onPointerEnter: () => to(FILL_ON),
+    onPointerLeave: () => to(FILL_OFF),
+  };
 }

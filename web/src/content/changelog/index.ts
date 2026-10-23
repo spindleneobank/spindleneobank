@@ -1,6 +1,6 @@
 /**
  * Build notes (/changelog). Copy is the old site's rendered text, verbatim (docs/plan/parity-1to1.md), except the
- * approved rows in docs/plan/parity-text-exceptions.md. The sealed lane named here is in testing, not live.
+ * approved rows in docs/plan/parity-text-exceptions.md.
  */
 export type Img = { src: string; alt: string; filter: 'ember' | 'orchid' | 'amber' | null };
 export type Release = {

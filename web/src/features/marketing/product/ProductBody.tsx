@@ -1,19 +1,19 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { useVisibleBox } from './useVisibleBox';
 import { Appear, LiquidMetal } from '../../../components/marketing/motion';
 import tree from '../../../content/marketing/product-tree.json';
 import { ChatPanel } from './ChatPanel';
 import { HeroShader } from './HeroShader';
+import { type Override, type PNode, renderNode } from './render';
 import { TabGroup } from './TabGroup';
 import { Typewriter } from './Typewriter';
 import { useHeroGraph } from './useHeroGraph';
 import { useMotionVisible } from './useMotionVisible';
-import { useWorkflowSignal } from './useWorkflowSignal';
-import { useStatusDot } from './useStatusDot';
+import { useOrbit } from './useOrbit';
 import { useReceiptEnter } from './useReceiptEnter';
 import { useSlideshow } from './useSlideshow';
-import { useOrbit } from './useOrbit';
-import { type Override, type PNode, renderNode } from './render';
+import { useStatusDot } from './useStatusDot';
+import { useVisibleBox } from './useVisibleBox';
+import { useWorkflowSignal } from './useWorkflowSignal';
 import './product.css';
 import './product-extra.css';
 

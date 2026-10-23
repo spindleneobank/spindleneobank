@@ -1,6 +1,6 @@
 /**
  * Field notes (/blogs). Copy is the old site's rendered text, verbatim (docs/plan/parity-1to1.md), except the approved
- * rows in docs/plan/parity-text-exceptions.md. Posts about the sealed lane describe a lane that is in testing, not live.
+ * rows in docs/plan/parity-text-exceptions.md.
  */
 import type { Img } from '../changelog';
 

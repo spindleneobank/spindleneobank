@@ -1,13 +1,20 @@
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { BLOG_CATEGORIES, BLOGS_HERO, POSTS, type Post } from '../../../content/blogs';
-import { Badge, Edge, Photo, Section } from './parts';
+import { Badge, Edge, Photo, Section, useHoverFill } from './parts';
 
 /** Index card (also used for "Related posts"): kicker, bold line, muted line. */
 export function PostCard({ post, img }: { post: Post; img: Post['cardImg'] }) {
+  const hover = useHoverFill<HTMLDivElement>();
   return (
-    <Link to="/blogs/$slug" params={{ slug: post.slug }} className="pg-card">
-      <div className="pg-card-in">
+    <Link
+      to="/blogs/$slug"
+      params={{ slug: post.slug }}
+      className="pg-card"
+      onPointerEnter={hover.onPointerEnter}
+      onPointerLeave={hover.onPointerLeave}
+    >
+      <div className="pg-card-in" ref={hover.ref}>
         <Edge side="b" />
         <Edge side="r" />
         <div className="pg-card-img">

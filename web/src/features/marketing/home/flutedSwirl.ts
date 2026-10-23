@@ -15,9 +15,9 @@ const lib = (() => {
     );
   }
   function _s(e) {
-    let t = As.get(e);
+    const t = As.get(e);
     if (t) return t;
-    let n = vs(e);
+    const n = vs(e);
     return (As.size > 64 && As.clear(), As.set(e, n), n);
   }
   function vs(e) {
@@ -36,7 +36,7 @@ const lib = (() => {
             .split(``)
             .map((e) => e + e)
             .join(``));
-      let e = parseInt(t.slice(0, 6), 16) || 0;
+      const e = parseInt(t.slice(0, 6), 16) || 0;
       r = [(e >> 16) & 255, (e >> 8) & 255, e & 255].map((e) => e / 255);
     }
     return r.map((e) => (e <= 0.04045 ? e / 12.92 : ((e + 0.055) / 1.055) ** 2.4));
@@ -49,13 +49,13 @@ const lib = (() => {
       r ||
         ((r = new Float32Array(24)),
         t.forEach((e, t) => {
-          let n = _s(e);
+          const n = _s(e);
           for (let e = 0; e < 3; e++) {
-            let i = n[e],
+            const i = n[e],
               a = i <= 0.0031308 ? i * 12.92 : 1.055 * i ** (1 / 2.4) - 0.055;
             r[t * 3 + e] = a * 2 - 1;
           }
-          let i = 0.2126 * r[t * 3] + 0.7152 * r[t * 3 + 1] + 0.0722 * r[t * 3 + 2];
+          const i = 0.2126 * r[t * 3] + 0.7152 * r[t * 3 + 1] + 0.0722 * r[t * 3 + 2];
           for (let e = 0; e < 3; e++) r[t * 3 + e] -= i * 0.95;
         }),
         js.size > 32 && js.clear(),
@@ -78,13 +78,13 @@ const lib = (() => {
         : n | (r << 10) | (i >> 13);
   }
   function xs(e, t, n) {
-    let r = e.createShader(t);
+    const r = e.createShader(t);
     if ((e.shaderSource(r, n), e.compileShader(r), !e.getShaderParameter(r, e.COMPILE_STATUS)))
       throw Error(e.getShaderInfoLog(r) || `shader`);
     return r;
   }
   function Ss(e, t) {
-    let n = e.createProgram();
+    const n = e.createProgram();
     if (
       (e.attachShader(n, xs(e, e.VERTEX_SHADER, Es)),
       e.attachShader(n, xs(e, e.FRAGMENT_SHADER, t)),
@@ -93,16 +93,16 @@ const lib = (() => {
       !e.getProgramParameter(n, e.LINK_STATUS))
     )
       throw Error(e.getProgramInfoLog(n) || `link`);
-    let r = {},
+    const r = {},
       i = e.getProgramParameter(n, e.ACTIVE_UNIFORMS);
     for (let t = 0; t < i; t++) {
-      let i = e.getActiveUniform(n, t).name;
+      const i = e.getActiveUniform(n, t).name;
       r[i] = e.getUniformLocation(n, i);
     }
     return { p: n, loc: r };
   }
   function Cs(e) {
-    let t = (e) =>
+    const t = (e) =>
         _s(e)
           .map((e) => e.toFixed(3))
           .join(`,`),
@@ -353,7 +353,7 @@ void main() {
     (Ps = class {
       step(e, t, n, r, i) {
         e = Math.min(e, 0.016);
-        let a = e > 0 ? (t - this.prevX) / e : 0,
+        const a = e > 0 ? (t - this.prevX) / e : 0,
           o = e > 0 ? (n - this.prevY) / e : 0;
         if (
           ((this.velX = this.velX * 0.85 + a * 0.15),
@@ -372,7 +372,7 @@ void main() {
           p = 0;
         for (let e = 0; e < $; e++)
           for (let t = 0; t < $; t++) {
-            let n = (e * $ + t) * 4,
+            const n = (e * $ + t) * 4,
               r = s[n],
               i = s[n + 1];
             if (
@@ -381,12 +381,12 @@ void main() {
               (c[n + 2] = s[n + 2] * d),
               Math.abs(r) > 0.001 || Math.abs(i) > 0.001)
             ) {
-              let a = t - r * f,
+              const a = t - r * f,
                 o = e - i * f,
                 l = Math.floor(a),
                 u = Math.floor(o);
               if (l >= 0 && u >= 0 && l + 1 < $ && u + 1 < $) {
-                let e = a - l,
+                const e = a - l,
                   t = o - u,
                   r = (u * $ + l) * 4 + 2,
                   i = r + 4,
@@ -396,11 +396,11 @@ void main() {
                   (s[r] * (1 - e) * (1 - t) + s[i] * e * (1 - t) + s[f] * (1 - e) * t + s[p] * e * t) * d;
               }
             }
-            let a = Math.max(Math.abs(c[n]), Math.abs(c[n + 1]), c[n + 2]);
+            const a = Math.max(Math.abs(c[n]), Math.abs(c[n + 1]), c[n + 2]);
             a > p && (p = a);
           }
         if (this.injecting) {
-          let a = Math.sqrt(this.velX * this.velX + this.velY * this.velY),
+          const a = Math.sqrt(this.velX * this.velX + this.velY * this.velY),
             o = l * Math.min(a * a * 20, 1),
             s = o * 2 * (o * 2),
             u = Math.max(o * o, 1e-9),
@@ -413,13 +413,13 @@ void main() {
             _ = Math.min($ - 1, Math.ceil((n + p * Math.max(1 / r, 1)) * $) + 1);
           for (let e = g; e <= _; e++)
             for (let i = m; i <= h; i++) {
-              let a = (i + 0.5) / $,
+              const a = (i + 0.5) / $,
                 o = (e + 0.5) / $,
                 l = r >= 1 ? (a - t) * r : a - t,
                 p = r >= 1 ? o - n : (o - n) / r,
                 m = l * l + p * p;
               if (m < s) {
-                let t = (e * $ + i) * 4,
+                const t = (e * $ + i) * 4,
                   n = Math.exp(-m / u);
                 (c[t] = Math.max(-1, Math.min(1, c[t] + this.velX * n * d))),
                   (c[t + 1] = Math.max(-1, Math.min(1, c[t + 1] + this.velY * n * d))),
@@ -428,7 +428,7 @@ void main() {
             }
         }
         (this.max = this.injecting ? 1 : p), s.set(c);
-        let m = this.half;
+        const m = this.half;
         for (let e = 0; e < s.length; e++) m[e] = bs(s[e]);
         return ((this.active = !0), !0);
       }
@@ -450,7 +450,7 @@ void main() {
     }),
     (Fs = class {
       texParams(e) {
-        let t = this.gl;
+        const t = this.gl;
         t.texParameteri(t.TEXTURE_2D, t.TEXTURE_MIN_FILTER, e),
           t.texParameteri(t.TEXTURE_2D, t.TEXTURE_MAG_FILTER, e),
           t.texParameteri(t.TEXTURE_2D, t.TEXTURE_WRAP_S, t.CLAMP_TO_EDGE),
@@ -460,7 +460,7 @@ void main() {
         (e = Math.max(1, e)), (t = Math.max(1, t));
         let i = Math.min(Math.max(n, 1), 2);
         e * t * i * i > r && (i = Math.sqrt(r / (e * t)));
-        let a = Math.max(1, Math.round(e * i)),
+        const a = Math.max(1, Math.round(e * i)),
           o = Math.max(1, Math.round(t * i)),
           s = Math.max(64, Math.round(e * 0.5)),
           c = Math.max(64, Math.round(t * 0.5));
@@ -471,7 +471,7 @@ void main() {
             ((this.canvas.width = a), (this.canvas.height = o), (this.w = a), (this.h = o)),
           s !== this.sw || c !== this.sh)
         ) {
-          let e = this.gl;
+          const e = this.gl;
           e.bindTexture(e.TEXTURE_2D, this.sceneTex),
             e.texImage2D(e.TEXTURE_2D, 0, e.SRGB8_ALPHA8, s, c, 0, e.RGBA, e.UNSIGNED_BYTE, null),
             this.texParams(e.LINEAR),
@@ -483,21 +483,21 @@ void main() {
         }
       }
       stepInk(e, t, n, r) {
-        let i = this.ink.step(e, t, n, this.cssW / this.cssH, r);
+        const i = this.ink.step(e, t, n, this.cssW / this.cssH, r);
         if (i) {
-          let e = this.gl;
+          const e = this.gl;
           e.bindTexture(e.TEXTURE_2D, this.fieldTex),
             e.texSubImage2D(e.TEXTURE_2D, 0, 0, 0, $, $, e.RGBA, e.HALF_FLOAT, this.ink.half);
         }
         return i;
       }
       draw(e, t) {
-        let n = this.gl;
+        const n = this.gl;
         n.bindVertexArray(this.vao),
           n.bindFramebuffer(n.FRAMEBUFFER, this.fbo),
           n.viewport(0, 0, this.sw, this.sh),
           n.useProgram(this.scene.p);
-        let r = this.scene.loc;
+        const r = this.scene.loc;
         n.uniform1f(r.uTime, e * t.swirlSpeed),
           n.uniform1f(r.uDetail, t.detail),
           n.uniform1f(r.uBias, (t.blend - 50) * 0.006),
@@ -519,7 +519,7 @@ void main() {
           n.bindFramebuffer(n.FRAMEBUFFER, null),
           n.viewport(0, 0, this.w, this.h),
           n.useProgram(this.glass.p);
-        let i = this.glass.loc,
+        const i = this.glass.loc,
           a = t.shape === `bars` ? [16, 4, 0] : t.shape === `waves` ? [8, 3, 1] : [8, 3, 0];
         n.bindTexture(n.TEXTURE_2D, this.sceneTex),
           n.uniform1i(i.uScene, 0),
@@ -532,7 +532,7 @@ void main() {
           n.uniform1f(i.uWaveFreq, t.waveFrequency),
           n.uniform1f(i.uRefr, t.refraction),
           n.uniform1f(i.uAberr, t.aberration);
-        let o = ys(t.palette);
+        const o = ys(t.palette);
         n.uniform1i(i.uPalN, o.n),
           n.uniform3fv(i[`uPal[0]`], o.v),
           n.uniform1f(i.uPalGain, t.paletteGain),
@@ -548,7 +548,7 @@ void main() {
           n.drawArrays(n.TRIANGLES, 0, 3);
       }
       dispose() {
-        let e = this.gl;
+        const e = this.gl;
         e.deleteProgram(this.scene.p),
           e.deleteProgram(this.glass.p),
           e.deleteTexture(this.sceneTex),
@@ -573,7 +573,7 @@ void main() {
           Q(this, `cssH`, 1),
           Q(this, `canvas`, void 0),
           (this.canvas = e);
-        let t = e.getContext(`webgl2`, {
+        const t = e.getContext(`webgl2`, {
           alpha: !1,
           antialias: !1,
           depth: !1,
@@ -584,7 +584,7 @@ void main() {
         });
         if (!t) throw Error(`WebGL2 unavailable`);
         (this.gl = t), (this.scene = Ss(t, Os)), (this.glass = Ss(t, ks));
-        let n = t.createBuffer();
+        const n = t.createBuffer();
         (this.vao = t.createVertexArray()),
           t.bindVertexArray(this.vao),
           t.bindBuffer(t.ARRAY_BUFFER, n),

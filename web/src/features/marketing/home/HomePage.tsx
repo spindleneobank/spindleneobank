@@ -1,17 +1,18 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { type Breakpoint, useBreakpoint } from '../../../components/marketing/motion';
-import desktopHtml from './markup/desktop.html?raw';
-import phoneHtml from './markup/phone.html?raw';
-import tabletHtml from './markup/tablet.html?raw';
-import desktopStates from './markup/desktop.states.json';
-import phoneStates from './markup/phone.states.json';
-import tabletStates from './markup/tablet.states.json';
 import { type GroupStates, initGroups, initVideos } from './behaviors';
 import { type ChatState, initChat } from './chat';
+import { mountDigitalPreview } from './digitalPreview';
 import desktopChat from './markup/desktop.chat.json';
+import desktopHtml from './markup/desktop.html?raw';
+import desktopStates from './markup/desktop.states.json';
 import phoneChat from './markup/phone.chat.json';
+import phoneHtml from './markup/phone.html?raw';
+import phoneStates from './markup/phone.states.json';
 import tabletChat from './markup/tablet.chat.json';
+import tabletHtml from './markup/tablet.html?raw';
+import tabletStates from './markup/tablet.states.json';
 import {
   initApiConsole,
   initCapabilityNav,
@@ -20,9 +21,8 @@ import {
   initReceiptReveals,
   initTicker,
 } from './motion';
-import { initWorkflow } from './workflow';
 import { initShaders } from './shaders';
-import { mountDigitalPreview } from './digitalPreview';
+import { initWorkflow } from './workflow';
 import './home.generated.css';
 import './home.css';
 

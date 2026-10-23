@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useVisibleBox } from './useVisibleBox';
 import { DEFAULTS, FlutedRenderer } from './flutedSwirl';
+import { useVisibleBox } from './useVisibleBox';
 
 /** Settings of the old product page's "Hero Shader" (Fluted Swirl instance). */
 const PROPS = {

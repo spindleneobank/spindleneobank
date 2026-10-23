@@ -1,6 +1,6 @@
 /**
  * Illustrative flows (/case-study). Copy is the old site's rendered text, verbatim (docs/plan/parity-1to1.md), except
- * the approved rows in docs/plan/parity-text-exceptions.md. Flows about the sealed lane describe a lane in testing.
+ * the approved rows in docs/plan/parity-text-exceptions.md.
  */
 import type { Block } from '../blogs';
 
