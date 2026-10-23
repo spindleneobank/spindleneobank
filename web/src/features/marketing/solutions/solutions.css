@@ -1,0 +1,1145 @@
+/*
+ * /solutions page body, rebuilt from the old rendered Framer DOM (desktop >=1200, tablet 810-1199.98, phone <=809.98).
+ * Layout rules follow the old page's authoring CSS (.framer-ePZAM ...); colours/typography are the computed values.
+ */
+.s4-top,
+.s4-role {
+  --s4-fg: rgb(243, 218, 205);
+  --s4-fg-dim: rgba(243, 218, 205, 0.66);
+  --s4-plate: #110f15;
+  --s4-line: rgba(40, 26, 39, 0.2);
+  --s4-rim: #593e4e;
+  --s4-body: "Spindle Sans", Inter, Arial, sans-serif;
+  --s4-head: "Chakra Petch", Arial, sans-serif;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  overflow: clip;
+  color: var(--s4-fg);
+  font-family: var(--s4-body);
+}
+.s4-top *,
+.s4-role * {
+  box-sizing: border-box;
+}
+:where(.s4-top, .s4-role) :where(p, h1, h2) {
+  margin: 0;
+  font-weight: 400;
+  text-transform: none;
+}
+.s4-top img,
+.s4-role img {
+  max-width: none;
+}
+
+/* ---- old "Border" component: 1px light line + 1px page-coloured line ---- */
+.s4-edges {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+}
+.s4-edge {
+  position: absolute;
+  display: flex;
+}
+.s4-edge i {
+  display: block;
+  flex: none;
+}
+.s4-edge i:nth-child(1) {
+  background: var(--s4-line);
+}
+.s4-edge i:nth-child(2) {
+  background: var(--s4-plate);
+}
+.s4-edge-top,
+.s4-edge-bottom {
+  left: 0;
+  right: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.s4-edge-top {
+  top: 0;
+}
+.s4-edge-bottom {
+  bottom: 0;
+}
+.s4-edge-top i,
+.s4-edge-bottom i {
+  width: 100%;
+  height: 1px;
+}
+.s4-edge-right {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 1px;
+  z-index: 1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+.s4-edge-right i {
+  width: 1px;
+  height: 100%;
+}
+
+/* ---- image fill with the old duotone filters ---- */
+.s4-bg {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+}
+.s4-bg img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.s4-pal-orchid {
+  filter: url("/assets/flower-palette.svg#orchid");
+}
+.s4-pal-ember {
+  filter: url("/assets/flower-palette.svg#ember");
+}
+.s4-pal-amber {
+  filter: url("/assets/flower-palette.svg#amber");
+}
+
+/* ---- Section Label (liquid-metal pill) ---- */
+.s4-pill {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: min-content;
+  height: min-content;
+  padding: 2px;
+  border-radius: 6px;
+  overflow: clip;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 1px 2px -1px rgba(0, 0, 0, 0.08);
+}
+.s4-pill::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--s4-rim);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.s4-pill-metal {
+  position: absolute;
+  inset: -20px;
+  flex: none;
+}
+.s4-pill-plate {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: min-content;
+  height: min-content;
+  padding: 4px 8px 4px 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: linear-gradient(rgb(17, 15, 21) 0%, rgb(242, 242, 242) 100%) rgba(12, 12, 16, 0);
+}
+.s4-pill-plate img {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.s4-pill-plate p {
+  flex: none;
+  white-space: pre;
+  font-family: var(--s4-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: -0.18px;
+  text-transform: uppercase;
+  color: var(--s4-fg);
+}
+
+/* ---- Hero ---- */
+.s4-top {
+  padding: 96px 0 140px;
+}
+.s4-hero-wrap {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+  padding: 32px 24px;
+  overflow: clip;
+}
+.s4-hero-container {
+  position: relative;
+  display: flex;
+  flex: 1 0 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 1px;
+  max-width: 1300px;
+  padding: 0 32px;
+  overflow: clip;
+}
+.s4-hero-main {
+  position: relative;
+  display: flex;
+  flex: 1 0 0;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 24px;
+  width: 1px;
+  overflow: clip;
+}
+.s4-hero-copy {
+  position: relative;
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 180px;
+  width: 1px;
+  max-width: 503px;
+  padding: 80px 0;
+  overflow: clip;
+}
+.s4-hero-title {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  overflow: clip;
+}
+.s4-top h1 {
+  width: 100%;
+  font-family: var(--s4-head);
+  font-size: 64px;
+  line-height: 72.96px;
+  letter-spacing: -1.6px;
+  color: var(--s4-fg);
+}
+.s4-hero-text {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  width: 100%;
+  overflow: clip;
+}
+.s4-hero-lead {
+  width: 100%;
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: -0.21px;
+  color: var(--s4-fg);
+}
+.s4-hero-btns {
+  display: flex;
+  flex: none;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+.s4-hero-btns .s4-primary {
+  flex: none;
+}
+
+/* "Explore app" (Framer button KkR0Q) */
+.s4-explore {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: min-content;
+  padding: 10px 16px;
+  border-radius: 6px;
+  background: rgb(237, 224, 214);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  text-decoration: none;
+}
+.s4-explore::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--s4-rim);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.s4-explore-ico {
+  position: relative;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  overflow: clip;
+}
+.s4-explore-ico img {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: contain;
+  filter: brightness(0.3);
+}
+.s4-roll {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: min-content;
+  overflow: hidden;
+}
+.s4-roll span {
+  display: block;
+  white-space: pre;
+  font-family: var(--s4-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: -0.21px;
+  text-transform: uppercase;
+  color: rgb(48, 37, 42);
+  cursor: pointer;
+}
+.s4-roll span:nth-child(2) {
+  position: absolute;
+  z-index: 1;
+  bottom: -18px;
+  left: 0;
+}
+.s4-explore:hover .s4-roll span:nth-child(1) {
+  position: absolute;
+  z-index: 1;
+  top: -18px;
+  left: 0;
+}
+.s4-explore:hover .s4-roll span:nth-child(2) {
+  position: relative;
+  bottom: auto;
+  left: auto;
+}
+
+/* hero visual: photo with the four-step chip stack */
+.s4-visual {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  gap: 24px;
+  width: 47%;
+  height: auto;
+}
+.s4-chips {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 286px;
+}
+.s4-chipc {
+  position: relative;
+  flex: none;
+  width: 286px;
+  max-width: 286px;
+  will-change: transform;
+}
+.s4-line {
+  position: relative;
+  flex: none;
+  width: 1px;
+  height: 16px;
+  background-color: rgba(17, 15, 21, 0.45);
+}
+.s4-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  max-width: 286px;
+  padding: 8px 10px 8px 8px;
+  border-radius: 8px;
+  background: linear-gradient(rgb(17, 15, 21) 0%, rgb(242, 242, 242) 100%);
+  box-shadow:
+    0 8px 10px -6px rgba(0, 0, 0, 0.06),
+    0 16px 25px -5px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+.s4-chip::after,
+.s4-chip-ico::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--s4-rim);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.s4-chip-ico {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 28px;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  overflow: clip;
+  background: linear-gradient(rgb(17, 15, 21) 0%, rgb(242, 242, 242) 100%);
+  box-shadow: 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+}
+.s4-chip-glyph {
+  display: block;
+  flex: none;
+  width: 9px;
+  aspect-ratio: 1;
+  background: rgb(14, 11, 10);
+}
+.s4-chip p {
+  flex: 1 0 0;
+  width: 1px;
+  font-size: 12.5px;
+  line-height: 16px;
+  letter-spacing: -0.1875px;
+  color: var(--s4-fg);
+  white-space: pre-wrap;
+}
+
+/* ---- shared glyph box defaults (mask-image set inline) ---- */
+.s4-chip-glyph,
+.s4-note-ico,
+.s4-claim-glyph,
+.s4-li-glyph,
+.s4-caption-arrow {
+  mask-repeat: no-repeat;
+  mask-position: 50% 50%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: 50% 50%;
+  -webkit-mask-size: 100% 100%;
+}
+
+/* ---- Foundation title ---- */
+.s4-ftitle {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  padding: 100px 24px;
+}
+.s4-ftitle-in {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 16px;
+  width: 100%;
+  max-width: 1300px;
+  padding: 0 32px;
+  overflow: clip;
+}
+.s4-ftitle-h {
+  width: 100%;
+  max-width: 689px;
+}
+.s4-top h2 {
+  width: 100%;
+  font-family: var(--s4-head);
+  font-size: 43px;
+  line-height: 52.46px;
+  letter-spacing: -1.075px;
+  color: var(--s4-fg);
+}
+
+/* ---- Foundation cards ---- */
+.s4-cards-wrap {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+  padding: 0 24px;
+}
+.s4-cards {
+  position: relative;
+  display: flex;
+  flex: 1 0 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 1px;
+  max-width: 1300px;
+  overflow: clip;
+}
+.s4-card {
+  position: relative;
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 32px;
+  width: 1px;
+  padding: 32px;
+}
+.s4-card > .s4-edges {
+  z-index: 2;
+}
+.s4-card .s4-edge-bottom {
+  display: none;
+}
+.s4-card-3 .s4-edge-right {
+  display: none;
+}
+.s4-card-img {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  aspect-ratio: 0.925;
+  padding: 20px;
+  border-radius: 8px;
+  overflow: clip;
+  will-change: transform;
+}
+.s4-card-img .s4-bg,
+.s4-card-img .s4-bg img {
+  border-radius: 8px;
+}
+.s4-tags {
+  position: relative;
+  display: grid;
+  flex: none;
+  grid-template-columns: repeat(2, minmax(50px, 1fr));
+  grid-template-rows: repeat(2, min-content);
+  grid-auto-rows: min-content;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  overflow: clip;
+}
+.s4-tag {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  align-self: start;
+  justify-self: start;
+  width: 100%;
+  padding: 8px 8px 6px;
+  border-radius: 4px;
+  overflow: clip;
+  background: var(--s4-plate);
+  box-shadow:
+    0 0 2px 2px #fff inset,
+    0 0 2px 0 rgba(0, 0, 0, 0.1);
+  will-change: transform;
+}
+.s4-tag-l {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: min-content;
+}
+.s4-tag-l img {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+.s4-tag-l p {
+  flex: none;
+  white-space: pre;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: -0.18px;
+  text-transform: uppercase;
+  color: var(--s4-fg);
+}
+.s4-tag-r {
+  flex: none;
+  white-space: pre;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: -0.15px;
+  color: rgba(243, 218, 205, 0.45);
+}
+.s4-plate {
+  position: relative;
+  flex: none;
+  width: 100%;
+  background: var(--s4-plate);
+  overflow: clip;
+}
+.s4-plate-receipt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 6px;
+  box-shadow:
+    0 0 2px 2px #fff inset,
+    0 0 2px 0 rgba(0, 0, 0, 0.1);
+}
+.s4-figure {
+  flex: none;
+  white-space: pre;
+  font-size: 20px;
+  line-height: 28px;
+  letter-spacing: -0.3px;
+  color: var(--s4-fg);
+}
+.s4-note {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--s4-plate);
+}
+.s4-note-ico {
+  display: block;
+  flex: none;
+  width: 11px;
+  height: 11px;
+  background: rgba(14, 11, 10, 0.66);
+}
+.s4-note p {
+  flex: none;
+  white-space: pre;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: -0.15px;
+  color: var(--s4-fg-dim);
+}
+.s4-plate-claim {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 8px 10px 8px 8px;
+  border-radius: 6px;
+}
+.s4-claim-ico {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 28px;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  overflow: clip;
+  background: var(--s4-plate);
+}
+.s4-claim-glyph {
+  display: block;
+  flex: none;
+  width: 10px;
+  aspect-ratio: 1;
+  background: rgb(14, 11, 10);
+}
+.s4-claim-text {
+  flex: 1 0 0;
+  width: 1px;
+  white-space: pre-wrap;
+}
+.s4-claim-text p,
+.s4-claim-text span {
+  font-size: 12.5px;
+  line-height: 16px;
+  letter-spacing: -0.1875px;
+  color: var(--s4-fg);
+}
+.s4-claim-status {
+  flex: none;
+  white-space: pre;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: -0.15px;
+  text-transform: uppercase;
+  color: rgb(190, 140, 168);
+}
+.s4-card-txt {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
+  width: 100%;
+}
+.s4-card-h {
+  width: 100%;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  letter-spacing: -0.24px;
+  color: var(--s4-fg);
+  white-space: pre-wrap;
+}
+.s4-card-p {
+  width: 100%;
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: -0.21px;
+  color: var(--s4-fg-dim);
+  white-space: pre-wrap;
+}
+/* desktop: dividers on the right of cards 1 and 2 only */
+
+/* ---- Role sections ---- */
+.s4-role {
+  flex: none;
+  padding: 0 0 114px;
+  scroll-margin-top: 60px;
+}
+.s4-role-tall {
+  padding-bottom: 140px;
+}
+.s4-role-wrap {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  padding: 0 24px;
+}
+.s4-role-container {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1300px;
+  padding: 32px;
+  overflow: clip;
+}
+.s4-role-copy {
+  position: relative;
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 122px;
+  width: 1px;
+  max-width: 526px;
+  padding: 32px 32px 32px 0;
+  overflow: clip;
+}
+.s4-role-flip .s4-role-copy {
+  padding: 32px 0 32px 32px;
+}
+.s4-role-title {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 16px;
+  width: 100%;
+  max-width: 504px;
+  overflow: clip;
+}
+.s4-role h2 {
+  width: 100%;
+  font-family: var(--s4-head);
+  font-size: 43px;
+  line-height: 52.46px;
+  letter-spacing: -1.075px;
+  color: var(--s4-fg);
+}
+.s4-lead {
+  width: 100%;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: -0.24px;
+  color: var(--s4-fg-dim);
+}
+.s4-list {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  overflow: clip;
+}
+.s4-li {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+.s4-li-ico {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: min-content;
+  padding: 4px 0 0;
+  overflow: clip;
+}
+.s4-li-glyph {
+  display: block;
+  flex: none;
+  width: 15px;
+  aspect-ratio: 1;
+  background: rgb(14, 11, 10);
+}
+.s4-li p {
+  flex: 1 0 0;
+  width: 1px;
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: -0.21px;
+  color: var(--s4-fg);
+  white-space: pre-wrap;
+}
+.s4-role-art {
+  position: relative;
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  align-self: stretch;
+  width: 1px;
+  max-width: 609px;
+  padding: 20px;
+  border-radius: 8px;
+  overflow: clip;
+  will-change: transform;
+}
+.s4-caption {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--s4-plate);
+}
+.s4-caption > img {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+.s4-caption-t {
+  flex: 1 0 0;
+  width: 1px;
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.21px;
+  color: var(--s4-fg);
+}
+.s4-caption-t span {
+  color: var(--s4-fg-dim);
+}
+.s4-caption-go {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 24px;
+  aspect-ratio: 1;
+  border-radius: 5px;
+  overflow: clip;
+  background: linear-gradient(rgb(30, 21, 30) 0%, #8e9298 37.034%, #1c2526 92.7885%, #8abad6 99.5192%);
+  will-change: transform;
+}
+.s4-caption-arrow {
+  display: block;
+  flex: none;
+  width: 8px;
+  aspect-ratio: 1;
+  background: #fff;
+}
+
+/* ---- tablet ---- */
+@media (min-width: 810px) and (max-width: 1199.98px) {
+  .s4-top {
+    padding: 96px 0 80px;
+  }
+  .s4-hero-container {
+    flex-direction: column;
+    justify-content: center;
+    gap: 60px;
+    padding: 0 24px;
+  }
+  .s4-hero-main {
+    flex: none;
+    width: 100%;
+  }
+  .s4-hero-copy {
+    gap: 40px;
+    max-width: 640px;
+    padding: 0;
+  }
+  .s4-top h1 {
+    font-size: 46.08px;
+    line-height: 52.5312px;
+    letter-spacing: -1.152px;
+  }
+  .s4-visual {
+    align-self: auto;
+    aspect-ratio: 1.62273;
+    width: 100%;
+  }
+  .s4-ftitle {
+    padding: 50px 24px 80px;
+  }
+  .s4-ftitle-in {
+    padding: 0 24px;
+  }
+  .s4-ftitle-h {
+    max-width: 550px;
+  }
+  .s4-top h2,
+  .s4-role h2 {
+    font-size: 30.72px;
+    line-height: 37.4784px;
+    letter-spacing: -0.768px;
+  }
+  .s4-cards {
+    display: grid;
+    align-items: unset;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(50px, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+  }
+  .s4-card {
+    flex: none;
+    place-self: start;
+    width: 100%;
+  }
+  .s4-card-1 .s4-edge-bottom,
+  .s4-card-2 .s4-edge-bottom {
+    display: flex;
+  }
+  .s4-card-2 .s4-edge-right {
+    display: none;
+  }
+  .s4-card-3 .s4-edge-right {
+    display: flex;
+  }
+  .s4-role {
+    padding: 0 0 80px;
+  }
+  .s4-role-tall {
+    padding-bottom: 80px;
+  }
+  .s4-role-wrap {
+    padding: 24px;
+  }
+  .s4-role-container {
+    flex-direction: column;
+    justify-content: center;
+    gap: 36px;
+    padding: 0 24px;
+  }
+  .s4-role-copy,
+  .s4-role-flip .s4-role-copy {
+    flex: none;
+    gap: 60px;
+    width: 100%;
+    max-width: none;
+    padding: 0;
+  }
+  .s4-role-title {
+    max-width: 484px;
+  }
+  .s4-role-art {
+    flex: none;
+    align-self: auto;
+    aspect-ratio: 1.52564;
+    width: 100%;
+    max-width: none;
+  }
+}
+
+/* ---- phone ---- */
+@media (max-width: 809.98px) {
+  .s4-top {
+    padding: 56px 0 60px;
+  }
+  .s4-hero-wrap,
+  .s4-ftitle {
+    padding: 60px 6px;
+  }
+  .s4-hero-container {
+    flex-direction: column;
+    justify-content: center;
+    gap: 50px;
+    padding: 0 16px;
+  }
+  .s4-hero-main {
+    flex: none;
+    width: 100%;
+  }
+  .s4-hero-copy {
+    gap: 30px;
+    padding: 0;
+  }
+  .s4-top h1 {
+    font-size: 30px;
+    line-height: 34.2px;
+    letter-spacing: -0.75px;
+  }
+  .s4-hero-btns {
+    flex-direction: column;
+  }
+  .s4-hero-btns > * {
+    width: 100%;
+  }
+  .s4-explore {
+    height: 44px;
+  }
+  .s4-visual {
+    align-self: auto;
+    aspect-ratio: 1.03727;
+    width: 100%;
+  }
+  .s4-ftitle-in {
+    padding: 0 16px;
+  }
+  .s4-top h2,
+  .s4-role h2 {
+    font-size: 25px;
+    line-height: 30.5px;
+    letter-spacing: -0.625px;
+  }
+  .s4-cards-wrap {
+    padding: 0 6px;
+  }
+  .s4-cards {
+    flex-direction: column;
+  }
+  .s4-card {
+    flex: none;
+    width: 100%;
+    padding: 20px;
+  }
+  .s4-card .s4-edge-bottom {
+    display: flex;
+  }
+  .s4-card .s4-edge-right {
+    display: none;
+  }
+  .s4-role {
+    padding: 0 0 60px;
+    scroll-margin-top: 62px;
+  }
+  .s4-role-tall {
+    padding-bottom: 60px;
+  }
+  .s4-role-wrap {
+    padding: 0 6px;
+  }
+  .s4-role-container {
+    flex-direction: column;
+    justify-content: center;
+    gap: 48px;
+    padding: 16px;
+  }
+  .s4-role-copy,
+  .s4-role-flip .s4-role-copy {
+    flex: none;
+    gap: 40px;
+    width: 100%;
+    padding: 0;
+  }
+  .s4-role-art {
+    flex: none;
+    align-self: auto;
+    aspect-ratio: 1.07742;
+    width: 100%;
+    max-width: none;
+  }
+}
