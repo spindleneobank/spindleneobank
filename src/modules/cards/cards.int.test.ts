@@ -180,11 +180,16 @@ describe.skipIf(!healthy)('card flows end to end (mock izipay + real Relay quote
     expect((await json(reveal)).number).toMatch(/^\d{13,19}$/);
 
     // ---- apple pay OTP
-    const armed = await u.call('POST', `/v1/app/cards/${cardId}/apple-pay`);
-    expect(armed.status).toBe(200);
-    await kit.mock.hooks.idle();
+    // izipay sends card.otp on its own (no arm); the mock emits it on demand
+    const providerCardId = (await dbRef.db.select().from(cards).where(eq(cards.id, cardId)))[0]
+      ?.providerCardId;
+    await fetch(`${kit.mock.url}/__mock/otp`, {
+      method: 'POST',
+      body: JSON.stringify({ card_id: providerCardId }),
+    });
     const otp = await json(await u.call('GET', `/v1/app/cards/${cardId}/apple-pay`));
-    expect(otp.status).toBe('code');
+    expect(otp.status).toBe('delivered');
+    expect(otp.expiresInSec).toBeGreaterThan(590);
     expect(otp.code).toMatch(/^\d{6}$/);
 
     // ---- provider fault: 500 on a top-up POST -> review, no retry

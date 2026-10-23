@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { config, secrets } from '../../config';
 import { AppError } from '../../lib/errors';
+import { logger } from '../../lib/logger';
 
 /**
  * Mutable view of the card/Relay configuration. Everything in cards/relay reads through this object
@@ -46,12 +47,27 @@ export const cardsEnabled = () =>
   Boolean(cardSettings.apiKey && cardSettings.apiSecret && cardSettings.encKey) &&
   (cardSettings.mode === 'mock' || cardSettings.apiKey.startsWith('izpk_live_'));
 
+let modeLogged = false;
+/** One startup line per process (api and worker each initialise the card provider once). */
+function logProviderMode(): void {
+  if (modeLogged) return;
+  modeLogged = true;
+  logger.info(
+    cardSettings.mode === 'mock'
+      ? 'izipay mock'
+      : cardSettings.liveWrites
+        ? 'izipay live, writes enabled'
+        : 'izipay live, writes disabled',
+  );
+}
+
 /** Fail fast: mock izipay and the Relay stub are dev-only. */
 export function assertProductionSafe(): void {
   assertRelayModeSafe();
   if (cardSettings.mode === 'mock' && cardSettings.nodeEnv === 'production') {
     throw new Error('IZIPAY_MODE=mock is forbidden when NODE_ENV=production');
   }
+  logProviderMode();
 }
 
 export const unavailable = () =>

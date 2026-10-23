@@ -112,13 +112,21 @@ export const PostCardRevealRes = z.object({
 });
 
 export const PostCardApplePayReq = z.void();
-export const PostCardApplePayRes = z.object({ armedUntil: IsoTime });
+/** Same state as the GET; POST only opens a per-card waiting window. */
+export const GetCardApplePayRes = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('idle') }),
+  z.object({ status: z.literal('waiting'), expiresAt: IsoTime, expiresInSec: z.number().int().min(0) }),
+  z.object({
+    status: z.literal('delivered'),
+    code: z.string(),
+    receivedAt: IsoTime,
+    expiresAt: IsoTime,
+    /** Server-computed remaining lifetime: clients count down from this, never from their own clock. */
+    expiresInSec: z.number().int().min(0),
+  }),
+]);
+export const PostCardApplePayRes = GetCardApplePayRes;
 export const GetCardApplePayReq = z.void();
-export const GetCardApplePayRes = z.object({
-  status: z.enum(['armed', 'code', 'expired', 'busy']),
-  code: z.string().optional(),
-  expiresAt: IsoTime.nullable(),
-});
 
 /** Raw body, header `x-izipay-signature` (HMAC-SHA256 hex). */
 export const PostWebhookIzipayReq = z.unknown();

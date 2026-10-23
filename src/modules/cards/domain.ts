@@ -240,7 +240,20 @@ export function otpFromEvent(value: unknown) {
   const cardId = identifier(data.card_id);
   const code = str(data.code, 12);
   if (root.type !== 'card.otp' || !cardId || !code || !/^\d{4,10}$/.test(code)) return null;
-  return { cardId, code };
+  return { cardId, code, kind: str(data.kind, 40) };
+}
+
+/** Top-level `created` is unix seconds (a string after `parseProviderJson`); anything else is no event time. */
+export function eventTime(root: Record<string, unknown>): string | null {
+  const created = root.created;
+  const seconds =
+    typeof created === 'number'
+      ? created
+      : typeof created === 'string' && /^\d{1,12}(\.\d+)?$/.test(created)
+        ? Number(created)
+        : NaN;
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return new Date(Math.round(seconds * 1000)).toISOString();
 }
 
 /** Allowlisted, OTP-free payload for the webhook inbox. */
@@ -257,7 +270,7 @@ export function sanitizeEvent(value: unknown) {
   }
   if (type === 'card.transaction') payload.transaction = serializableTx(normalizeTransaction(data));
   if (!handledEventTypes.includes(type) && type !== 'card.otp') payload.shape = eventShape(root);
-  return { eventId, type, payload };
+  return { eventId, type, eventAt: eventTime(root), payload };
 }
 function serializableTx(tx: ReturnType<typeof normalizeTransaction>) {
   return tx ? { ...tx, amountCents: tx.amountCents.toString() } : null;

@@ -73,11 +73,19 @@ describe('domain', () => {
     const raw = {
       id: 'e1',
       type: 'card.otp',
+      created: 1_700_000_000,
       data: { card_id: 'c1', code: '123456', last4: '4242', kind: 'apple_pay' },
     };
     const e = sanitizeEvent(raw);
     expect(JSON.stringify(e)).not.toContain('123456');
-    expect(otpFromEvent(raw)).toEqual({ cardId: 'c1', code: '123456' });
+    expect(e.eventAt).toBe('2023-11-14T22:13:20.000Z');
+    expect(
+      sanitizeEvent(parseProviderJson('{"id":"e4","type":"card.otp","created":1700000000,"data":{}}'))
+        .eventAt,
+    ).toBe('2023-11-14T22:13:20.000Z');
+    expect(sanitizeEvent({ id: 'e2', type: 'card.otp', data: {} }).eventAt).toBeNull();
+    expect(sanitizeEvent({ id: 'e3', type: 'card.otp', created: 'x', data: {} }).eventAt).toBeNull();
+    expect(otpFromEvent(raw)).toEqual({ cardId: 'c1', code: '123456', kind: 'apple_pay' });
   });
 
   test('advanceStatus: completion is sticky, review is not downgraded by stale states', () => {

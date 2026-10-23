@@ -444,6 +444,8 @@ export const cards = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id),
+    /** izipay account scope the provider card id belongs to (`izipay:<mode>:<account>`). */
+    providerScope: text('provider_scope').notNull().default(''),
     providerCardId: text('provider_card_id').unique(),
     clientCardRef: uuid('client_card_ref').notNull().unique().defaultRandom(),
     product: text('product').notNull(),
@@ -514,14 +516,17 @@ export const cardWebhookEvents = pgTable(
   'card_webhook_events',
   {
     id: id(),
+    providerScope: text('provider_scope').notNull().default(''),
     providerEventId: text('provider_event_id').notNull(),
+    /** Provider event time (`created`), when the event carries one. */
+    eventAt: ts('event_at'),
     payloadHash: text('payload_hash').notNull(),
     type: text('type'),
     payload: jsonb('payload'),
     processedAt: ts('processed_at'),
     error: text('error'),
   },
-  (t) => [uniqueIndex('card_webhook_events_uq').on(t.providerEventId, t.payloadHash)],
+  (t) => [uniqueIndex('card_webhook_events_uq').on(t.providerScope, t.providerEventId)],
 );
 
 export const relayOrders = pgTable(

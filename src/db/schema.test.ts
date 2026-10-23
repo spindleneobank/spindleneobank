@@ -179,14 +179,17 @@ describe('schema', () => {
     expect(await insertErr(c('issued'))).toBeNull();
   });
 
-  test('webhook events unique on (provider_event_id, payload_hash)', async () => {
-    const v = { providerEventId: 'e1', payloadHash: 'h1' };
+  test('webhook events unique on (provider_scope, provider_event_id)', async () => {
+    const v = { providerScope: 's1', providerEventId: 'e1', payloadHash: 'h1' };
     expect(await insertErr(t.db.insert(schema.cardWebhookEvents).values(v))).toBeNull();
     expect(await insertErr(t.db.insert(schema.cardWebhookEvents).values(v))).toContain(
       'card_webhook_events_uq',
     );
     expect(
       await insertErr(t.db.insert(schema.cardWebhookEvents).values({ ...v, payloadHash: 'h2' })),
+    ).toContain('card_webhook_events_uq');
+    expect(
+      await insertErr(t.db.insert(schema.cardWebhookEvents).values({ ...v, providerScope: 's2' })),
     ).toBeNull();
   });
 

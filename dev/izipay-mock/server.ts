@@ -14,7 +14,6 @@ export interface MockOptions {
   webhookUrl: string;
   webhookSecret: string;
   stepDelayMs?: number;
-  otpDelayMs?: number;
   /** How long a `timeout` fault hangs before answering (default 30 s, longer than clients' 12 s timeout). */
   timeoutMs?: number;
 }
@@ -43,7 +42,6 @@ export function createMock(opts: MockOptions) {
     url: opts.webhookUrl,
     secret: opts.webhookSecret,
     stepDelayMs: opts.stepDelayMs ?? 2000,
-    otpDelayMs: opts.otpDelayMs ?? 3000,
   };
   const hooks = new Webhooks(hookCfg, state);
 
@@ -262,34 +260,6 @@ export function createMock(opts: MockOptions) {
           ...(faults.has('no-invoice') ? {} : { payment: invoice(p) }),
         });
       }
-
-      if (c === 'apple-pay-code') {
-        if (card.card_type !== 'mastercard' || card.issue_status !== 'issued') {
-          return fail(409, 'APPLE_PAY_UNSUPPORTED', 'Apple Pay codes need an issued mastercard');
-        }
-        if (m === 'POST') {
-          const code = String(100_000 + (sha(`otp:${card.card_id}`).readUInt32BE(0) % 900_000));
-          state.otpArmed.set(card.card_id, { expiresAt: Date.now() + 600_000, code: null });
-          hooks.sequence([
-            {
-              delayMs: hookCfg.otpDelayMs,
-              type: 'card.otp',
-              data: { card_id: card.card_id, last4: card.last4, code, kind: 'apple_pay' },
-              dup: faults.has('dup-webhook'),
-            },
-          ]);
-          setTimeout(() => {
-            const armed = state.otpArmed.get(card.card_id);
-            if (armed) armed.code = code;
-          }, hookCfg.otpDelayMs);
-          return ok({ armed: true, expires_at: new Date(Date.now() + 600_000).toISOString() });
-        }
-        if (m === 'GET') {
-          const armed = state.otpArmed.get(card.card_id);
-          if (!armed || armed.expiresAt < Date.now()) return ok({ status: 'idle' });
-          return ok(armed.code ? { status: 'delivered', code: armed.code } : { status: 'waiting' });
-        }
-      }
     }
 
     if (m === 'POST' && a === 'sandbox' && b === 'confirm' && !c) {
@@ -343,6 +313,22 @@ export function createMock(opts: MockOptions) {
     if (req.method === 'GET' && url.pathname === '/__mock/requests') return ok({ requests: state.requests });
     if (req.method === 'GET' && url.pathname === '/__mock/state') {
       return ok({ cards: [...state.cards.values()], payments: [...state.payments.values()] });
+    }
+    // izipay emails the issuer code on its own: no arm call. This emits that `card.otp` webhook on demand.
+    if (req.method === 'POST' && url.pathname === '/__mock/otp') {
+      const body = parseBody(raw) ?? {};
+      const card = typeof body.card_id === 'string' ? state.cards.get(body.card_id) : undefined;
+      if (!card) return fail(404, 'NOT_FOUND', 'Card not found');
+      const code =
+        typeof body.code === 'string' ? body.code : String(100_000 + Math.floor(Math.random() * 900_000));
+      const created = typeof body.created === 'number' ? body.created : undefined;
+      await hooks.send(
+        'card.otp',
+        { card_id: card.card_id, last4: card.last4, code, kind: 'apple_pay' },
+        body.dup === true,
+        created,
+      );
+      return ok({ sent: true, code });
     }
     if (req.method === 'POST' && url.pathname === '/__mock/webhook-url') {
       const body = parseBody(raw);
@@ -405,7 +391,6 @@ if (import.meta.main) {
     webhookSecret,
     webhookUrl: process.env.IZIPAY_WEBHOOK_URL || 'http://api:8080/v1/webhooks/izipay',
     stepDelayMs: Number(process.env.IZIPAY_MOCK_STEP_DELAY_MS ?? 2000),
-    otpDelayMs: Number(process.env.IZIPAY_MOCK_OTP_DELAY_MS ?? 3000),
   });
   console.log(`izipay-mock listening on ${mock.server.port}`);
 }

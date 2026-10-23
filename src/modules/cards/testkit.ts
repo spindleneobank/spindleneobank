@@ -63,7 +63,6 @@ export async function bootCards(opts: { stepDelayMs?: number; timeoutMs?: number
     webhookSecret: HOOK_SECRET,
     webhookUrl: `http://127.0.0.1:${receiver.port}/v1/webhooks/izipay`,
     stepDelayMs: opts.stepDelayMs ?? 30,
-    otpDelayMs: 30,
     timeoutMs: opts.timeoutMs ?? 1500,
   });
   Object.assign(cardSettings, {

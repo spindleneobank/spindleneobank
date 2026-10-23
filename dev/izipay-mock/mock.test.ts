@@ -9,7 +9,7 @@ const HOOK_SECRET = 'hook-secret';
 interface Received {
   body: string;
   signature: string | null;
-  json: { id: string; type: string; data: Record<string, unknown> };
+  json: { id: string; type: string; created?: number; data: Record<string, unknown> };
 }
 let received: Received[] = [];
 let receiver: ReturnType<typeof Bun.serve>;
@@ -31,7 +31,6 @@ beforeAll(() => {
     webhookSecret: HOOK_SECRET,
     webhookUrl: `http://127.0.0.1:${receiver.port}/v1/webhooks/izipay`,
     stepDelayMs: 10,
-    otpDelayMs: 10,
     timeoutMs: 400,
   });
 });
@@ -223,17 +222,18 @@ describe('izipay mock', () => {
     ).toBe(done?.transaction_id);
   });
 
-  test('apple pay arm leads to card.otp', async () => {
+  test('admin otp emits a card.otp webhook with created, without any arm call', async () => {
     const id = await issued('ap', 'mastercard');
     received = [];
-    expect((await call('POST', `/cards/${id}/apple-pay-code`)).json.data.armed).toBe(true);
-    await mock.hooks.idle();
+    const res = await fetch(`${mock.url}/__mock/otp`, {
+      method: 'POST',
+      body: JSON.stringify({ card_id: id, code: '123456', created: 1_700_000_000 }),
+    });
+    expect(res.status).toBe(200);
     expect(received.map((r) => r.json.type)).toEqual(['card.otp']);
-    expect(Object.keys(received[0]?.json.data ?? {}).sort()).toEqual(['card_id', 'code', 'kind', 'last4']);
-    expect(received[0]?.json.data.code).toMatch(/^\d{6}$/);
-    expect((await call('GET', `/cards/${id}/apple-pay-code`)).json.data.status).toBe('delivered');
-    const visa = await issued('v1', 'visa');
-    expect((await call('POST', `/cards/${visa}/apple-pay-code`)).status).toBe(409);
+    expect(received[0]?.json?.created).toBe(1_700_000_000);
+    expect(received[0]?.json.data).toMatchObject({ card_id: id, code: '123456', kind: 'apple_pay' });
+    expect((await call('POST', `/cards/${id}/apple-pay-code`)).status).toBe(404);
   });
 
   test('partial payment produces no card.paid', async () => {
