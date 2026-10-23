@@ -1453,6 +1453,7 @@
   flex: none;
 }
 .ab-cm-faces img {
+  object-fit: contain;
   position: absolute;
   top: 0;
   width: 32px;
