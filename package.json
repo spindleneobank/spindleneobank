@@ -1,0 +1,45 @@
+{
+  "name": "@spindle/backend",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "workspaces": ["node", "web"],
+  "scripts": {
+    "dev": "bun --watch src/server.ts",
+    "dev:worker": "bun --watch src/worker.ts",
+    "dev:up": "docker compose -f ../docs/deploy/compose.dev.yml up -d",
+    "dev:down": "docker compose -f ../docs/deploy/compose.dev.yml down",
+    "dev:bootstrap": "bun run dev/bootstrap.ts",
+    "dev:reset": "docker compose -f ../docs/deploy/compose.dev.yml down -v && docker compose -f ../docs/deploy/compose.dev.yml up -d && bun run dev/bootstrap.ts",
+    "test": "bun test",
+    "test:int": "bun test --env-file=../docs/deploy/backend.env.dev src/**/*.int.test.ts",
+    "typecheck": "tsc --noEmit -p . && bun run --filter '*' --if-present typecheck",
+    "lint": "biome check .",
+    "contracts:test": "cd contracts && forge test",
+    "contracts:fork": "cd contracts && forge test --match-path 'test/fork/*' --fork-url $RHC_RPC_URL",
+    "abi:export": "bun run contracts/script/export-abis.ts",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "1.6.3",
+    "@hono/zod-validator": "0.9.1",
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
+    "@openzeppelin/merkle-tree": "1.0.8",
+    "bullmq": "6.4.0",
+    "cbor-x": "1.6.8",
+    "drizzle-orm": "0.45.4",
+    "hono": "4.13.13",
+    "ioredis": "6.0.0",
+    "pino": "10.4.0",
+    "postgres": "3.4.9",
+    "viem": "2.57.10",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.2",
+    "@types/bun": "1.4.4",
+    "drizzle-kit": "0.31.11",
+    "typescript": "7.0.2"
+  }
+}
