@@ -209,8 +209,9 @@ export function initTicker(tree: HTMLElement): () => void {
   if (!ul || reduced()) return () => {};
   const imgs = Array.from(ul.children).map((li) => li.querySelector('img')?.getAttribute('src') ?? '');
   const k = imgs.indexOf(imgs[0] ?? '', 1);
-  const first = (ul.children[0] as HTMLElement).getBoundingClientRect();
-  const second = (ul.children[1] as HTMLElement).getBoundingClientRect();
+  // the <li>s are display: contents, so measure their first child
+  const first = ((ul.children[0] as HTMLElement).firstElementChild ?? ul).getBoundingClientRect();
+  const second = ((ul.children[1] as HTMLElement).firstElementChild ?? ul).getBoundingClientRect();
   const setW = k > 0 ? k * Math.abs(second.x - first.x) : 0;
   if (!setW) return () => {};
   let x = Number(/translateX\((-?[\d.]+)/.exec(ul.style.transform)?.[1] ?? 0);
@@ -237,7 +238,7 @@ export function initTicker(tree: HTMLElement): () => void {
     visible = e[0]?.isIntersecting === true;
     if (visible) wake();
   });
-  io.observe(ul);
+  io.observe(ul.parentElement?.parentElement ?? ul); // the ul itself is translated out of its clip box
   document.addEventListener('visibilitychange', wake);
   return () => {
     io.disconnect();
