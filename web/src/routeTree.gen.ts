@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
+import { Route as DashboardPreviewRouteImport } from './routes/dashboard-preview'
 import { Route as marketingIndexRouteImport } from './routes/(marketing)/index'
 import { Route as marketing404RouteImport } from './routes/(marketing)/404'
 import { Route as marketingChangelogRouteImport } from './routes/(marketing)/changelog'
@@ -41,6 +42,11 @@ import { Route as marketingIntegrationsSlugRouteImport } from './routes/(marketi
 const DashboardRouteRoute = DashboardRouteRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardPreviewRoute = DashboardPreviewRouteImport.update({
+  id: '/dashboard-preview',
+  path: '/dashboard-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const marketingIndexRoute = marketingIndexRouteImport.update({
@@ -186,6 +192,7 @@ const marketingIntegrationsSlugRoute =
 
 export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/dashboard-preview': typeof DashboardPreviewRoute
   '/404': typeof marketing404Route
   '/changelog': typeof marketingChangelogRoute
   '/community': typeof marketingCommunityRoute
@@ -215,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/integrations/': typeof marketingIntegrationsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/dashboard-preview': typeof DashboardPreviewRoute
   '/404': typeof marketing404Route
   '/changelog': typeof marketingChangelogRoute
   '/community': typeof marketingCommunityRoute
@@ -246,6 +254,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/dashboard-preview': typeof DashboardPreviewRoute
   '/(marketing)/404': typeof marketing404Route
   '/(marketing)/changelog': typeof marketingChangelogRoute
   '/(marketing)/community': typeof marketingCommunityRoute
@@ -278,6 +287,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/dashboard'
+    | '/dashboard-preview'
     | '/404'
     | '/changelog'
     | '/community'
@@ -307,6 +317,7 @@ export interface FileRouteTypes {
     | '/integrations/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/dashboard-preview'
     | '/404'
     | '/changelog'
     | '/community'
@@ -337,6 +348,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/dashboard'
+    | '/dashboard-preview'
     | '/(marketing)/404'
     | '/(marketing)/changelog'
     | '/(marketing)/community'
@@ -368,6 +380,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
+  DashboardPreviewRoute: typeof DashboardPreviewRoute
   marketing404Route: typeof marketing404Route
   marketingChangelogRoute: typeof marketingChangelogRoute
   marketingCommunityRoute: typeof marketingCommunityRoute
@@ -402,6 +415,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard-preview': {
+      id: '/dashboard-preview'
+      path: '/dashboard-preview'
+      fullPath: '/dashboard-preview'
+      preLoaderRoute: typeof DashboardPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(marketing)/': {
@@ -612,6 +632,7 @@ const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
+  DashboardPreviewRoute: DashboardPreviewRoute,
   marketing404Route: marketing404Route,
   marketingChangelogRoute: marketingChangelogRoute,
   marketingCommunityRoute: marketingCommunityRoute,

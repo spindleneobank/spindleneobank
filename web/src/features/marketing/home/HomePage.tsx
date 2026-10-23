@@ -9,6 +9,7 @@ import phoneStates from './markup/phone.states.json';
 import tabletStates from './markup/tablet.states.json';
 import { type GroupStates, initGroups, initVideos } from './behaviors';
 import { initApiConsole, initCapabilityNav, initOrbit } from './motion';
+import { initShaders } from './shaders';
 import { mountDigitalPreview } from './digitalPreview';
 import './home.generated.css';
 import './home.css';
@@ -74,7 +75,7 @@ export function HomePage() {
     if (tree) {
       disposers.push(initGroups(tree, STATES[bp]));
       disposers.push(initVideos(tree));
-      disposers.push(initOrbit(tree), initApiConsole(tree), initCapabilityNav(tree));
+      disposers.push(initOrbit(tree), initApiConsole(tree), initCapabilityNav(tree), initShaders(tree));
     }
     for (const host of el.querySelectorAll<HTMLElement>('[data-sp-dashboard-preview]')) disposers.push(mountDigitalPreview(host));
     el.addEventListener('click', onClick, true);

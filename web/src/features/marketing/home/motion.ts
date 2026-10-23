@@ -49,7 +49,7 @@ export function initOrbit(tree: HTMLElement): () => void {
 
 const API_STAGES = [
   { name: 'Request accepted', status: '01 / REQUEST', detail: 'POST /v1/chat/completions', output: 'X-Spindle-Lane: open' },
-  { name: 'Eligible GPU selected', status: '02 / ROUTE', detail: 'Attestation checked for the sealed lane.', output: 'Encrypted prompts → eligible compute' },
+  { name: 'Eligible GPU selected', status: '02 / ROUTE', detail: 'Open lane GPU matched to the request.', output: 'Open-lane prompts → eligible compute' },
   { name: 'Work recorded', status: '03 / RECEIPT', detail: 'The node signs a COSE receipt for the job.', output: 'receipt.cose → verification → USDG ledger' },
   { name: 'Epoch recorded', status: '04 / CLAIM', detail: 'Verified work enters the hourly Merkle root.', output: 'USDG · Stock Tokens · Virtual Card' },
 ];

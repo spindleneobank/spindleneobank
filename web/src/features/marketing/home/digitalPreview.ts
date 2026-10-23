@@ -63,8 +63,9 @@ export function mountDigitalPreview(host: HTMLElement): () => void {
   ];
   const glyphs = '01░01:+▒01';
 
-  // The live sample dashboard document is not part of this site; the 1920px fallback image carries the same UI.
-  const loadFrame = () => {};
+  const loadFrame = () => {
+    if (!frame.getAttribute('src')) frame.src = `/dashboard-preview?view=${host.dataset.spDashboardPreview === 'footer' ? 'cards' : 'overview'}`;
+  };
   const ready = (e: MessageEvent) => {
     if (e.origin === location.origin && e.source === frame.contentWindow && e.data?.type === 'spindle:preview-ready')
       host.classList.add('sp-has-live');
