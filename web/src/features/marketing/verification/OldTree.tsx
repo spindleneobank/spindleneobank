@@ -18,7 +18,7 @@ function applyExceptions(html: string) {
   return EXCEPTIONS.reduce((s, [a, b]) => s.split(a).join(b), html);
 }
 
-export function OldTree({ onMount }: { onMount?: (root: HTMLElement) => void | (() => void) }) {
+export function OldTree() {
   const bp = useBreakpoint();
   const html = applyExceptions(trees[bp] ?? trees.all ?? '');
   const ref = useRef<HTMLDivElement>(null);
@@ -26,29 +26,33 @@ export function OldTree({ onMount }: { onMount?: (root: HTMLElement) => void | (
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const [what, setWhat] = useState<(typeof SOCIALS)[number] | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // old spindle.js coming(): social buttons open the "coming soon" dialog
+    const onClick = (e: Event) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-sp-social]');
+      const s = b && SOCIALS.find((x) => x.key === b.dataset.spSocial);
+      if (s) {
+        e.preventDefault();
+        setWhat(s);
+      }
+    };
+    el.addEventListener('click', onClick);
+    return () => el.removeEventListener('click', onClick);
+  }, []);
   return (
-    <div className={rootClass}
-      data-p5-root
-      ref={ref}
-      onClick={(e) => {
-        // old spindle.js coming(): social buttons open the "coming soon" dialog
-        const b = (e.target as HTMLElement).closest<HTMLElement>('[data-sp-social]');
-        const s = b && SOCIALS.find((x) => x.key === b.dataset.spSocial);
-        if (s) {
-          e.preventDefault();
-          setWhat(s);
-        }
-      }}
-    >
+    <div className={rootClass} data-p5-root ref={ref}>
       <div
         data-framer-root=""
         className={wrapClass}
         style={{ display: 'contents' }}
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: static markup generated from the old rendered DOM
         dangerouslySetInnerHTML={{ __html: html }}
       />
       {shaders}
-      {typeof document !== 'undefined' && mounted ? createPortal(<ComingDialog what={what} onClose={() => setWhat(null)} />, document.body) : null}
+      {typeof document !== 'undefined' && mounted
+        ? createPortal(<ComingDialog what={what} onClose={() => setWhat(null)} />, document.body)
+        : null}
     </div>
   );
 }

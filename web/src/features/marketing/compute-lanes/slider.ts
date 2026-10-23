@@ -14,7 +14,11 @@ const sampleSpring = () => {
   const g = spring({ keyframes: [0, 1], duration: 600, bounce: 0 });
   return Array.from({ length: SAMPLES }, (_, i) => (i === SAMPLES - 1 ? 1 : g.next(i * 10).value));
 };
-const linearEase = () => `linear(${sampleSpring().slice(0, 60).map((v) => Math.round(v * 10000) / 10000).join(', ')})`;
+const linearEase = () =>
+  `linear(${sampleSpring()
+    .slice(0, 60)
+    .map((v) => Math.round(v * 10000) / 10000)
+    .join(', ')})`;
 
 const CARD = '.framer-E7aMW';
 const STEP_ROOT = '.framer-egeFU';
@@ -28,7 +32,9 @@ export function runSlider(root: HTMLElement, bp: Breakpoint) {
     if (!stepRoot) return;
     const cards = [...stepRoot.querySelectorAll<HTMLElement>(CARD)];
     const next = cards.indexOf(card);
-    const prev = cards.findIndex((c) => /Active/.test(c.dataset.framerName ?? '') && !/Inactive/.test(c.dataset.framerName ?? ''));
+    const prev = cards.findIndex(
+      (c) => /Active/.test(c.dataset.framerName ?? '') && !/Inactive/.test(c.dataset.framerName ?? ''),
+    );
     const html = steps[next];
     if (!html) return;
     const vertical = bp !== 'desktop';
@@ -51,12 +57,15 @@ export function runSlider(root: HTMLElement, bp: Breakpoint) {
       const from = vertical ? b.height : b.width;
       const end = vertical ? to.height : to.width;
       {
-        const frames = ease.map((v) => ({ flex: "0 0 auto", [prop]: `${from + (end - from) * v}px` }));
+        const frames = ease.map((v) => ({ flex: '0 0 auto', [prop]: `${from + (end - from) * v}px` }));
         box.animate(frames, { duration: 600, easing: 'linear', fill: 'none' });
       }
       const label = c.querySelector<HTMLElement>('.framer-18935bg');
       if (label && (i === next || i === prev)) {
-        label.animate({ opacity: i === next ? [0.4, 1] : [1, 0.4] }, { duration: 600, easing: linearEase(), fill: 'both' });
+        label.animate(
+          { opacity: i === next ? [0.4, 1] : [1, 0.4] },
+          { duration: 600, easing: linearEase(), fill: 'both' },
+        );
       }
     });
   };

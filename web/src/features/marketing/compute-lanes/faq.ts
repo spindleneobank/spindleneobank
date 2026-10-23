@@ -1,5 +1,5 @@
-import { FAQ_ANSWERS } from './faqData';
 import { applyExceptions } from './exceptions';
+import { FAQ_ANSWERS } from './faqData';
 
 /**
  * Old FAQ accordion (Framer "Question" component, variants Opened/Closed): one item open at a time, click or
@@ -17,8 +17,10 @@ export function runFaq(root: HTMLElement) {
   const items = () => [...root.querySelectorAll<HTMLElement>('.framer-5aNe3[name^="Question"]')];
   const first = items();
   if (!first.length) return () => {};
-  const closedIcon = first.find((i) => i.dataset.framerName === 'Closed')?.querySelector('.framer-94cer6')?.innerHTML ?? '';
-  const openIcon = first.find((i) => i.dataset.framerName === 'Opened')?.querySelector('.framer-94cer6')?.innerHTML ?? '';
+  const closedIcon =
+    first.find((i) => i.dataset.framerName === 'Closed')?.querySelector('.framer-94cer6')?.innerHTML ?? '';
+  const openIcon =
+    first.find((i) => i.dataset.framerName === 'Opened')?.querySelector('.framer-94cer6')?.innerHTML ?? '';
   const index = (el: HTMLElement) => Number((el.getAttribute('name') ?? '').replace(/\D/g, '')) - 1;
 
   const setState = (el: HTMLElement, open: boolean) => {

@@ -16,12 +16,18 @@ export function runAppear(root: HTMLElement) {
   );
   const anims: Animation[] = [];
   for (const el of root.querySelectorAll<HTMLElement>('[data-framer-appear-id]')) {
-    const hold = el.animate({ opacity: [INITIAL, INITIAL] }, { duration: 10000, easing: 'linear', fill: 'both' });
+    const hold = el.animate(
+      { opacity: [INITIAL, INITIAL] },
+      { duration: 10000, easing: 'linear', fill: 'both' },
+    );
     const run = el.animate(
       { opacity, transform: opacity.map(() => 'none') },
       { delay: 200, duration: 600, easing: 'linear', fill: 'both' },
     );
-    run.finished.then(() => hold.cancel(), () => {});
+    run.finished.then(
+      () => hold.cancel(),
+      () => {},
+    );
     anims.push(hold, run);
   }
   return () => {
@@ -35,9 +41,9 @@ export function runAppear(root: HTMLElement) {
  */
 export function runBorderFade(root: HTMLElement) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return () => {};
-  const els = [...root.querySelectorAll<HTMLElement>('div[style*="transition: opacity"], div[data-p5-tr]')].filter((e) =>
-    e.querySelector(':scope > svg path[stroke-dasharray]'),
-  );
+  const els = [
+    ...root.querySelectorAll<HTMLElement>('div[style*="transition: opacity"], div[data-p5-tr]'),
+  ].filter((e) => e.querySelector(':scope > svg path[stroke-dasharray]'));
   const saved = els.map((e) => e.dataset.p5Tr ?? e.style.transition);
   els.forEach((e, i) => {
     e.dataset.p5Tr = saved[i] as string;
