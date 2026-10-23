@@ -14,9 +14,13 @@ import { Route as marketingIndexRouteImport } from './routes/(marketing)/index'
 import { Route as marketing404RouteImport } from './routes/(marketing)/404'
 import { Route as marketingChangelogRouteImport } from './routes/(marketing)/changelog'
 import { Route as marketingCommunityRouteImport } from './routes/(marketing)/community'
+import { Route as marketingComputeLanesRouteImport } from './routes/(marketing)/compute-lanes'
 import { Route as marketingCookiePolicyRouteImport } from './routes/(marketing)/cookie-policy'
 import { Route as marketingPrivacyPolicyRouteImport } from './routes/(marketing)/privacy-policy'
+import { Route as marketingProductRouteImport } from './routes/(marketing)/product'
+import { Route as marketingSolutionsRouteImport } from './routes/(marketing)/solutions'
 import { Route as marketingTermsConditionsRouteImport } from './routes/(marketing)/terms-conditions'
+import { Route as marketingVerificationRouteImport } from './routes/(marketing)/verification'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardTabRouteImport } from './routes/dashboard/$tab'
 import { Route as marketingAboutIndexRouteImport } from './routes/(marketing)/about/index'
@@ -55,6 +59,11 @@ const marketingCommunityRoute = marketingCommunityRouteImport.update({
   path: '/community',
   getParentRoute: () => rootRouteImport,
 } as any)
+const marketingComputeLanesRoute = marketingComputeLanesRouteImport.update({
+  id: '/(marketing)/compute-lanes',
+  path: '/compute-lanes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const marketingCookiePolicyRoute = marketingCookiePolicyRouteImport.update({
   id: '/(marketing)/cookie-policy',
   path: '/cookie-policy',
@@ -65,12 +74,27 @@ const marketingPrivacyPolicyRoute = marketingPrivacyPolicyRouteImport.update({
   path: '/privacy-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const marketingProductRoute = marketingProductRouteImport.update({
+  id: '/(marketing)/product',
+  path: '/product',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingSolutionsRoute = marketingSolutionsRouteImport.update({
+  id: '/(marketing)/solutions',
+  path: '/solutions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const marketingTermsConditionsRoute =
   marketingTermsConditionsRouteImport.update({
     id: '/(marketing)/terms-conditions',
     path: '/terms-conditions',
     getParentRoute: () => rootRouteImport,
   } as any)
+const marketingVerificationRoute = marketingVerificationRouteImport.update({
+  id: '/(marketing)/verification',
+  path: '/verification',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -141,9 +165,13 @@ export interface FileRoutesByFullPath {
   '/404': typeof marketing404Route
   '/changelog': typeof marketingChangelogRoute
   '/community': typeof marketingCommunityRoute
+  '/compute-lanes': typeof marketingComputeLanesRoute
   '/cookie-policy': typeof marketingCookiePolicyRoute
   '/privacy-policy': typeof marketingPrivacyPolicyRoute
+  '/product': typeof marketingProductRoute
+  '/solutions': typeof marketingSolutionsRoute
   '/terms-conditions': typeof marketingTermsConditionsRoute
+  '/verification': typeof marketingVerificationRoute
   '/dashboard/$tab': typeof DashboardTabRoute
   '/': typeof marketingIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -162,9 +190,13 @@ export interface FileRoutesByTo {
   '/404': typeof marketing404Route
   '/changelog': typeof marketingChangelogRoute
   '/community': typeof marketingCommunityRoute
+  '/compute-lanes': typeof marketingComputeLanesRoute
   '/cookie-policy': typeof marketingCookiePolicyRoute
   '/privacy-policy': typeof marketingPrivacyPolicyRoute
+  '/product': typeof marketingProductRoute
+  '/solutions': typeof marketingSolutionsRoute
   '/terms-conditions': typeof marketingTermsConditionsRoute
+  '/verification': typeof marketingVerificationRoute
   '/dashboard/$tab': typeof DashboardTabRoute
   '/': typeof marketingIndexRoute
   '/dashboard': typeof DashboardIndexRoute
@@ -185,9 +217,13 @@ export interface FileRoutesById {
   '/(marketing)/404': typeof marketing404Route
   '/(marketing)/changelog': typeof marketingChangelogRoute
   '/(marketing)/community': typeof marketingCommunityRoute
+  '/(marketing)/compute-lanes': typeof marketingComputeLanesRoute
   '/(marketing)/cookie-policy': typeof marketingCookiePolicyRoute
   '/(marketing)/privacy-policy': typeof marketingPrivacyPolicyRoute
+  '/(marketing)/product': typeof marketingProductRoute
+  '/(marketing)/solutions': typeof marketingSolutionsRoute
   '/(marketing)/terms-conditions': typeof marketingTermsConditionsRoute
+  '/(marketing)/verification': typeof marketingVerificationRoute
   '/dashboard/$tab': typeof DashboardTabRoute
   '/(marketing)/': typeof marketingIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -209,9 +245,13 @@ export interface FileRouteTypes {
     | '/404'
     | '/changelog'
     | '/community'
+    | '/compute-lanes'
     | '/cookie-policy'
     | '/privacy-policy'
+    | '/product'
+    | '/solutions'
     | '/terms-conditions'
+    | '/verification'
     | '/dashboard/$tab'
     | '/'
     | '/dashboard/'
@@ -230,9 +270,13 @@ export interface FileRouteTypes {
     | '/404'
     | '/changelog'
     | '/community'
+    | '/compute-lanes'
     | '/cookie-policy'
     | '/privacy-policy'
+    | '/product'
+    | '/solutions'
     | '/terms-conditions'
+    | '/verification'
     | '/dashboard/$tab'
     | '/'
     | '/dashboard'
@@ -252,9 +296,13 @@ export interface FileRouteTypes {
     | '/(marketing)/404'
     | '/(marketing)/changelog'
     | '/(marketing)/community'
+    | '/(marketing)/compute-lanes'
     | '/(marketing)/cookie-policy'
     | '/(marketing)/privacy-policy'
+    | '/(marketing)/product'
+    | '/(marketing)/solutions'
     | '/(marketing)/terms-conditions'
+    | '/(marketing)/verification'
     | '/dashboard/$tab'
     | '/(marketing)/'
     | '/dashboard/'
@@ -275,9 +323,13 @@ export interface RootRouteChildren {
   marketing404Route: typeof marketing404Route
   marketingChangelogRoute: typeof marketingChangelogRoute
   marketingCommunityRoute: typeof marketingCommunityRoute
+  marketingComputeLanesRoute: typeof marketingComputeLanesRoute
   marketingCookiePolicyRoute: typeof marketingCookiePolicyRoute
   marketingPrivacyPolicyRoute: typeof marketingPrivacyPolicyRoute
+  marketingProductRoute: typeof marketingProductRoute
+  marketingSolutionsRoute: typeof marketingSolutionsRoute
   marketingTermsConditionsRoute: typeof marketingTermsConditionsRoute
+  marketingVerificationRoute: typeof marketingVerificationRoute
   marketingIndexRoute: typeof marketingIndexRoute
   marketingAboutRoleRoute: typeof marketingAboutRoleRoute
   marketingArchitectureSlugRoute: typeof marketingArchitectureSlugRoute
@@ -328,6 +380,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof marketingCommunityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(marketing)/compute-lanes': {
+      id: '/(marketing)/compute-lanes'
+      path: '/compute-lanes'
+      fullPath: '/compute-lanes'
+      preLoaderRoute: typeof marketingComputeLanesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(marketing)/cookie-policy': {
       id: '/(marketing)/cookie-policy'
       path: '/cookie-policy'
@@ -342,11 +401,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof marketingPrivacyPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(marketing)/product': {
+      id: '/(marketing)/product'
+      path: '/product'
+      fullPath: '/product'
+      preLoaderRoute: typeof marketingProductRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/solutions': {
+      id: '/(marketing)/solutions'
+      path: '/solutions'
+      fullPath: '/solutions'
+      preLoaderRoute: typeof marketingSolutionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(marketing)/terms-conditions': {
       id: '/(marketing)/terms-conditions'
       path: '/terms-conditions'
       fullPath: '/terms-conditions'
       preLoaderRoute: typeof marketingTermsConditionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/verification': {
+      id: '/(marketing)/verification'
+      path: '/verification'
+      fullPath: '/verification'
+      preLoaderRoute: typeof marketingVerificationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/': {
@@ -455,9 +535,13 @@ const rootRouteChildren: RootRouteChildren = {
   marketing404Route: marketing404Route,
   marketingChangelogRoute: marketingChangelogRoute,
   marketingCommunityRoute: marketingCommunityRoute,
+  marketingComputeLanesRoute: marketingComputeLanesRoute,
   marketingCookiePolicyRoute: marketingCookiePolicyRoute,
   marketingPrivacyPolicyRoute: marketingPrivacyPolicyRoute,
+  marketingProductRoute: marketingProductRoute,
+  marketingSolutionsRoute: marketingSolutionsRoute,
   marketingTermsConditionsRoute: marketingTermsConditionsRoute,
+  marketingVerificationRoute: marketingVerificationRoute,
   marketingIndexRoute: marketingIndexRoute,
   marketingAboutRoleRoute: marketingAboutRoleRoute,
   marketingArchitectureSlugRoute: marketingArchitectureSlugRoute,

@@ -5,13 +5,13 @@ const STAGES = [
     name: 'Request accepted',
     status: '01 / REQUEST',
     detail: 'POST /v1/chat/completions',
-    output: 'X-Spindle-Lane: sealed',
+    output: 'X-Spindle-Lane: open  |  sealed (in testing)',
   },
   {
-    name: 'Eligible GPU selected',
+    name: 'Registered node selected',
     status: '02 / ROUTE',
-    detail: 'Attestation checked for the sealed lane.',
-    output: 'Encrypted prompts → eligible compute',
+    detail: 'Open lane today. The sealed lane (in testing) also checks attestation.',
+    output: 'Request → eligible registered node',
   },
   {
     name: 'Work recorded',
@@ -23,7 +23,7 @@ const STAGES = [
     name: 'Epoch recorded',
     status: '04 / CLAIM',
     detail: 'Verified work enters the hourly Merkle root.',
-    output: 'USDG · Stock Tokens · Virtual Card',
+    output: 'Claim USDG to your wallet · then card or swap',
   },
 ] as const;
 
