@@ -4,6 +4,7 @@ import { useBreakpoint } from '../../../components/marketing/motion';
 import { ComingDialog } from '../../../components/marketing/shell';
 import { SOCIALS } from '../../../components/marketing/shell/nav-data';
 import { useShaderHosts } from '../shaders';
+import { applyExceptions } from './exceptions';
 import { rootClass, trees, wrapClass } from './markup';
 import './old.css';
 
@@ -12,11 +13,6 @@ import './old.css';
  * The old wrapper is `display: contents`, so its sections are direct children of the page root, as before.
  * Approved text exceptions are applied here (see docs/plan/parity-text-exceptions.md).
  */
-const EXCEPTIONS: Array<[string, string]> = [];
-
-function applyExceptions(html: string) {
-  return EXCEPTIONS.reduce((s, [a, b]) => s.split(a).join(b), html);
-}
 
 export function OldTree() {
   const bp = useBreakpoint();
