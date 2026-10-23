@@ -4,11 +4,16 @@ import { type Breakpoint, useBreakpoint } from '../../../components/marketing/mo
 import desktopHtml from './markup/desktop.html?raw';
 import phoneHtml from './markup/phone.html?raw';
 import tabletHtml from './markup/tablet.html?raw';
+import desktopStates from './markup/desktop.states.json';
+import phoneStates from './markup/phone.states.json';
+import tabletStates from './markup/tablet.states.json';
+import { type GroupStates, initGroups, initVideos } from './behaviors';
 import { mountDigitalPreview } from './digitalPreview';
 import './home.generated.css';
 import './home.css';
 
 const TREES: Record<Breakpoint, string> = { desktop: desktopHtml, tablet: tabletHtml, phone: phoneHtml };
+const STATES: Record<Breakpoint, GroupStates> = { desktop: desktopStates, tablet: tabletStates, phone: phoneStates };
 const ORDER: Breakpoint[] = ['desktop', 'tablet', 'phone'];
 
 /**
@@ -64,6 +69,11 @@ export function HomePage() {
         open(host);
       }
     };
+    const tree = el.querySelector<HTMLElement>(`[data-hm-tree="${bp}"]`);
+    if (tree) {
+      disposers.push(initGroups(tree, STATES[bp]));
+      disposers.push(initVideos(tree));
+    }
     for (const host of el.querySelectorAll<HTMLElement>('[data-sp-dashboard-preview]')) disposers.push(mountDigitalPreview(host));
     el.addEventListener('click', onClick, true);
     el.addEventListener('keydown', onKey, true);
@@ -79,6 +89,7 @@ export function HomePage() {
       ref={rootRef}
       className="framer-x8qsM framer-g5ch1c"
       data-layout-template="true"
+      data-hm-page="home"
       style={{ minHeight: '100vh', width: 'auto' }}
     >
       {ORDER.filter((k) => !live || k === bp).map((k) => (
