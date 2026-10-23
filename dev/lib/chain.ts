@@ -192,6 +192,10 @@ async function bal(token: Address, who: Address): Promise<bigint> {
 export async function seedEth(): Promise<number> {
   let n = 0;
   for (const a of ALL_ACCOUNTS) {
+    // The well-known anvil keys are EIP-7702-delegated on the real chain (sweeper bots), so the fork inherits code at
+    // these EOAs. Permit2 then verifies their signatures via ERC-1271 and rejects them: clear the code.
+    const code = await publicClient.getCode({ address: a.address });
+    if (code && code !== '0x') await rpc('anvil_setCode', [a.address, '0x']);
     const b = await publicClient.getBalance({ address: a.address });
     if (b < ETH_TARGET / 2n) {
       await rpc('anvil_setBalance', [a.address, toHex(ETH_TARGET)]);

@@ -38,3 +38,15 @@ export async function forkHealthy(
 
 export const FORK_SKIP_MESSAGE =
   'anvil fork unhealthy (stale upstream: "historical state not available"); skipping fork-dependent suite';
+
+/**
+ * Align the fork's block time with the wall clock. After evm_revert / evm_increaseTime in other suites the chain can lag
+ * (or lead) real time, and API-signed windows (x402 validAfter/deadline) are computed from the wall clock.
+ */
+export async function syncChainTime(url = process.env.ANVIL_URL ?? 'http://127.0.0.1:7245'): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  const latest = (await call(url, 'eth_getBlockByNumber', ['latest', false], 4000)) as { timestamp: string };
+  if (Number(latest.timestamp) >= now) return;
+  await call(url, 'evm_setNextBlockTimestamp', [now], 4000);
+  await call(url, 'evm_mine', [], 4000);
+}

@@ -2,14 +2,14 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { rhc } from '@spindle/shared/chain';
 import { Redis } from 'ioredis';
 import { createPublicClient, createWalletClient, http, parseTransaction } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { forkHealthy } from '../../test/fork';
 import { createKeeper, KEEPER_LAST_NONCE_KEY, KEEPER_LOCK_KEY, type KeeperDeps } from './keeper';
 
 const ANVIL = process.env.ANVIL_URL ?? 'http://127.0.0.1:7245';
-const REDIS = process.env.TEST_REDIS_URL ?? 'redis://127.0.0.1:7279';
-// anvil default dev account #0 (public test key, no value)
-const account = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
+const REDIS = process.env.TEST_REDIS_URL ?? 'redis://127.0.0.1:7279/14'; // own logical DB: never touch the dev api's keeper keys (db 0)
+// fresh random key per run, funded below: never share a nonce stream with the dev accounts on the shared fork
+const account = privateKeyToAccount(generatePrivateKey());
 const SINK = '0x000000000000000000000000000000000000dEaD';
 
 const anvilUp = await fetch(ANVIL, {
@@ -30,6 +30,19 @@ if (!up)
   console.warn(
     `SKIP: keeper tests need a healthy anvil fork (${ANVIL}) and redis (${REDIS}); anvil=${anvilUp} redis=${redisUp}`,
   );
+if (up) {
+  await fetch(ANVIL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'anvil_setBalance',
+      params: [account.address, `0x${(10n ** 18n).toString(16)}`],
+    }),
+  });
+  await redis.del(KEEPER_LAST_NONCE_KEY, KEEPER_LOCK_KEY);
+}
 afterAll(() => {
   redis.disconnect();
 });

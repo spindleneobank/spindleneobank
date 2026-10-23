@@ -12,6 +12,7 @@ import { account } from '../../../dev/lib/accounts';
 import { ANVIL_URL, chain, publicClient, rpc } from '../../../dev/lib/chain';
 import { FORK_SKIP_MESSAGE, forkHealthy } from '../../../test/fork';
 import { cardOperations, cards } from '../../db/schema';
+import { KEEPER_LAST_NONCE_KEY } from '../../lib/keeper';
 import { closeQueues } from '../../lib/queue';
 import { closeRedis, getRedis } from '../../lib/redis';
 import { dbRef } from '../auth/constants';
@@ -87,6 +88,7 @@ afterAll(async () => {
   Object.assign(chainDeps, realChain);
   await kit?.stop();
   if (snapshot) await rpc('evm_revert', [snapshot]);
+  await getRedis().del(KEEPER_LAST_NONCE_KEY); // reverted chain nonce < remembered last-sent nonce
   await closeQueues().catch(() => {});
   await closeRedis();
 });
