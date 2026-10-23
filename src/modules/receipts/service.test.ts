@@ -335,6 +335,8 @@ describe('routes', () => {
       jobId: id,
       nodeId,
       onchainNodeId: '7',
+      nodePubkey: nodeAcct.publicKey,
+      owner: OWNER,
       verified: true,
       reason: null,
       epoch: null,

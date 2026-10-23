@@ -10,6 +10,8 @@ import { decodeReceipt, receiptFromBase64, verifyReceipt } from '../src/shared/r
 export interface ReceiptView {
   jobId: string;
   nodeKey: string;
+  nodePubkey?: string;
+  owner?: string;
   model: string;
   lane: string;
   usage: { p: number; c: number; n?: number };

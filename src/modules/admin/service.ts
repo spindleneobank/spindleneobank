@@ -2,7 +2,7 @@ import { erc20Abi } from '@spindle/shared/abi';
 import { desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Address } from 'viem';
 import { config } from '../../config';
-import { auditLog, epochs, kv, models as modelsTable } from '../../db/schema';
+import { auditLog, epochs, kv, models as modelsTable, nodes } from '../../db/schema';
 import { requireAddress } from '../../lib/contracts';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
@@ -35,6 +35,8 @@ export interface AdminDeps {
   refreshCatalog(): Promise<void>;
   addresses(): { claims?: Address; treasury?: Address };
   now(): Date;
+  /** HOUSE_OWNER_ADDRESS (injectable for tests). */
+  houseOwner?(): string | undefined;
 }
 
 export const defaultAdminDeps: AdminDeps = {
@@ -332,4 +334,26 @@ export async function putModels(
     logger.warn({ err: String(err) }, 'admin: refreshCatalog failed after models change');
   }
   return getModels();
+}
+
+// ---- house node -----------------------------------------------------------------------------------
+
+/** Mark/unmark a node as the house node. Marking requires the node to be owned by HOUSE_OWNER_ADDRESS. */
+export async function setNodeHouse(
+  id: string,
+  isHouse: boolean,
+  who: string,
+  deps: AdminDeps = defaultAdminDeps,
+) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new AppError('NOT_FOUND', 'Node not found.');
+  const [node] = await dbRef.db.select().from(nodes).where(eq(nodes.id, id));
+  if (!node) throw new AppError('NOT_FOUND', 'Node not found.');
+  if (isHouse) {
+    const houseOwner = (deps.houseOwner ? deps.houseOwner() : config.HOUSE_OWNER_ADDRESS)?.toLowerCase();
+    if (!houseOwner || node.owner.toLowerCase() !== houseOwner)
+      throw new AppError('VALIDATION', 'Only a node owned by HOUSE_OWNER_ADDRESS can be the house node.');
+  }
+  await dbRef.db.update(nodes).set({ isHouse }).where(eq(nodes.id, id));
+  await audit(who, 'admin.node.house', id, { isHouse, previous: node.isHouse, owner: node.owner });
+  return { id, isHouse };
 }

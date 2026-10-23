@@ -1,8 +1,8 @@
 // Fetch a receipt, verify the node's COSE signature, then verify your leaf in the epoch Merkle tree
 // against the root posted on-chain.
 //   bun verify-receipt.ts <jobId>
-//   OWNER_ADDRESS=0x...  node owner whose leaf to prove (the earning address)
-//   NODE_PUBKEY=0x...    optional, the node's registered public key (otherwise recovered from the signature)
+//   OWNER_ADDRESS=0x...  node owner whose leaf to prove (default: the receipt's owner)
+//   NODE_PUBKEY=0x...    optional override (default: the receipt's nodePubkey, else recovered from the signature)
 //   RPC_URL + CLAIMS_ADDRESS  optional, compare the tree root with SpindleClaims.roots(epoch)
 import { createPublicClient, http, parseAbi } from 'viem';
 import { checkEpochTree, checkReceipt, type ReceiptView, type TreeDump } from './receipt-lib.ts';
@@ -20,7 +20,7 @@ try {
   if (!jobId)
     throw new Error('usage: bun verify-receipt.ts <jobId>  (the X-Spindle-Job-Id of a finished job)');
   const view = await get<ReceiptView>(`/v1/receipts/${jobId}`);
-  const r = checkReceipt(view, process.env.NODE_PUBKEY);
+  const r = checkReceipt(view, process.env.NODE_PUBKEY ?? view.nodePubkey);
   console.log(
     `receipt ${view.jobId} model=${view.model} lane=${view.lane} usage=${view.usage.p}/${view.usage.c} server-verified=${view.verified}`,
   );
@@ -37,7 +37,7 @@ try {
   } else {
     const tree = checkEpochTree(
       await get<TreeDump>(`/v1/epochs/${view.epoch}/tree`),
-      process.env.OWNER_ADDRESS,
+      process.env.OWNER_ADDRESS ?? view.owner,
     );
     console.log(`epoch ${view.epoch}: ${tree.leaves} leaves, root ${tree.root}`);
     if (tree.ownerProofValid === false)
