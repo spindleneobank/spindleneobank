@@ -24,7 +24,7 @@ export const settings = {
 };
 
 /** Paths guarded by the session loader and CSRF. Webhooks and buyer API routes are deliberately absent. */
-export const COOKIE_AUTH_PATHS = ['/v1/app/*', '/v1/auth/*', '/v1/admin/*', '/v1/x402/*'] as const;
+export const COOKIE_AUTH_PATHS = ['/v1/app/*', '/v1/auth/*', '/v1/admin/*'] as const;
 
 /** Database handle used by the auth module; tests swap it for the throwaway test database. */
 export const dbRef: { db: typeof db } = { db };

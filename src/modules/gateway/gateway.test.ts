@@ -698,7 +698,7 @@ describe('embeddings, models, auth', () => {
     expect(anon.status).toBe(401);
   });
 
-  test('x402 is a registered hook: no credentials -> 401 until B10 registers a provider', async () => {
+  test('x402 is a pluggable hook: 401 without a registered provider, a provider challenge is sent verbatim with it', async () => {
     await spawnNode({ onJob: streams(['x']) });
     expect((await post('/v1/chat/completions', chatBody, {}, null)).status).toBe(401);
     const { registerPaymentProvider, unregisterPaymentProvider } = await import('./payment');
