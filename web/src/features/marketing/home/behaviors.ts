@@ -101,9 +101,15 @@ export function initVideos(tree: HTMLElement): () => void {
   const vids = Array.from(tree.querySelectorAll<HTMLVideoElement>('video'));
   for (const v of vids) {
     v.muted = true;
-    // The old page flags the poster <img> (data-sp-video) once the video loads, which hides it, but the Framer
-    // hydration swaps that <img> node out below the desktop breakpoint and before first frame on desktop, so
-    // the poster is visible in every measured state. The video covers it either way, so it is never hidden here.
+    const flag = () => {
+      // Old page: Framer swaps the poster <img> node on tablet/phone hydration, so below the desktop breakpoint the
+      // poster stays visible (the loaded video covers it either way). Desktop hides it once the video has loaded.
+      if (!matchMedia('(min-width: 1200px)').matches) return;
+      const img = v.parentElement?.querySelector('img');
+      if (img) img.dataset.spVideo = '1';
+    };
+    v.addEventListener('loadeddata', flag);
+    if (v.readyState >= 2) flag();
   }
   const io = new IntersectionObserver(
     (entries) => {
