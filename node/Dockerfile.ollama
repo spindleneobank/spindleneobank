@@ -17,21 +17,33 @@ WORKDIR /app/node
 RUN case "$TARGETARCH" in amd64) T=bun-linux-x64 ;; arm64) T=bun-linux-arm64 ;; *) echo "unsupported arch $TARGETARCH" >&2; exit 1 ;; esac \
  && bun build src/main.ts --compile --minify --target="$T" --outfile /out/spindle-node
 
-# ---- stage 2: Ollama runtime ----
-# ollama 0.40.9 (multi-arch index digest)
-FROM ollama/ollama:0.40.9@sha256:5c6707fcf2e1a30cffe2ecb7e315584fc87747c389327e4bc711c4959aa1eecc
+# ---- stage 2: Ollama runtime, slimmed ----
+# ollama 0.40.9 (multi-arch index digest). We drop what a Spindle node never uses:
+# mlx_cuda_v13 (2 GB, Apple-MLX style CUDA backend), vulkan, and C headers. cuda_v12 and cuda_v13 stay
+# (they cover the whole NVIDIA driver range); the CPU backends stay.
+FROM ollama/ollama:0.40.9@sha256:5c6707fcf2e1a30cffe2ecb7e315584fc87747c389327e4bc711c4959aa1eecc AS slim
 COPY --from=build /out/spindle-node /usr/local/bin/spindle-node
 COPY node/docker/entrypoint.sh /usr/local/bin/spindle-entrypoint
 RUN chmod 0755 /usr/local/bin/spindle-node /usr/local/bin/spindle-entrypoint \
+ && rm -rf /usr/lib/ollama/mlx_cuda_v13 /usr/lib/ollama/include /usr/lib/ollama/vulkan \
  && useradd --system --uid 10001 --home-dir /data --shell /usr/sbin/nologin spindle \
  && mkdir -p /data/ollama && chown -R 10001:10001 /data
-ENV SPINDLE_DATA_DIR=/data \
+
+# Flatten into one layer so the removed directories really disappear from the image size.
+FROM scratch
+COPY --from=slim / /
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64 \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    NVIDIA_VISIBLE_DEVICES=all \
+    SPINDLE_DATA_DIR=/data \
     SPINDLE_ENGINE=ollama \
     OLLAMA_MODELS=/data/ollama \
     OLLAMA_HOST=127.0.0.1:11434 \
     OLLAMA_NUM_PARALLEL=1 \
     OLLAMA_MAX_LOADED_MODELS=1 \
     HOME=/data
+EXPOSE 11434
 VOLUME /data
 USER 10001:10001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
