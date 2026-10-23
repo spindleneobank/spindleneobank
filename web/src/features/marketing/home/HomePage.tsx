@@ -4,6 +4,7 @@ import { type Breakpoint, useBreakpoint } from '../../../components/marketing/mo
 import desktopHtml from './markup/desktop.html?raw';
 import phoneHtml from './markup/phone.html?raw';
 import tabletHtml from './markup/tablet.html?raw';
+import { mountDigitalPreview } from './digitalPreview';
 import './home.generated.css';
 import './home.css';
 
@@ -39,6 +40,39 @@ export function HomePage() {
     el.addEventListener('click', onClick);
     return () => el.removeEventListener('click', onClick);
   }, [navigate]);
+
+  // Hero cursor-reveal (port of digital-previews.js) and open-the-dashboard on click / Enter / Space.
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || !live) return;
+    const disposers: Array<() => void> = [];
+    const open = (host: Element) => {
+      const to = (host as HTMLElement).dataset.spDashboardPreview === 'footer' ? '/dashboard?tab=cards' : '/dashboard';
+      location.assign(to);
+    };
+    const onClick = (e: MouseEvent) => {
+      const host = (e.target as Element).closest('[data-sp-dashboard-preview]');
+      if (host && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        open(host);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      const host = (e.target as Element).closest('[data-sp-dashboard-preview]');
+      if (host && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        open(host);
+      }
+    };
+    for (const host of el.querySelectorAll<HTMLElement>('[data-sp-dashboard-preview]')) disposers.push(mountDigitalPreview(host));
+    el.addEventListener('click', onClick, true);
+    el.addEventListener('keydown', onKey, true);
+    return () => {
+      for (const d of disposers) d();
+      el.removeEventListener('click', onClick, true);
+      el.removeEventListener('keydown', onKey, true);
+    };
+  }, [live, bp]);
 
   return (
     <div
