@@ -37,3 +37,10 @@
   display: block;
   gap: normal;
 }
+
+/* Dash flow of the workflow diagram; the suffix is the React useId of the old instance per breakpoint. */
+@keyframes workflow-flow-r1k {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
