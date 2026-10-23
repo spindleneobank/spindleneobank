@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'bun:test';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, concatBytes, hexToBytes } from '@noble/hashes/utils.js';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import {
   decodeReceipt,
@@ -78,5 +81,48 @@ describe('receipt', () => {
     expect(outputDigest('images', [new Uint8Array([1]), new Uint8Array([2])])).toBe(
       outputDigest('images', new Uint8Array([1, 2])),
     );
+  });
+
+  test('RFC 9052 byte layout (no cbor-x tags)', () => {
+    const fixedKey = `0x${'11'.repeat(32)}` as const;
+    const fa = privateKeyToAccount(fixedKey);
+    const p = { ...payload(), nodeKey: fa.address };
+    const cose = signReceipt(p, fixedKey);
+    const kid = fa.address.slice(2).toLowerCase();
+    const prot = `a20138${'2e'}0454${kid}`; // {1:-47, 4:h'kid'}
+    const hex = bytesToHex(cose);
+    const payloadStart = `d284581a${prot}a0`.length;
+    expect(hex.startsWith(`d284581a${prot}a0`)).toBe(true);
+    // payload bstr, then 64-byte signature bstr
+    const rest = hex.slice(payloadStart);
+    expect(rest.startsWith('59')).toBe(true); // bstr with 2-byte length
+    const len = Number.parseInt(rest.slice(2, 6), 16);
+    const payloadHex = rest.slice(6, 6 + len * 2);
+    expect(rest.slice(6 + len * 2)).toMatch(/^5840[0-9a-f]{128}$/);
+    expect(payloadHex.startsWith('ad')).toBe(true); // plain definite map, no d90103
+    expect(hex).not.toContain('d90103');
+    expect(hex).not.toContain('d840');
+    // verify against a hand-built Sig_structure
+    const protBytes = hexToBytes(prot);
+    const sigStruct = concatBytes(
+      hexToBytes('84'),
+      hexToBytes('6a5369676e617475726531'), // ["Signature1"
+      hexToBytes('581a'),
+      protBytes,
+      hexToBytes('40'), // protected bstr, h''
+      hexToBytes('59'),
+      hexToBytes(rest.slice(2, 6)),
+      hexToBytes(payloadHex),
+    );
+    const sig = hexToBytes(rest.slice(6 + len * 2 + 4));
+    expect(
+      secp256k1.verify(sig, sha256(sigStruct), hexToBytes(fa.publicKey.slice(2)), { prehash: false }),
+    ).toBe(true);
+  });
+
+  test('verify rejects a key whose address differs from kid', () => {
+    const c = signReceipt(payload(), pk);
+    const other = privateKeyToAccount(generatePrivateKey());
+    expect(verifyReceipt(c, other.publicKey)).toBe(false);
   });
 });
