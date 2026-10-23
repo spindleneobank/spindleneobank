@@ -160,3 +160,57 @@ export function estimateChatPrompt(modelId: string, messages: ChatMessageLike[])
 export function estimateText(modelId: string, text: string): TokenCount {
   return countWith(getTokenizerIfCached(modelId), text);
 }
+
+// ---- reservation upper bounds -------------------------------------------------------------------------
+
+const utf8Bytes = (s: string): number => Buffer.byteLength(s, 'utf8');
+const PER_MESSAGE_OVERHEAD = 8;
+const CHAT_OVERHEAD = 32;
+const PER_INPUT_OVERHEAD = 16;
+
+/**
+ * Hard UPPER bound on prompt tokens, used for reservations (never chars/3). With the tokenizer
+ * cached: exact count x 1.1 + template overhead. Otherwise the UTF-8 byte length (a BPE token
+ * covers at least one byte) plus per-message and fixed template overhead.
+ */
+export function promptUpperBound(modelId: string, messages: ChatMessageLike[]): number {
+  const texts = messages.map(messageText);
+  const overhead = PER_MESSAGE_OVERHEAD * messages.length + CHAT_OVERHEAD;
+  const tok = getTokenizerIfCached(modelId);
+  if (tok) {
+    try {
+      const exact = texts.reduce((n, t) => n + tok.encode(t, { add_special_tokens: false }).length, 0);
+      return Math.ceil(exact * 1.1) + overhead;
+    } catch {
+      // fall through to the byte bound
+    }
+  }
+  return texts.reduce((n, t) => n + utf8Bytes(t), 0) + overhead;
+}
+
+/** Hard upper bound on embeddings input tokens (bytes + 16 per input without a tokenizer). */
+export function inputsUpperBound(modelId: string, inputs: string[]): number {
+  const tok = getTokenizerIfCached(modelId);
+  if (tok) {
+    try {
+      return inputs.reduce(
+        (n, t) =>
+          n + Math.ceil(tok.encode(t, { add_special_tokens: false }).length * 1.1) + PER_INPUT_OVERHEAD,
+        0,
+      );
+    } catch {
+      // fall through
+    }
+  }
+  return inputs.reduce((n, t) => n + utf8Bytes(t) + PER_INPUT_OVERHEAD, 0);
+}
+
+/** Background-load every enabled catalog tokenizer so the byte bound is the exception. */
+export async function warmTokenizers(): Promise<void> {
+  try {
+    const { loadCatalog } = await import('../nodes/service');
+    for (const m of await loadCatalog()) await getTokenizer(m.id, 120_000);
+  } catch (err) {
+    logger.warn({ err: String(err) }, 'tokenizer warmup failed');
+  }
+}

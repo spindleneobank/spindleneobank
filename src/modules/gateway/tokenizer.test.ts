@@ -6,6 +6,8 @@ import {
   countTokens,
   estimateChatPrompt,
   getTokenizer,
+  inputsUpperBound,
+  promptUpperBound,
   resetTokenizerCache,
   type Tok,
   tokenizerSettings,
@@ -75,6 +77,49 @@ describe('tokenizer', () => {
     expect(estimateChatPrompt('qwen2.5:7b', [{ role: 'user', content: 'hello' }]).estimated).toBe(true);
     expect(Date.now() - t0).toBeLessThan(50);
   });
+
+  test('upper bound: bytes + overhead without a tokenizer; >= exact count with one', async () => {
+    tokenizerSettings.load = async () => {
+      throw new Error('offline');
+    };
+    const cjk = [{ role: 'user', content: '你好，世界'.repeat(20) }];
+    expect(promptUpperBound('qwen2.5:7b', cjk)).toBe(Buffer.byteLength('你好，世界'.repeat(20)) + 8 + 32);
+    expect(inputsUpperBound('nomic-embed-text', ['😀', 'x'])).toBe(4 + 16 + 1 + 16);
+    resetTokenizerCache();
+    tokenizerSettings.load = async () => fake();
+    await getTokenizer('qwen2.5:7b');
+    expect(promptUpperBound('qwen2.5:7b', [{ role: 'user', content: 'abcdefghij' }])).toBe(11 + 8 + 32);
+  });
+
+  test('real Qwen tokenizer: byte bound covers real prompt tokens (CJK, emoji, code)', async () => {
+    tokenizerSettings.cacheDir = join(tmpdir(), 'spindle-tokenizers');
+    const tok = await getTokenizer('qwen2.5:7b', 30_000);
+    if (!tok) return console.warn('HF tokenizer unavailable: skipping');
+    resetTokenizerCache();
+    tokenizerSettings.load = async () => {
+      throw new Error('force byte bound');
+    };
+    const samples = [
+      '你好，世界！这是一个测试。'.repeat(30),
+      '😀🚀🔥👩‍👩‍👧‍👦'.repeat(30),
+      'for(let i=0;i<n;i++){x^=(x<<13)|0;}\n'.repeat(30),
+    ];
+    for (const s of samples) {
+      const msgs = [{ role: 'user', content: s }];
+      const real = (
+        await (async () => {
+          tokenizerSettings.load = realLoad;
+          return countChatPrompt('qwen2.5:7b', msgs);
+        })()
+      ).tokens;
+      resetTokenizerCache();
+      tokenizerSettings.load = async () => {
+        throw new Error('x');
+      };
+      expect(promptUpperBound('qwen2.5:7b', msgs)).toBeGreaterThanOrEqual(real);
+      resetTokenizerCache();
+    }
+  }, 60_000);
 
   // Real HF tokenizer (network). Skipped offline.
   test('real Qwen tokenizer matches the chat template', async () => {

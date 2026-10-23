@@ -413,7 +413,7 @@ describe('release on every failure path', () => {
     expect((await lastJob())?.status).toBe('timeout');
   });
 
-  test('node error after the first chunk (stream) -> error frame, released, nothing charged', async () => {
+  test('node error after the first chunk (stream) -> error frame, delivered tokens billed, rest released', async () => {
     await spawnNode({
       onJob: (node, j) => {
         node.conn.send({ v: 1, type: 'job.accepted', jobId: j.jobId });
@@ -427,7 +427,8 @@ describe('release on every failure path', () => {
     expect(text).toContain('"error"');
     expect(text.trimEnd().endsWith('data: [DONE]')).toBe(true);
     await waitFor(settled);
-    expect(await balance()).toEqual({ balance: 1_000_000n, reserved: 0n });
+    // delivered: 'par' = 1 completion token + prompt bound-free recount ('user\nhi' = 3) -> 4 micros
+    expect(await balance()).toEqual({ balance: 1_000_000n - 4n, reserved: 0n });
     expect((await lastJob())?.status).toBe('failed');
   });
 
@@ -481,6 +482,125 @@ describe('release on every failure path', () => {
     await waitFor(async () => (await lastJob())?.status === 'cancelled');
     await waitFor(settled);
     expect((await lastJob())?.buyerUsdgMicros).toBe(5n); // 3 prompt + 2 completion (estimated)
+  });
+});
+
+describe('under-billing guard', () => {
+  const run = async (content: string, maxTokens: number, usageFor: (bytes: number) => number) => {
+    const bytes = Buffer.byteLength(content, 'utf8');
+    const prompt = usageFor(bytes);
+    await spawnNode({ onJob: streams(['ok'], { promptTokens: prompt, completionTokens: maxTokens }) });
+    const warns: unknown[] = [];
+    const { logger } = await import('../../lib/logger');
+    const orig = logger.warn.bind(logger);
+    (logger as unknown as { warn: unknown }).warn = (...a: unknown[]) => {
+      warns.push(a[0]);
+      return (orig as (...x: unknown[]) => unknown)(...a);
+    };
+    try {
+      const res = await post('/v1/chat/completions', {
+        model: 'qwen2.5:7b',
+        messages: [{ role: 'user', content }],
+        max_tokens: maxTokens,
+      });
+      expect(res.status).toBe(200);
+      await waitFor(settled);
+    } finally {
+      (logger as unknown as { warn: unknown }).warn = orig;
+    }
+    const job = await lastJob();
+    return {
+      job,
+      prompt,
+      clamped: warns.some(
+        (w) => JSON.stringify(w).includes('jobId') && JSON.stringify(w).includes('reserved'),
+      ),
+    };
+  };
+
+  test('CJK prompt, max_tokens 10, no tokenizer: worst case (1 token per byte + template) is fully covered', async () => {
+    const { job, prompt, clamped } = await run('你好，世界！'.repeat(40), 10, (b) => b + 31);
+    expect(clamped).toBe(false);
+    expect(job?.buyerUsdgMicros).toBe(BigInt(prompt + 10)); // 1 micro/token, nothing clamped
+  });
+
+  test('emoji prompt is covered', async () => {
+    const { job, prompt, clamped } = await run('😀🚀'.repeat(50), 10, (b) => b + 31);
+    expect(clamped).toBe(false);
+    expect(job?.buyerUsdgMicros).toBe(BigInt(prompt + 10));
+  });
+
+  test('embeddings code input is covered', async () => {
+    const code = 'function f(a:number){return a<<2|0x7f;}\n'.repeat(30);
+    const bytes = Buffer.byteLength(code, 'utf8');
+    await spawnNode({
+      onJob: (node, j) =>
+        node.conn.send({
+          v: 1,
+          type: 'job.done',
+          jobId: j.jobId,
+          output: { object: 'list', data: [{ object: 'embedding', index: 0, embedding: [1] }] },
+          usage: { promptTokens: bytes + 16, completionTokens: 0 },
+          receipt: 'AA==',
+        }),
+    });
+    const res = await post('/v1/embeddings', { model: 'nomic-embed-text', input: code });
+    expect(res.status).toBe(200);
+    await waitFor(settled);
+    expect((await lastJob())?.buyerUsdgMicros).toBe(BigInt(bytes + 16));
+  });
+});
+
+describe('reservation reconciliation', () => {
+  test('terminal job with a leaked authorization is released after 5 minutes; consistency check flags mismatches', async () => {
+    const { reconcileTerminalAuths, checkReservationConsistency, insertJob, newJobId } = await import(
+      './service'
+    );
+    const { reserve } = await import('../buyers/service');
+    const jobId = newJobId();
+    await reserve(buyerId, 10n);
+    await insertJob({
+      jobId,
+      req: { kind: 'chat', model: (await import('../../shared/catalog')).DEFAULT_CATALOG[1] } as never,
+      auth: { provider: 'balance', payMode: 'balance', buyerId, jobId, reservedMicros: 10n },
+      rates: new Map(),
+    });
+    expect(await checkReservationConsistency()).toHaveLength(0);
+    await t.db.update(jobs).set({ status: 'failed', finishedAt: new Date() }).where(eq(jobs.id, jobId));
+    expect(await reconcileTerminalAuths()).toBe(0); // too fresh
+    // break the books: reserved without a live authorization
+    await t.db
+      .update(buyerBalances)
+      .set({ reservedUsdgMicros: 25n })
+      .where(eq(buyerBalances.buyerId, buyerId));
+    const bad = await checkReservationConsistency();
+    expect(bad).toEqual([{ buyerId, reserved: 25n, live: 10n }]);
+    await t.db
+      .update(buyerBalances)
+      .set({ reservedUsdgMicros: 10n })
+      .where(eq(buyerBalances.buyerId, buyerId));
+    expect(await reconcileTerminalAuths(Date.now() + 6 * 60_000)).toBe(1);
+    expect((await balance()).reserved).toBe(0n);
+    expect(await reconcileTerminalAuths(Date.now() + 6 * 60_000)).toBe(0);
+  });
+
+  test('client abort before the first byte cancels the job and releases', async () => {
+    await spawnNode({ onJob: () => {} }); // never answers
+    const ctrl = new AbortController();
+    const p = fetch(`${base}/v1/chat/completions`, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ ...chatBody, stream: true }),
+    }).catch(() => null);
+    await waitFor(
+      async () => (await lastJob())?.status === 'dispatched' || (await lastJob())?.status === 'running',
+    );
+    ctrl.abort();
+    await p;
+    await waitFor(async () => (await lastJob())?.status === 'cancelled');
+    await waitFor(settled);
+    expect(await balance()).toEqual({ balance: 1_000_000n, reserved: 0n });
   });
 });
 

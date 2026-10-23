@@ -31,7 +31,7 @@ import {
   resolveModel,
 } from './service';
 import { chunk, errorFrame, finalChunk, roleChunk, SSE_DONE, SSE_HEADERS, sseData } from './sse';
-import { estimateChatPrompt, estimateText } from './tokenizer';
+import { inputsUpperBound, promptUpperBound } from './tokenizer';
 
 const receiptUrl = (jobId: string) => `/v1/receipts/${jobId}`;
 
@@ -139,6 +139,8 @@ function outputOf(done: JobDone): { content: string; reasoning: string; finish?:
   };
 }
 
+const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e)).slice(0, 500);
+
 // ---- request builders ----------------------------------------------------------------------------------
 
 async function buildChat(c: Context<Env>): Promise<GatewayRequest> {
@@ -146,7 +148,7 @@ async function buildChat(c: Context<Env>): Promise<GatewayRequest> {
   const lane = laneOf(c);
   const model = await resolveModel(body.model, 'chat', lane);
   const maxTokens = body.max_tokens ?? MAX_TOKENS_DEFAULT;
-  const prompt = estimateChatPrompt(model.id, body.messages);
+  const promptBound = promptUpperBound(model.id, body.messages);
   const node: Record<string, unknown> = {
     model: model.id,
     messages: body.messages,
@@ -164,7 +166,7 @@ async function buildChat(c: Context<Env>): Promise<GatewayRequest> {
     body: node,
     stream: body.stream === true,
     maxTokens,
-    estimate: { kind: 'chat', promptTokens: prompt.tokens, maxTokens },
+    estimate: { kind: 'chat', promptTokens: promptBound, maxTokens },
     messages: body.messages,
   };
 }
@@ -174,7 +176,7 @@ async function buildEmbeddings(c: Context<Env>): Promise<GatewayRequest> {
   const lane = laneOf(c);
   const model = await resolveModel(body.model, 'embeddings', lane);
   const inputs = Array.isArray(body.input) ? body.input : [body.input];
-  const tokens = inputs.reduce((n, t) => n + estimateText(model.id, t).tokens, 0);
+  const tokens = inputsUpperBound(model.id, inputs);
   return {
     kind: 'embeddings',
     model,
@@ -205,14 +207,23 @@ async function buildImages(c: Context<Env>): Promise<GatewayRequest> {
 
 // ---- responders ---------------------------------------------------------------------------------------
 
-async function respondChatStream(run: JobRun): Promise<Response> {
+async function respondChatStream(c: Context<Env>, run: JobRun): Promise<Response> {
   const gen = run.deltas();
   let first: IteratorResult<Delta, JobDone>;
+  const signal = c.req.raw.signal;
+  const onAbort = () => run.abort();
+  signal.addEventListener('abort', onAbort, { once: true });
   try {
     first = await gen.next(); // before the first byte: errors are plain HTTP errors
   } catch (err) {
+    if (run.aborted) {
+      await cancelRun(run);
+      return new Response(null, { status: 499 });
+    }
     await failRun(run.jobId, err);
     throw httpError(err);
+  } finally {
+    signal.removeEventListener('abort', onAbort);
   }
   const base = {
     id: `chatcmpl-${run.jobId}`,
@@ -282,7 +293,8 @@ async function respondChatStream(run: JobRun): Promise<Response> {
           if (run.aborted) {
             await cancelRun(run);
           } else {
-            await failRun(run.jobId, err);
+            if (run.text || run.reasoning) await cancelRun(run, 'failed', errorMessage(err));
+            else await failRun(run.jobId, err);
             const e = httpError(err);
             const code = e instanceof AppError ? e.code : 'INTERNAL';
             send(errorFrame(e instanceof AppError ? e.message : 'Internal server error', code));
@@ -353,11 +365,19 @@ async function respondChatJson(c: Context<Env>, run: JobRun): Promise<Response> 
 
 async function respondUnary(c: Context<Env>, run: JobRun): Promise<Response> {
   let done: JobDone;
+  const onAbort = () => run.abort();
+  c.req.raw.signal.addEventListener('abort', onAbort, { once: true });
   try {
     done = await drain(run);
   } catch (err) {
+    if (run.aborted) {
+      await cancelRun(run);
+      return new Response(null, { status: 499 });
+    }
     await failRun(run.jobId, err);
     throw httpError(err);
+  } finally {
+    c.req.raw.signal.removeEventListener('abort', onAbort);
   }
   const completed = await completeRun(run, done);
   void finishJob(run, done);
@@ -432,7 +452,9 @@ export default function gatewayRoutes(app: Hono<Env>): void {
 
   app.post(
     '/v1/chat/completions',
-    guarded(buildChat, async (c, run) => (run.req.stream ? respondChatStream(run) : respondChatJson(c, run))),
+    guarded(buildChat, async (c, run) =>
+      run.req.stream ? respondChatStream(c, run) : respondChatJson(c, run),
+    ),
   );
   app.post('/v1/embeddings', guarded(buildEmbeddings, respondUnary));
   app.post('/v1/images/generations', guarded(buildImages, respondUnary));

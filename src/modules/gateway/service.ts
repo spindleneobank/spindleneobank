@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, lt, sql } from 'drizzle-orm';
-import { jobs, rateCard } from '../../db/schema';
+import { buyerBalances, jobs, rateCard } from '../../db/schema';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import { getRedis } from '../../lib/redis';
@@ -64,32 +64,34 @@ export async function updateJob(jobId: string, patch: JobPatch, onlyFrom?: strin
 }
 
 const AUTH_TTL_SEC = 24 * 3600;
-const authKey = (jobId: string) => `gw:auth:${jobId}`;
-const liveAuth = new Map<string, Authorization>();
+export const authKey = (jobId: string) => `gw:auth:${jobId}`;
+/** Authorizations that could not be persisted to Redis (only these may be claimed locally). */
+const localOnly = new Map<string, Authorization>();
 
 async function rememberAuth(auth: Authorization): Promise<void> {
-  liveAuth.set(auth.jobId, auth);
-  await getRedis()
-    .set(authKey(auth.jobId), serializeAuth(auth), 'EX', AUTH_TTL_SEC)
-    .catch((err) => logger.warn({ err: String(err) }, 'could not persist job authorization'));
+  try {
+    await getRedis().set(authKey(auth.jobId), serializeAuth(auth), 'EX', AUTH_TTL_SEC);
+    localOnly.delete(auth.jobId);
+  } catch (err) {
+    logger.warn({ err: String(err) }, 'could not persist job authorization; keeping it in memory');
+    localOnly.set(auth.jobId, auth);
+  }
 }
 
-/** Atomically take the authorization for a job; the first caller wins, later callers get null. */
+/**
+ * Atomically take the authorization for a job; the first caller (any process) wins, later callers get
+ * null. Redis is the single authority, so the reaper and a late settle cannot both act.
+ */
 async function claimAuth(jobId: string): Promise<Authorization | null> {
-  const local = liveAuth.get(jobId);
-  if (local) {
-    liveAuth.delete(jobId);
-    await getRedis()
-      .del(authKey(jobId))
-      .catch(() => {});
-    return local;
-  }
   try {
     const raw = await getRedis().getdel(authKey(jobId));
-    return raw ? parseAuth(raw) : null;
+    if (raw) return parseAuth(raw);
   } catch {
-    return null;
+    // Redis down: fall back to the in-memory copy
   }
+  const local = localOnly.get(jobId);
+  localOnly.delete(jobId);
+  return local ?? null;
 }
 
 /**
@@ -212,6 +214,7 @@ export class JobRun {
   async *deltas(): AsyncGenerator<Delta, JobDone, void> {
     const tried = new Set<string>();
     for (;;) {
+      if (this.aborted) throw new JobFailure('CANCELLED', 'Job cancelled.', false, 0);
       const ranked = (
         await gatewayDeps.rank({
           model: this.req.model.id,
@@ -236,6 +239,7 @@ export class JobRun {
       }
       this.node = node;
       this.handle = handle;
+      if (this.aborted) handle.cancel();
       this.startedAt = Date.now();
       await updateJob(this.jobId, { nodeId: node.nodeId, status: 'dispatched', dispatchedAt: new Date() }, [
         'queued',
@@ -375,7 +379,13 @@ export async function completeRun(run: JobRun, done: JobDone): Promise<Completed
         ? ({ kind: 'embeddings', promptTokens: u.promptTokens } as const)
         : ({ kind: 'images', images: u.images ?? 0 } as const);
   let chargeMicros = actualCharge(usage, rate);
-  if (chargeMicros > run.auth.reservedMicros) chargeMicros = run.auth.reservedMicros;
+  if (chargeMicros > run.auth.reservedMicros) {
+    logger.warn(
+      { jobId: run.jobId, charge: chargeMicros.toString(), reserved: run.auth.reservedMicros.toString() },
+      'node-reported usage exceeds the reservation; charging the reservation',
+    );
+    chargeMicros = run.auth.reservedMicros;
+  }
   const units =
     run.req.kind === 'images'
       ? (u.images ?? 0)
@@ -404,7 +414,11 @@ export async function completeRun(run: JobRun, done: JobDone): Promise<Completed
  * The client disconnected mid-stream: bill for the tokens already produced (gateway recount, never
  * more than the reservation) and release the rest.
  */
-export async function cancelRun(run: JobRun): Promise<void> {
+export async function cancelRun(
+  run: JobRun,
+  status: 'cancelled' | 'failed' | 'timeout' = 'cancelled',
+  reason = 'client disconnected',
+): Promise<void> {
   try {
     const rate = run.rate();
     let charge = 0n;
@@ -419,13 +433,13 @@ export async function cancelRun(run: JobRun): Promise<void> {
     await updateJob(
       run.jobId,
       {
-        status: 'cancelled',
+        status,
         promptTokens: prompt,
         completionTokens: completion,
         units: String(prompt + completion),
         buyerUsdgMicros: charge,
         finishedAt: new Date(),
-        error: 'client disconnected',
+        error: reason,
       },
       ['queued', 'dispatched', 'running'],
     );
@@ -550,4 +564,70 @@ export async function reapStuckJobs(now = Date.now()): Promise<number> {
     );
   }
   return n;
+}
+
+export const TERMINAL_AUTH_GRACE_MS = 5 * 60_000;
+
+/** Every live `gw:auth:*` authorization in Redis (SCAN; the set is small). */
+async function liveAuths(): Promise<Authorization[]> {
+  const redis = getRedis();
+  const out: Authorization[] = [];
+  let cursor = '0';
+  do {
+    const [next, keys] = await redis.scan(cursor, 'MATCH', 'gw:auth:*', 'COUNT', 200);
+    cursor = next;
+    if (keys.length === 0) continue;
+    for (const raw of await redis.mget(keys)) {
+      if (raw) out.push(parseAuth(raw));
+    }
+  } while (cursor !== '0');
+  return out;
+}
+
+/**
+ * Reservations that outlived their job: a job in a terminal state for more than 5 minutes whose
+ * authorization is still held is settled (completed with a recorded charge: B7 never did) or released.
+ */
+export async function reconcileTerminalAuths(now = Date.now()): Promise<number> {
+  let n = 0;
+  for (const auth of await liveAuths()) {
+    const [job] = await dbRef.db.select().from(jobs).where(eq(jobs.id, auth.jobId)).limit(1);
+    if (!job || ['queued', 'dispatched', 'running'].includes(job.status)) continue;
+    if (now - (job.finishedAt?.getTime() ?? 0) < TERMINAL_AUTH_GRACE_MS) continue;
+    try {
+      if (job.status === 'completed' && job.buyerUsdgMicros > 0n) {
+        logger.warn({ jobId: job.id }, 'reaper settling a completed job whose charge was never settled');
+        await settleJob(job.id, job.buyerUsdgMicros);
+      } else {
+        await releaseJob(job.id);
+      }
+      n++;
+    } catch (err) {
+      logger.error({ err: String(err), jobId: job.id }, 'terminal auth reconcile failed');
+    }
+  }
+  return n;
+}
+
+/** Logs an error for any buyer whose `reserved` differs from the sum of their live authorizations. */
+export async function checkReservationConsistency(): Promise<
+  { buyerId: string; reserved: bigint; live: bigint }[]
+> {
+  const live = new Map<string, bigint>();
+  for (const a of await liveAuths()) {
+    if (a.payMode === 'balance') live.set(a.buyerId, (live.get(a.buyerId) ?? 0n) + a.reservedMicros);
+  }
+  const rows = await dbRef.db.select().from(buyerBalances);
+  const bad: { buyerId: string; reserved: bigint; live: bigint }[] = [];
+  for (const r of rows) {
+    const l = live.get(r.buyerId) ?? 0n;
+    if (r.reservedUsdgMicros !== l) bad.push({ buyerId: r.buyerId, reserved: r.reservedUsdgMicros, live: l });
+  }
+  for (const b of bad) {
+    logger.error(
+      { buyerId: b.buyerId, reserved: b.reserved.toString(), live: b.live.toString() },
+      'reservation mismatch: buyer_balances.reserved differs from live authorizations',
+    );
+  }
+  return bad;
 }
