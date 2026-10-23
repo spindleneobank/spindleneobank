@@ -8,8 +8,8 @@ import type { Hex } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
 import { auditLog, earningEvents, epochBalances, epochs, kv } from '../../db/schema';
-import type { KeeperTxInput, KeeperTxResult } from '../../lib/keeper';
 import { type Env, jsonError } from '../../lib/http';
+import type { KeeperTxInput, KeeperTxResult } from '../../lib/keeper';
 import { closeRedis } from '../../lib/redis';
 import { leafFor, treeFromJson } from '../../shared/merkle';
 import { dbRef } from '../auth/constants';
@@ -235,7 +235,11 @@ describe('poster', () => {
 
   const failing: [string, Partial<Record<keyof PosterChain, unknown>>, string][] = [
     ['insolvent', { poolBalance: async () => 999_999n }, 'insolvent'],
-    ['insolvent counts totalClaimed', { poolBalance: async () => 100n, totalClaimed: async () => 999_950n }, ''],
+    [
+      'insolvent counts totalClaimed',
+      { poolBalance: async () => 100n, totalClaimed: async () => 999_950n },
+      '',
+    ],
     ['cap exceeded', { maxEpochIncrease: async () => 10n }, 'maxEpochIncrease'],
     ['keeper ETH critical', { keeperEth: async () => 999n }, 'keeper ETH'],
     ['epoch not above maxPostedEpoch', { maxPostedEpoch: async () => 100n }, 'maxPostedEpoch'],
@@ -255,7 +259,7 @@ describe('poster', () => {
       expect(sent).toHaveLength(0);
       expect(await status()).toBe('failed');
       const [alert] = await t.db.select().from(kv).where(eq(kv.key, ALERT_KEY));
-      expect((alert?.value as { reason: string }).reason).toContain(match);
+      expect((alert?.value as { reason: string } | undefined)?.reason ?? '').toContain(match);
       expect((await t.db.select().from(auditLog)).length).toBe(1);
     });
   }
@@ -320,7 +324,11 @@ describe('poster', () => {
     expect((await postEpoch(100n, again.deps)).kind).toBe('posting');
     expect(calls).toBe(0);
     // root appears on chain
-    roots.set(100n, { root: row?.root as Hex, totalEarned: row?.totalEarnedUsdgMicros ?? 0n, postedAt: 1_700_000_000n });
+    roots.set(100n, {
+      root: row?.root as Hex,
+      totalEarned: row?.totalEarnedUsdgMicros ?? 0n,
+      postedAt: 1_700_000_000n,
+    });
     expect((await postEpoch(100n, again.deps)).kind).toBe('posted');
     expect(await status()).toBe('posted');
   });
@@ -335,9 +343,11 @@ describe('poster', () => {
 
   test('stale posting with no receipt and no root is re-armed to built', async () => {
     await built();
-    await t.db
-      .update(epochs)
-      .set({ status: 'posting', txHash: ROOT(5), builtAt: new Date(NOW.getTime() - POSTING_STALE_MS - 1000) });
+    await t.db.update(epochs).set({
+      status: 'posting',
+      txHash: ROOT(5),
+      builtAt: new Date(NOW.getTime() - POSTING_STALE_MS - 1000),
+    });
     const { deps } = mkDeps(mkChain().chain);
     await postEpoch(100n, deps);
     expect(await status()).toBe('built');
@@ -385,7 +395,7 @@ describe('routes', () => {
     await built();
     await t.db.update(epochs).set({ status: 'posted', postedAt: NOW, txHash: ROOT(3) });
     const res = await app().request('/v1/epochs/latest');
-    const j = await res.json();
+    const j = (await res.json()) as Record<string, unknown>;
     expect(j.epoch).toBe(100);
     expect(j.totalEarned).toBe('1000000');
     expect(j.claimableAt).toBe(new Date(NOW.getTime() + 3_600_000).toISOString());
@@ -396,7 +406,7 @@ describe('routes', () => {
     const res = await app().request('/v1/epochs/100/tree');
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toContain('immutable');
-    const j = await res.json();
+    const j = (await res.json()) as Record<string, unknown>;
     expect(j.format).toBe('standard-v1');
     expect((await app().request('/v1/epochs/999/tree')).status).toBe(404);
     expect((await app().request('/v1/epochs/abc/tree')).status).toBe(400);
