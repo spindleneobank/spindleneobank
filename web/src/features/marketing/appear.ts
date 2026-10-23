@@ -59,3 +59,16 @@ export function runBorderFade(root: HTMLElement) {
   });
   return () => cancelAnimationFrame(raf);
 }
+
+/**
+ * The old site's NumberFlow counters (`<number-flow-react>`) keep their digits in a shadow root that is not part of the
+ * serialized markup; the shadow content is stored in `data-p5-shadow` and attached here (static digits, as in the old
+ * page where the values never change after load).
+ */
+export function attachNumberShadows(root: HTMLElement) {
+  for (const el of root.querySelectorAll<HTMLElement>('[data-p5-shadow]')) {
+    if (el.shadowRoot) continue;
+    el.attachShadow({ mode: 'open' }).innerHTML = el.dataset.p5Shadow ?? '';
+  }
+  return () => {};
+}

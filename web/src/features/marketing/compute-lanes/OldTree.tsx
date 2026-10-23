@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useBreakpoint } from '../../../components/marketing/motion';
 import { ComingDialog } from '../../../components/marketing/shell';
 import { SOCIALS } from '../../../components/marketing/shell/nav-data';
-import { runAppear, runBorderFade } from '../appear';
+import { attachNumberShadows, runAppear, runBorderFade } from '../appear';
 import { useShaderHosts } from '../shaders';
 import { applyExceptions } from './exceptions';
 import { runFaq } from './faq';
@@ -26,7 +26,7 @@ export function OldTree() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const stops = [runAppear(el), runBorderFade(el), runFaq(el), runSlider(el, bp)];
+    const stops = [attachNumberShadows(el), runAppear(el), runBorderFade(el), runFaq(el), runSlider(el, bp)];
     return () => {
       for (const s of stops) s();
     };
