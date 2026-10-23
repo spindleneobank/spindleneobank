@@ -196,7 +196,7 @@ describe('challenge', () => {
     resetGuardMemo();
     const r = (await x402Provider.authorize(fakeCtx(), ctx())) as Challenge;
     expect(r.status).toBe(402);
-    expect(JSON.stringify(r.body)).toContain('use an API key with prepaid balance');
+    expect(JSON.stringify(r.body)).toContain('use an API key with a credit balance');
     expect(r.headers?.['PAYMENT-REQUIRED']).toBeUndefined();
   });
 });
