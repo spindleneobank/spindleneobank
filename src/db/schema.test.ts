@@ -79,32 +79,28 @@ describe('schema', () => {
       ],
       [
         'nodes',
-        t.db
-          .insert(schema.nodes)
-          .values({
-            owner: A,
-            userId: uid,
-            nodeKey: A,
-            nodePubkey: '04',
-            name: 'n',
-            engine: 'ollama',
-            gpuClass: 1,
-            lane: 'open',
-            status: bad,
-          }),
+        t.db.insert(schema.nodes).values({
+          owner: A,
+          userId: uid,
+          nodeKey: A,
+          nodePubkey: '04',
+          name: 'n',
+          engine: 'ollama',
+          gpuClass: 1,
+          lane: 'open',
+          status: bad,
+        }),
       ],
       [
         'jobs',
-        t.db
-          .insert(schema.jobs)
-          .values({
-            buyerId: b!.id,
-            model: 'm',
-            kind: 'chat',
-            unitKind: 'job',
-            payMode: 'balance',
-            status: bad,
-          }),
+        t.db.insert(schema.jobs).values({
+          buyerId: b!.id,
+          model: 'm',
+          kind: 'chat',
+          unitKind: 'job',
+          payMode: 'balance',
+          status: bad,
+        }),
       ],
       ['buyer_ledger', t.db.insert(schema.buyerLedger).values({ buyerId: b!.id, kind: bad, usdgMicros: 1n })],
       [
@@ -113,16 +109,14 @@ describe('schema', () => {
       ],
       [
         'epochs',
-        t.db
-          .insert(schema.epochs)
-          .values({
-            epoch: 1n,
-            root: '0x',
-            totalEarnedUsdgMicros: 0n,
-            owners: 0,
-            treePath: 'p',
-            status: bad,
-          }),
+        t.db.insert(schema.epochs).values({
+          epoch: 1n,
+          root: '0x',
+          totalEarnedUsdgMicros: 0n,
+          owners: 0,
+          treePath: 'p',
+          status: bad,
+        }),
       ],
       [
         'claims',
@@ -225,15 +219,13 @@ describe('schema', () => {
         status: 'completed',
       })
       .returning();
-    await t.db
-      .insert(schema.receipts)
-      .values({
-        jobId: j!.id,
-        nodeId: n!.id,
-        cose: new Uint8Array([1, 2, 3, 255]),
-        payload: {},
-        verified: true,
-      });
+    await t.db.insert(schema.receipts).values({
+      jobId: j!.id,
+      nodeId: n!.id,
+      cose: new Uint8Array([1, 2, 3, 255]),
+      payload: {},
+      verified: true,
+    });
     const [r] = await t.db.select().from(schema.receipts);
     expect([...(r!.cose as Uint8Array)]).toEqual([1, 2, 3, 255]);
   });
