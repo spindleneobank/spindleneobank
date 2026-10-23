@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, lte, sql } from 'drizzle-orm';
 import { config } from '../../config';
 import { claims, earningEvents, epochBalances, epochs, nodes } from '../../db/schema';
 import { AppError } from '../../lib/errors';
@@ -36,12 +36,7 @@ export async function earningsSummary(owner: string, now: Date = new Date()) {
   const [claimableEpoch] = await db
     .select()
     .from(epochs)
-    .where(
-      and(
-        eq(epochs.status, 'posted'),
-        sql`${epochs.postedAt} <= ${new Date(now.getTime() - CLAIM_DELAY_MS)}`,
-      ),
-    )
+    .where(and(eq(epochs.status, 'posted'), lte(epochs.postedAt, new Date(now.getTime() - CLAIM_DELAY_MS))))
     .orderBy(desc(epochs.epoch))
     .limit(1);
   let cumulative = 0n;
