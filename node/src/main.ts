@@ -9,6 +9,7 @@ import { loadOrCreateKey } from './key';
 import { createLogger, type Logger } from './log';
 import { ModelSync } from './models';
 import { ProbeRunner } from './probes';
+import { SealedRuntime, sealedEnabled } from './sealed/runtime';
 
 export const AGENT_VERSION: string = pkg.version;
 
@@ -64,6 +65,10 @@ async function main(): Promise<void> {
 
   let conn: NodeConnection;
   const send = (m: Parameters<NodeConnection['send']>[0]) => conn.send(m);
+  // Sealed lane (S1): only inside a dstack CVM (SPINDLE_SEALED=1); the HPKE key is generated here.
+  const sealed = sealedEnabled()
+    ? await SealedRuntime.create({ nodeKey: key.address, send, log })
+    : undefined;
   const runner = new JobRunner({
     engine,
     key,
@@ -71,6 +76,7 @@ async function main(): Promise<void> {
     log,
     agentVersion: AGENT_VERSION,
     lazy: config.devLazy,
+    ...(sealed ? { sealed } : {}),
   });
   const sync = new ModelSync({ engine, send, log });
   const probes = new ProbeRunner({
@@ -107,6 +113,7 @@ async function main(): Promise<void> {
       capacity: 1,
     };
     if (config.token) hello.enrollToken = config.token;
+    if (sealed) hello.attestation = await sealed.attestForHello();
     return hello;
   };
 
@@ -157,6 +164,7 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => void shutdown(0));
   process.on('SIGINT', () => void shutdown(0));
   conn.start();
+  sealed?.startRefresh();
 }
 
 if (import.meta.main) {

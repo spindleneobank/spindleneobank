@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "node_attestations_quote_verified_uq" ON "node_attestations" USING btree ("quote_hash") WHERE "node_attestations"."verified";

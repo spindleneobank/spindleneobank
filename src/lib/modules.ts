@@ -12,6 +12,7 @@ import epochRoutes from '../modules/epochs/routes';
 import floorJobs from '../modules/floor/jobs';
 import gatewayJobs from '../modules/gateway/jobs';
 import gateway from '../modules/gateway/routes';
+import sealed from '../modules/gateway/sealed';
 import health from '../modules/health/routes';
 import indexerJobs from '../modules/indexer/jobs';
 import meRoutes from '../modules/me/routes';
@@ -41,6 +42,7 @@ export const routeModules: readonly RouteModule[] = [
   stocks,
   nodesRoutes,
   buyers,
+  sealed, // S1: must precede `gateway` (intercepts X-Spindle-Lane: sealed)
   gateway,
   cardRoutes,
   cardWebhooks,

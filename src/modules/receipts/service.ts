@@ -9,6 +9,7 @@ import { receiptFromBase64, receiptToBase64 } from '../../shared/receipt';
 import { dbRef } from '../auth/constants';
 import { type CanaryFinished, onCanaryFinished } from '../canary/hooks';
 import { actualCharge, buyerRate, type Usage, unitKindFor, utcDay } from '../gateway/pricing';
+import { billableMs, gpuHourMicros } from '../gateway/sealed';
 import { registerJobFinishedHandler, releaseJob, settleJob } from '../gateway/service';
 import { type VerifyResult, verifyJobReceipt, withinTolerance } from './verify';
 
@@ -135,9 +136,18 @@ export const onJobFinished: OnJobFinished = async (jobId, done, view) => {
       counts = billed.counts;
     }
     if (mayCharge && billed) {
-      const rate = await buyerRate(node.gpuClass, lane, unitKindFor(kind), utcDay(job.createdAt));
+      const sealedBilling = lane === 'sealed' && v.payload; // S1: per GPU-hour from the attested receipt
+      const rate = await buyerRate(
+        node.gpuClass,
+        lane,
+        sealedBilling ? 'gpu_hour' : unitKindFor(kind),
+        utcDay(job.createdAt),
+      );
       if (!rate) throw new Error(`no rate card row for job ${jobId}`);
-      const wanted = actualCharge(billed.usage, rate);
+      const wanted =
+        sealedBilling && v.payload
+          ? gpuHourMicros(rate.buyerMicrosPerUnit, billableMs(v.payload, job))
+          : actualCharge(billed.usage, rate);
       // finalize clamps to the reservation and returns what was actually charged; null = already settled elsewhere
       const settled = await settleJob(jobId, wanted);
       if (settled !== null) charged = settled;

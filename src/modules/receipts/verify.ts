@@ -7,6 +7,7 @@ import {
   receiptFromBase64,
   verifyReceipt,
 } from '../../shared/receipt';
+import { verifyReceiptAttestation } from '../attest/verify';
 
 /** Stable reason codes stored in `receipts.reason`. */
 export const RECEIPT_REASONS = [
@@ -42,8 +43,7 @@ export interface VerifyResult {
 export type AttestationResult = { ok: true; ref: string } | { ok: false; reason: string };
 
 /**
- * Sealed-lane attestation check. S1 replaces `verifyDeps.attestation` with
- * `attest.verifyReceiptAttestation`; until then the lane cannot verify.
+ * Sealed-lane attestation check (S1: `attest.verifyReceiptAttestation`).
  */
 export const verifyDeps: {
   attestation: (
@@ -52,7 +52,7 @@ export const verifyDeps: {
     view: GatewayView,
   ) => AttestationResult | Promise<AttestationResult>;
 } = {
-  attestation: () => ({ ok: false, reason: 'SEALED_UNAVAILABLE' }),
+  attestation: verifyReceiptAttestation,
 };
 
 /** Allowed difference between the node's count and the gateway's recount: max(3, 2%). */

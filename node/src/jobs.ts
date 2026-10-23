@@ -4,6 +4,7 @@ import { type Engine, EngineError } from './engine';
 import type { NodeKey } from './key';
 import type { Logger } from './log';
 import { buildReceiptPayload, type JobOutput, type ReceiptUsage } from './receipts';
+import type { SealedJobCtx } from './sealed/runtime';
 import type { SendFn } from './send';
 
 export interface JobRunnerOptions {
@@ -15,6 +16,8 @@ export interface JobRunnerOptions {
   lazy?: boolean;
   batchMs?: number;
   now?: () => number;
+  /** Sealed lane (S1): opens HPKE-sealed jobs inside the CVM. Absent on normal nodes. */
+  sealed?: { open(job: JobStartMsg): Promise<SealedJobCtx> };
 }
 
 type ErrCode = JobErrorMsg['code'];
@@ -46,6 +49,8 @@ export function mapEngineError(e: unknown): JobFail {
 
 export class JobRunner {
   private current: Active | null = null;
+  /** Sealed job in flight (one job at a time): routes chunks/done through the HPKE sealer. */
+  private sealedCtx: SealedJobCtx | null = null;
 
   constructor(private readonly o: JobRunnerOptions) {}
 
@@ -98,14 +103,22 @@ export class JobRunner {
     return active.done;
   }
 
-  private async run(job: JobStartMsg, active: Active): Promise<void> {
+  private async run(job0: JobStartMsg, active: Active): Promise<void> {
     const { send, log } = this.o;
+    let job = job0;
     const now = this.o.now ?? Date.now;
     const startedAt = now();
     const timeoutMs = job.deadlineMs > 1e12 ? Math.max(1, job.deadlineMs - startedAt) : job.deadlineMs;
     const timer = setTimeout(() => this.abort('timeout'), timeoutMs);
     try {
-      if (job.sealed) throw new JobFail('ENGINE_ERROR', 'sealed lane not supported by this agent build');
+      if (job.sealed) {
+        if (!this.o.sealed)
+          throw new JobFail('ENGINE_ERROR', 'sealed lane not supported by this agent build');
+        this.sealedCtx = await this.o.sealed.open(job).catch((e) => {
+          throw new JobFail('ENGINE_ERROR', `cannot open sealed request: ${(e as Error).message}`);
+        });
+        job = this.sealedCtx.plain;
+      }
       send({ v: 1, type: 'job.accepted', jobId: job.jobId });
       let result: { output: JobOutput; response: unknown; usage: ReceiptUsage; digest: string };
       if (job.kind === 'chat') result = await this.chat(job, active);
@@ -113,16 +126,20 @@ export class JobRunner {
       else result = await this.images(job, active);
       if (active.reason) throw new Error('aborted');
       const finishedAt = now();
+      const sc = this.sealedCtx;
+      // sealed: input digest covers the envelope the gateway relayed, output digest the sealed chunk frames
+      const sealedOut = sc ? await sc.settle() : null;
       const payload = buildReceiptPayload(
-        job,
-        result.output,
-        result.usage,
+        sc ? sc.receiptJob : job,
+        sealedOut ?? result.output,
+        sc ? { promptTokens: 0, completionTokens: 0 } : result.usage,
         { startedAt, finishedAt },
         this.o.key,
         { modelDigest: result.digest, agentVersion: this.o.agentVersion },
       );
+      if (sc) payload.attestation = sc.attestation;
       const receipt = receiptToBase64(signReceipt(payload, this.o.key.privateKey));
-      send({
+      this.out({
         v: 1,
         type: 'job.done',
         jobId: job.jobId,
@@ -137,11 +154,19 @@ export class JobRunner {
       }
       const f =
         active.reason === 'timeout' ? new JobFail('TIMEOUT', 'job exceeded its deadline') : mapEngineError(e);
-      log.warn(`job ${job.jobId} failed: ${f.code} ${f.message}`);
-      send({ v: 1, type: 'job.error', jobId: job.jobId, code: f.code, message: f.message });
+      // sealed jobs: engine errors may echo the prompt, so only the code leaves the CVM / reaches the log
+      const msg = this.sealedCtx ? 'sealed job failed' : f.message;
+      log.warn(`job ${job.jobId} failed: ${f.code} ${msg}`);
+      send({ v: 1, type: 'job.error', jobId: job.jobId, code: f.code, message: msg });
     } finally {
       clearTimeout(timer);
+      this.sealedCtx = null;
     }
+  }
+
+  /** Outgoing messages of the running job: sealed to the buyer for sealed-lane jobs. */
+  private get out(): SendFn {
+    return this.sealedCtx?.send ?? this.o.send;
   }
 
   private async modelDigest(job: JobStartMsg): Promise<string> {
@@ -160,7 +185,8 @@ export class JobRunner {
   }
 
   private async chat(job: JobStartMsg, active: Active) {
-    const { send, engine } = this.o;
+    const { engine } = this.o;
+    const send = this.out;
     const digest = await this.modelDigest(job);
     let content = '';
     let reasoning = '';
