@@ -402,7 +402,7 @@
 .p8-detail-row {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   width: 100%;
   max-width: 1300px;
@@ -414,6 +414,8 @@
   display: flex;
   flex-direction: column;
   gap: 80px;
+  width: 590px;
+  flex: none;
   max-width: 590px;
   box-sizing: border-box;
   padding: 80px 0 140px;
@@ -441,6 +443,8 @@
   display: flex;
   flex-direction: column;
   gap: 32px;
+  width: 412px;
+  flex: none;
   max-width: 412px;
   box-sizing: border-box;
   padding: 80px 0 80px 32px;
@@ -568,6 +572,7 @@
   }
   .p8-detail-row {
     flex-direction: column;
+    align-items: center;
     justify-content: center;
     gap: 32px;
     padding: 0 24px;
@@ -584,6 +589,7 @@
   .p8-aside {
     max-width: none;
     width: 100%;
+    flex: none;
     padding: 32px;
   }
   .p8-legal {
@@ -700,4 +706,7 @@
   font-size: 14px;
   letter-spacing: -0.21px;
   font-weight: 400;
+}
+.p8-back:hover {
+  background-color: #110f15;
 }
