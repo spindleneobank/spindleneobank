@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Hono } from 'hono';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { createMock } from '../../../dev/izipay-mock/server';
-import { setupTestDb, type TestDb } from '../../../test/db-setup';
+import type { TestDb } from '../../../test/db-setup';
 import { type Env, jsonError } from '../../lib/http';
 import { dbRef, settings } from '../auth/constants';
 import authRoutes from '../auth/routes';
@@ -33,6 +33,12 @@ export type Kit = {
 
 /** Fresh DB handle (no truncation: tests use unique users), in-process izipay mock, scoped Redis keys. */
 export async function bootCards(opts: { stepDelayMs?: number; timeoutMs?: number } = {}): Promise<Kit> {
+  // B12 uses its own database so other agents' truncations never race these tests.
+  const base = process.env.TEST_DATABASE_URL || 'postgres://spindle:spindle@127.0.0.1:7232/spindle_test';
+  const u = new URL(base);
+  u.pathname = '/spindle_test_b12';
+  process.env.TEST_DATABASE_URL = u.toString();
+  const { setupTestDb } = await import('../../../test/db-setup');
   const t = await setupTestDb();
   dbRef.db = t.db;
   // Only the card tables are cleared (no other module writes them); user rows are never truncated.
