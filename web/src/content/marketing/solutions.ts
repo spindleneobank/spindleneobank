@@ -143,7 +143,7 @@ export const foundation: { eyebrow: string; title: string; cards: FoundationCard
       note: 'Ready for a claim route',
       status: 'Preview',
       title: 'A visible claim choice',
-      body: 'The provider chooses the route and signs. Stock claims show price and impact before execution.',
+      body: 'The provider chooses the route and signs. Stock swaps show price and impact before execution.',
     },
   ],
 };
@@ -184,7 +184,7 @@ export const roles: Role[] = [
     id: 'ai-builders',
     eyebrow: 'AI builders',
     title: 'Choose a compute lane for your AI request.',
-    lead: 'The compatible API routes private work to the sealed lane and non-sensitive work to the open lane.',
+    lead: 'The compatible API routes non-sensitive work to the open lane; the sealed lane is in testing.',
     bullets: [
       'Chat, embeddings and image endpoints in the API design',
       'Sealed-lane requests use eligible attested GPUs',
