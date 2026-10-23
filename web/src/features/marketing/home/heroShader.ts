@@ -2,6 +2,7 @@ import { DEFAULTS, FlutedRenderer } from './flutedSwirl';
 
 /** Settings of the old home page's "Hero Shader" (Fluted Swirl instance). */
 const PROPS = {
+  ...DEFAULTS,
   colorA: 'rgba(89, 62, 78, 1)',
   colorB: 'rgb(240, 240, 240)',
   palette: ['rgb(196, 191, 183)', 'rgb(166, 89, 30)', 'rgb(143, 143, 143)', 'rgb(155, 170, 207)', 'rgb(60, 83, 133)'],
