@@ -1,6 +1,7 @@
 /**
  * Hook between receipts (B7) and canaries (B11). B7 calls `canaryHooks.onCanaryFinished` for every
- * `jobs.is_canary` job after its receipt was checked; the default is a no-op until B11 replaces it.
+ * `jobs.is_canary` job after its receipt was checked. The default evaluates the canary; the service is
+ * imported lazily because it depends on the receipts module that imports this file.
  */
 export interface CanaryFinished {
   jobId: string;
@@ -13,7 +14,10 @@ export interface CanaryFinished {
 }
 
 export const canaryHooks: { onCanaryFinished: (e: CanaryFinished) => Promise<void> } = {
-  onCanaryFinished: async () => {},
+  onCanaryFinished: async (e) => {
+    const { handleCanaryFinished } = await import('./service');
+    await handleCanaryFinished(e);
+  },
 };
 
 export const onCanaryFinished = (e: CanaryFinished): Promise<void> => canaryHooks.onCanaryFinished(e);
