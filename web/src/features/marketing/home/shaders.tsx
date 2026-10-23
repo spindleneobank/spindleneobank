@@ -16,13 +16,20 @@ export function initShaders(tree: HTMLElement): () => void {
   for (const c of tree.querySelectorAll<HTMLCanvasElement>(
     '.framer-1aggivb-container canvas, .framer-86hip0-container canvas',
   )) {
+    const badge = c.closest('.framer-1aggivb-container') !== null;
     const box = c.parentElement;
     if (!box) continue;
     const host = document.createElement('div');
     host.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
     c.replaceWith(host);
     const root = createRoot(host);
-    root.render(<LiquidMetal angle={45} distortion={0.08} softness={0.1} speed={1} />);
+    root.render(
+      badge ? (
+        <LiquidMetal angle={70} distortion={0.01} softness={0.1} speed={1.4} scale={0.6} />
+      ) : (
+        <LiquidMetal angle={45} distortion={0.08} softness={0.1} speed={1} scale={0.6} />
+      ),
+    );
     off.push(() => queueMicrotask(() => root.unmount()));
   }
   return () => {

@@ -28,3 +28,12 @@
 .framer-VSipU a.framer-yifr6[data-framer-name='Dark']:hover {
   background-color: rgb(234, 224, 220) !important;
 }
+
+/* The app's own marketing.css styles .sp-api-console / .sp-api-state as a grid; the old page used plain blocks. */
+.framer-VSipU .sp-api-console {
+  gap: normal;
+}
+.framer-VSipU .sp-api-state {
+  display: block;
+  gap: normal;
+}
