@@ -245,7 +245,7 @@ export function initReceiptReveals(tree: HTMLElement): () => void {
   return () => io.disconnect();
 }
 
-/** Framer Ticker (compute-stack icons): drifts left at ~80px/s, jumping back one set width when it runs out. */
+/** Framer Ticker (compute-stack icons): drifts left at ~54px/s (~41px/s on phone, measured on the old page), jumping back one set width when it runs out. */
 export function initTicker(tree: HTMLElement): () => void {
   const ul = Array.from(tree.querySelectorAll<HTMLElement>('ul')).find(
     (u) => u.children.length > 6 && u.style.transform.includes('translateX'),
@@ -258,6 +258,7 @@ export function initTicker(tree: HTMLElement): () => void {
   const second = ((ul.children[1] as HTMLElement).firstElementChild ?? ul).getBoundingClientRect();
   const setW = k > 0 ? k * Math.abs(second.x - first.x) : 0;
   if (!setW) return () => {};
+  const speed = matchMedia('(max-width: 809.98px)').matches ? 41 : 54;
   let x = Number(/translateX\((-?[\d.]+)/.exec(ul.style.transform)?.[1] ?? 0);
   let raf = 0;
   let last = 0;
@@ -267,7 +268,7 @@ export function initTicker(tree: HTMLElement): () => void {
     if (!visible || document.hidden) return;
     const dt = last ? Math.min((now - last) / 1000, 0.1) : 0;
     last = now;
-    x -= 80 * dt;
+    x -= speed * dt;
     while (x < -2 * setW) x += setW;
     ul.style.transform = `translateX(${x}px)`;
     raf = requestAnimationFrame(frame);

@@ -102,6 +102,9 @@ export function initVideos(tree: HTMLElement): () => void {
   for (const v of vids) {
     v.muted = true;
     const flag = () => {
+      // Old page: Framer swaps the poster <img> node on tablet/phone hydration, so below the desktop breakpoint the
+      // poster stays visible (the loaded video covers it either way). Desktop hides it once the video has loaded.
+      if (!matchMedia('(min-width: 1200px)').matches) return;
       const img = v.parentElement?.querySelector('img');
       if (img) img.dataset.spVideo = '1';
     };

@@ -37,3 +37,47 @@
     animation: none !important;
   }
 }
+
+/* Explore-the-paths tab widths per active step (old Framer variant CSS; the step-2/3 variants were missing). */
+.pp-scope .framer-egeFU.framer-v-d9jdo .framer-aitp2v-container,
+.pp-scope .framer-egeFU.framer-v-ep7jlw .framer-aitp2v-container,
+.pp-scope .framer-egeFU.framer-v-blgpgn .framer-aitp2v-container,
+.pp-scope .framer-egeFU.framer-v-1jp0l7x .framer-aitp2v-container {
+  flex:1 0 0;
+  width:1px
+}
+.pp-scope .framer-egeFU.framer-v-d9jdo .framer-dwvy2q-container,
+.pp-scope .framer-egeFU.framer-v-ep7jlw .framer-1g1so52-container,
+.pp-scope .framer-egeFU.framer-v-blgpgn .framer-dwvy2q-container,
+.pp-scope .framer-egeFU.framer-v-1jp0l7x .framer-1g1so52-container {
+  flex:none;
+  width:65%
+}
+.pp-scope .framer-egeFU.framer-v-18a868y .framer-aitp2v-container,
+.pp-scope .framer-egeFU.framer-v-12z2dh3 .framer-aitp2v-container,
+.pp-scope .framer-egeFU.framer-v-f6lx9q .framer-aitp2v-container,
+.pp-scope .framer-egeFU.framer-v-1rkh2dk .framer-aitp2v-container,
+.pp-scope .framer-egeFU.framer-v-16paw8z .framer-aitp2v-container,
+.pp-scope .framer-egeFU.framer-v-bth39p .framer-aitp2v-container,
+.pp-scope .framer-egeFU.framer-v-1deawmr .framer-aitp2v-container,
+.pp-scope .framer-egeFU.framer-v-16bij1r .framer-aitp2v-container {
+  flex:1 0 0;
+  width:100%;
+  height:1px
+}
+.pp-scope .framer-egeFU.framer-v-18a868y .framer-dwvy2q-container,
+.pp-scope .framer-egeFU.framer-v-12z2dh3 .framer-1g1so52-container,
+.pp-scope .framer-egeFU.framer-v-16paw8z .framer-dwvy2q-container,
+.pp-scope .framer-egeFU.framer-v-bth39p .framer-1g1so52-container {
+  flex:none;
+  width:100%;
+  height:65%
+}
+.pp-scope .framer-egeFU.framer-v-f6lx9q .framer-dwvy2q-container,
+.pp-scope .framer-egeFU.framer-v-1rkh2dk .framer-1g1so52-container,
+.pp-scope .framer-egeFU.framer-v-1deawmr .framer-dwvy2q-container,
+.pp-scope .framer-egeFU.framer-v-16bij1r .framer-1g1so52-container {
+  flex:none;
+  width:100%;
+  height:75%
+}

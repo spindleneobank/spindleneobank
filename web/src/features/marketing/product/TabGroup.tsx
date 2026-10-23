@@ -21,6 +21,7 @@ export function TabGroup({
   const [i, setI] = useState(0);
   const box = useRef<HTMLDivElement>(null);
   const prev = useRef(0);
+  const widths = useRef<number[]>([]);
 
   useLayoutEffect(() => {
     const root = box.current;
@@ -32,6 +33,15 @@ export function TabGroup({
     const inn = label(i);
     if (out) animate(out, { opacity: [1, 0.4] }, SPRING);
     if (inn) animate(inn, { opacity: [0.4, 1] }, SPRING);
+    // Framer layout animation: the closing tab shrinks (803 -> 208 px) and the opening one grows with the same
+    // spring while the step content swaps instantly.
+    TABS.forEach((c, k) => {
+      const el = root.querySelector<HTMLElement>(`.${c}`);
+      const from = widths.current[k];
+      if (!el || !from) return;
+      const to = el.getBoundingClientRect().width;
+      if (Math.abs(from - to) > 1) animate(el, { width: [from, to] }, SPRING);
+    });
   }, [i]);
 
   return (
@@ -42,7 +52,10 @@ export function TabGroup({
       onClick={(e) => {
         const el = e.target as Element;
         const k = TABS.findIndex((c) => el.closest(`.${c}`));
-        if (k >= 0 && k !== i) setI(k);
+        if (k >= 0 && k !== i) {
+          widths.current = TABS.map((c) => box.current?.querySelector<HTMLElement>(`.${c}`)?.getBoundingClientRect().width ?? 0);
+          setI(k);
+        }
       }}
     >
       {renderNode(states[i] as PNode, 't', 'tabs', override)}
