@@ -7,6 +7,7 @@ import { HeroShader } from './HeroShader';
 import { useHeroGraph } from './useHeroGraph';
 import { useMotionVisible } from './useMotionVisible';
 import { useWorkflowSignal } from './useWorkflowSignal';
+import { useSlideshow } from './useSlideshow';
 import { useOrbit } from './useOrbit';
 import { type Override, type PNode, renderNode } from './render';
 import './product.css';
@@ -102,6 +103,7 @@ export function ProductBody() {
   useOrbit(root);
   useHeroGraph(root);
   useWorkflowSignal(root);
+  useSlideshow(root);
   return (
     <div ref={root} className={`pp-scope ${data.root.cls.split(/\s+/).slice(0, 2).join(' ')}`} style={data.root.style}>
       {renderNode(withTemplates(data.tree, tpl), 'root', '', override)}
