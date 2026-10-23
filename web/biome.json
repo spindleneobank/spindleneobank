@@ -1,0 +1,20 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
+  "root": true,
+  "files": {
+    "includes": [
+      "**",
+      "!src/routeTree.gen.ts",
+      "!public",
+      "!dist",
+      "!.output",
+      "!src/components/pixelIcons.data.ts"
+    ]
+  },
+  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 110 },
+  "linter": {
+    "enabled": true,
+    "rules": { "a11y": { "useSemanticElements": "off" }, "complexity": { "noImportantStyles": "off" } }
+  },
+  "javascript": { "formatter": { "quoteStyle": "single", "semicolons": "always" } }
+}
