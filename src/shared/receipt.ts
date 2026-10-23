@@ -1,7 +1,7 @@
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, concatBytes, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
-import { Decoder, Encoder, Tag } from 'cbor-x';
-import { privateKeyToAddress } from 'viem/accounts';
+import { Decoder, Tag } from 'cbor-x';
+import { privateKeyToAddress, publicKeyToAddress } from 'viem/accounts';
 import { z } from 'zod';
 import { sha256Bytes } from './canonical';
 import { JobKind, Lane } from './enums';
@@ -47,43 +47,83 @@ export type ReceiptPayload = z.infer<typeof ReceiptPayload>;
 export const COSE_ALG_ES256K = -47;
 const COSE_SIGN1_TAG = 18;
 
-const cbor = new Encoder({ useRecords: false, mapsAsObjects: true, variableMapSize: true });
 const cborDecoder = new Decoder({ useRecords: false, mapsAsObjects: true });
 const toU8 = (b: Uint8Array) => new Uint8Array(b.buffer, b.byteOffset, b.byteLength);
 
-function stripUndefined<T>(v: T): T {
-  if (Array.isArray(v)) return v.map(stripUndefined) as T;
-  if (v && typeof v === 'object' && !(v instanceof Uint8Array)) {
-    const out: Record<string, unknown> = {};
-    for (const k of Object.keys(v as object).sort()) {
-      const x = (v as Record<string, unknown>)[k];
-      if (x !== undefined) out[k] = stripUndefined(x);
-    }
-    return out as T;
-  }
-  return v;
+/**
+ * Minimal deterministic CBOR encoder (RFC 8949): definite lengths, shortest integers, no tags except
+ * the explicit {@link CborTag}. cbor-x is NOT used for encoding because it adds tags 64/259.
+ */
+class CborTag {
+  constructor(
+    readonly tag: number,
+    readonly value: unknown,
+  ) {}
+}
+class CborMap {
+  constructor(readonly entries: [unknown, unknown][]) {}
 }
 
-/** CBOR map with integer keys (cbor-x needs a Map for non-string keys). */
+function head(major: number, n: number): Uint8Array {
+  const m = major << 5;
+  if (n < 24) return Uint8Array.of(m | n);
+  if (n < 0x100) return Uint8Array.of(m | 24, n);
+  if (n < 0x10000) return Uint8Array.of(m | 25, n >> 8, n & 0xff);
+  if (n < 0x100000000)
+    return Uint8Array.of(m | 26, (n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff);
+  const out = new Uint8Array(9);
+  out[0] = m | 27;
+  new DataView(out.buffer).setBigUint64(1, BigInt(n));
+  return out;
+}
+
+function cborEncode(v: unknown): Uint8Array {
+  if (v instanceof Uint8Array) return concatBytes(head(2, v.length), v);
+  if (typeof v === 'string') {
+    const b = utf8ToBytes(v);
+    return concatBytes(head(3, b.length), b);
+  }
+  if (typeof v === 'number') {
+    if (!Number.isSafeInteger(v)) throw new TypeError('cbor: only safe integers are supported');
+    return v >= 0 ? head(0, v) : head(1, -1 - v);
+  }
+  if (typeof v === 'boolean') return Uint8Array.of(v ? 0xf5 : 0xf4);
+  if (v === null) return Uint8Array.of(0xf6);
+  if (Array.isArray(v)) return concatBytes(head(4, v.length), ...v.map(cborEncode));
+  if (v instanceof CborTag) return concatBytes(head(6, v.tag), cborEncode(v.value));
+  if (v instanceof CborMap)
+    return concatBytes(
+      head(5, v.entries.length),
+      ...v.entries.flatMap(([k, x]) => [cborEncode(k), cborEncode(x)]),
+    );
+  if (typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    const keys = Object.keys(o)
+      .filter((k) => o[k] !== undefined)
+      .sort();
+    return cborEncode(new CborMap(keys.map((k) => [k, o[k]])));
+  }
+  throw new TypeError('cbor: unsupported value');
+}
+
+/** Protected header `{1: -47, 4: kid}` as an untagged definite-length map. */
 function encodeProtected(kid: Uint8Array): Uint8Array {
-  return toU8(
-    cbor.encode(
-      new Map<number, unknown>([
-        [1, COSE_ALG_ES256K],
-        [4, kid],
-      ]),
-    ),
+  return cborEncode(
+    new CborMap([
+      [1, COSE_ALG_ES256K],
+      [4, kid],
+    ]),
   );
 }
 
 export function encodeReceiptPayload(p: ReceiptPayload): Uint8Array {
-  return toU8(cbor.encode(stripUndefined(ReceiptPayload.parse(p))));
+  return cborEncode(ReceiptPayload.parse(p));
 }
 /** Name used by node-protocol.md / N1. */
 export const encodeReceipt = encodeReceiptPayload;
 
 function sigStructure(protectedBytes: Uint8Array, payloadBytes: Uint8Array): Uint8Array {
-  return toU8(cbor.encode(['Signature1', protectedBytes, new Uint8Array(0), payloadBytes]));
+  return cborEncode(['Signature1', protectedBytes, new Uint8Array(0), payloadBytes]);
 }
 
 const stripHex = (h: string) => (h.startsWith('0x') ? h.slice(2) : h);
@@ -96,7 +136,15 @@ export function signReceipt(p: ReceiptPayload, privateKeyHex: string): Uint8Arra
   const payloadBytes = encodeReceiptPayload(p);
   const digest = sha256Bytes(sigStructure(protectedBytes, payloadBytes));
   const signature = secp256k1.sign(digest, sk, { prehash: false, format: 'compact' });
-  return toU8(cbor.encode(new Tag([protectedBytes, new Map(), payloadBytes, signature], COSE_SIGN1_TAG)));
+  return cborEncode(new CborTag(COSE_SIGN1_TAG, [protectedBytes, new CborMap([]), payloadBytes, signature]));
+}
+
+function bigintsToNumbers(v: unknown): unknown {
+  if (typeof v === 'bigint') return Number(v);
+  if (Array.isArray(v)) return v.map(bigintsToNumbers);
+  if (v && typeof v === 'object' && !(v instanceof Uint8Array))
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, bigintsToNumbers(x)]));
+  return v;
 }
 
 export interface DecodedReceipt {
@@ -124,7 +172,7 @@ export function decodeReceipt(cose: Uint8Array): DecodedReceipt {
   if (typeof alg !== 'number' || !(kid instanceof Uint8Array)) throw new Error('malformed protected header');
   return {
     protected: { alg, kid: `0x${bytesToHex(kid)}` },
-    payload: ReceiptPayload.parse(cborDecoder.decode(payload)),
+    payload: ReceiptPayload.parse(bigintsToNumbers(cborDecoder.decode(payload))),
     signature: toU8(sig),
     protectedBytes: toU8(prot),
     payloadBytes: toU8(payload),
@@ -136,8 +184,15 @@ export function verifyReceipt(cose: Uint8Array, publicKeyHex: string): boolean {
   try {
     const d = decodeReceipt(cose);
     if (d.protected.alg !== COSE_ALG_ES256K) return false;
+    const pub = hexToBytes(stripHex(publicKeyHex));
+    const addr = publicKeyToAddress(
+      pub.length === 33
+        ? (bytesToHex(secp256k1.Point.fromBytes(pub).toBytes(false)) as `0x${string}`)
+        : (`0x${bytesToHex(pub)}` as `0x${string}`),
+    );
+    if (d.protected.kid !== addr.toLowerCase()) return false;
     const digest = sha256Bytes(sigStructure(d.protectedBytes, d.payloadBytes));
-    return secp256k1.verify(d.signature, digest, hexToBytes(stripHex(publicKeyHex)), { prehash: false });
+    return secp256k1.verify(d.signature, digest, pub, { prehash: false });
   } catch {
     return false;
   }
