@@ -18,6 +18,8 @@ import receipts from '../modules/receipts/routes';
 import slashing from '../modules/slashing/routes';
 import stocksJobs from '../modules/stocks/jobs';
 import stocks from '../modules/stocks/routes';
+import x402Jobs from '../modules/x402/jobs';
+import x402Routes from '../modules/x402/routes';
 import type { Env } from './http';
 import type { WorkerCtx } from './queue';
 
@@ -35,6 +37,7 @@ export const routeModules: readonly RouteModule[] = [
   gateway,
   cardRoutes,
   cardWebhooks,
+  x402Routes,
   receipts,
   slashing,
 ] as const;
@@ -44,6 +47,7 @@ export const jobModules: readonly JobModule[] = [
   cardsJobs,
   indexerJobs,
   gatewayJobs,
+  x402Jobs,
   ratesJobs,
   meteringJobs,
   canaryJobs,

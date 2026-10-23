@@ -65,6 +65,8 @@ export interface PaymentProvider {
   authorize(c: Context<Env>, ctx: AuthorizeCtx): Promise<Authorization | Challenge>;
   /** Charge `chargeMicros` (clamped to the reservation) and drop the reservation. Returns the amount charged. */
   finalize(auth: Authorization, chargeMicros: bigint): Promise<bigint>;
+  /** Extra response headers once the provisional charge is known (e.g. x402 X-PAYMENT-RESPONSE). */
+  responseHeaders?(auth: Authorization, chargedMicros: bigint): Record<string, string>;
   /** Drop the reservation without charging. */
   release(auth: Authorization): Promise<void>;
 }

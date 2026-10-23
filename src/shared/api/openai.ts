@@ -15,6 +15,8 @@ export const SpindleMeta = z.object({
   jobId: z.string(),
   chargeMicros: MicrosString,
   receiptUrl: z.string(),
+  /** x402 only: base64 X-PAYMENT-RESPONSE (streams cannot send it as a header). */
+  paymentResponse: z.string().optional(),
 });
 export type SpindleMeta = z.infer<typeof SpindleMeta>;
 
