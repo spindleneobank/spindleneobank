@@ -19,12 +19,45 @@ export const COMPANY_B: SubItem[] = [
   { title: 'Terms & Conditions', desc: 'Preview and design limits', to: '/terms-conditions' },
   { title: 'Privacy Policy', desc: 'Data-flow design', to: '/privacy-policy' },
 ];
-export const NAV_LINKS = { product: { label: 'Product', to: '/product' }, flows: { label: 'Network flows', to: '/case-study' }, compute: { label: 'Compute', to: '/compute-lanes' } };
+export const NAV_LINKS = {
+  product: { label: 'Product', to: '/product' },
+  flows: { label: 'Network flows', to: '/case-study' },
+  compute: { label: 'Compute', to: '/compute-lanes' },
+};
 export const CTA_LABEL = 'Open the app'; // approved exception for "Open account"
 export const FOOTER_COLS: { title: string; items: { label: string; to: string }[] }[] = [
-  { title: 'Explore', items: [{ label: 'Product', to: '/product' }, { label: 'Solutions', to: '/solutions' }, { label: 'About', to: '/about' }, { label: 'Compute', to: '/compute-lanes' }, { label: 'Network flows', to: '/case-study' }, { label: 'Verification', to: '/verification' }] },
-  { title: 'Resources', items: [{ label: 'Field notes', to: '/blogs' }, { label: 'Network roles', to: '/about#teams' }, { label: 'Network roles', to: '/about#career' }, { label: 'Architecture', to: '/architecture' }, { label: 'Build notes', to: '/changelog' }, { label: 'FAQ', to: '/#faq' }] },
-  { title: 'More', items: [{ label: 'Privacy Policy', to: '/privacy-policy' }, { label: 'Terms & Conditions', to: '/terms-conditions' }, { label: 'Cookie Policy', to: '/cookie-policy' }, { label: 'Community', to: '/community' }, { label: '404', to: '/404' }] },
+  {
+    title: 'Explore',
+    items: [
+      { label: 'Product', to: '/product' },
+      { label: 'Solutions', to: '/solutions' },
+      { label: 'About', to: '/about' },
+      { label: 'Compute', to: '/compute-lanes' },
+      { label: 'Network flows', to: '/case-study' },
+      { label: 'Verification', to: '/verification' },
+    ],
+  },
+  {
+    title: 'Resources',
+    items: [
+      { label: 'Field notes', to: '/blogs' },
+      { label: 'Network roles', to: '/about#teams' },
+      { label: 'Network roles', to: '/about#career' },
+      { label: 'Architecture', to: '/architecture' },
+      { label: 'Build notes', to: '/changelog' },
+      { label: 'FAQ', to: '/#faq' },
+    ],
+  },
+  {
+    title: 'More',
+    items: [
+      { label: 'Privacy Policy', to: '/privacy-policy' },
+      { label: 'Terms & Conditions', to: '/terms-conditions' },
+      { label: 'Cookie Policy', to: '/cookie-policy' },
+      { label: 'Community', to: '/community' },
+      { label: '404', to: '/404' },
+    ],
+  },
 ];
 export const SOCIALS = [
   { key: 'github', label: 'GitHub', name: 'GitHub' },

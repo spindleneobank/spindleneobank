@@ -36,12 +36,22 @@ export function Preloader() {
   }, []);
   if (gone) return null;
   return (
-    <div id="sp-preloader" className={`sp-loader${done ? ' gone' : ''}`} role="status" aria-label="Loading Spindle">
+    <div
+      id="sp-preloader"
+      className={`sp-loader${done ? ' gone' : ''}`}
+      role="status"
+      aria-label="Loading Spindle"
+    >
       <div className="sp-loader-inner">
         <div className="sp-loader-word">Spindle</div>
         <div className="sp-loader-grid" aria-hidden="true">
           {Array.from({ length: 105 }, (_, i) => (
-            <i key={i} style={{ '--i': i, '--c': RAMP[((i % 15) % 6 + Math.floor(i / 15)) % 6] } as React.CSSProperties} />
+            <i
+              key={i}
+              style={
+                { '--i': i, '--c': RAMP[(((i % 15) % 6) + Math.floor(i / 15)) % 6] } as React.CSSProperties
+              }
+            />
           ))}
         </div>
         <div className="sp-loader-progress">

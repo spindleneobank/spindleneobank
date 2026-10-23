@@ -61,9 +61,26 @@ if (typeof document !== 'undefined') {
 }
 
 const NAMES = [
-  'uResolution', 'uColorBack', 'uColorTint', 'uRepetition', 'uSoftness', 'uShiftRed', 'uShiftBlue', 'uDistortion',
-  'uContour', 'uAngle', 'uPhase', 'uScale', 'uRotation', 'uOffset', 'uOrigin', 'uFitCover', 'uUseImage', 'uMask',
-  'uMaskAspect', 'uMaskScale',
+  'uResolution',
+  'uColorBack',
+  'uColorTint',
+  'uRepetition',
+  'uSoftness',
+  'uShiftRed',
+  'uShiftBlue',
+  'uDistortion',
+  'uContour',
+  'uAngle',
+  'uPhase',
+  'uScale',
+  'uRotation',
+  'uOffset',
+  'uOrigin',
+  'uFitCover',
+  'uUseImage',
+  'uMask',
+  'uMaskAspect',
+  'uMaskScale',
 ];
 
 class Renderer {
@@ -81,14 +98,23 @@ class Renderer {
     this.create();
   }
   create() {
-    const opts = { alpha: true, antialias: false, depth: false, stencil: false, premultipliedAlpha: false, powerPreference: 'default' as const };
+    const opts = {
+      alpha: true,
+      antialias: false,
+      depth: false,
+      stencil: false,
+      premultipliedAlpha: false,
+      powerPreference: 'default' as const,
+    };
     const g2 = this.canvas.getContext('webgl2', opts);
     const gl = (g2 ?? this.canvas.getContext('webgl', opts)) as WebGLRenderingContext | null;
     if (!gl) throw new Error('WebGL unavailable');
     this.gl = gl;
     const v2 = !!g2;
     const deriv = v2 || !!gl.getExtension('OES_standard_derivatives');
-    const vh = v2 ? '#version 300 es\n#define IN in\n#define OUT out\n' : '#define IN attribute\n#define OUT varying\n';
+    const vh = v2
+      ? '#version 300 es\n#define IN in\n#define OUT out\n'
+      : '#define IN attribute\n#define OUT varying\n';
     const fh = v2
       ? '#version 300 es\nprecision highp float;\n#define IN in\n#define texture2D texture\nout vec4 fragColor;\n'
       : `${deriv ? '#extension GL_OES_standard_derivatives : enable\n' : ''}precision highp float;\n#define IN varying\n#define fragColor gl_FragColor\n${deriv ? '' : '#define dFdx(x) 0.0\n#define dFdy(x) 0.0\n#define fwidth(x) 0.0\n'}`;
@@ -96,7 +122,8 @@ class Renderer {
       const s = gl.createShader(type) as WebGLShader;
       gl.shaderSource(s, src);
       gl.compileShader(s);
-      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(`shader compile failed: ${gl.getShaderInfoLog(s)}`);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+        throw new Error(`shader compile failed: ${gl.getShaderInfoLog(s)}`);
       return s;
     };
     const vs = sh(gl.VERTEX_SHADER, vh + VERT);
@@ -249,11 +276,17 @@ export function LiquidMetal({
   // mount the canvas once near the viewport (rootMargin 800px 0)
   useEffect(() => {
     const el = wrap.current;
-    if (!el || typeof IntersectionObserver === 'undefined') {
+    if (
+      !el ||
+      typeof IntersectionObserver === 'undefined' ||
+      matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
       setMounted(true);
       return;
     }
-    const io = new IntersectionObserver((e) => e.some((x) => x.isIntersecting) && setMounted(true), { rootMargin: '800px 0px' });
+    const io = new IntersectionObserver((e) => e.some((x) => x.isIntersecting) && setMounted(true), {
+      rootMargin: '800px 0px',
+    });
     io.observe(el);
     return () => io.disconnect();
   }, []);
@@ -352,7 +385,14 @@ export function LiquidMetal({
       {mounted && !failed ? (
         <canvas
           ref={canvas}
-          style={{ position: 'absolute', inset: 0, display: 'block', width: '100%', height: '100%', pointerEvents: 'none' }}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'block',
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+          }}
         />
       ) : null}
     </div>

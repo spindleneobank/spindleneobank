@@ -32,7 +32,18 @@ function PageLines() {
 function useSmoothScroll() {
   useEffect(() => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const l = new Lenis({ smoothWheel: true, duration: 0.6, autoRaf: true, autoToggle: true, anchors: true, allowNestedScroll: true, syncTouch: false, stopInertiaOnNavigate: true, orientation: 'vertical', gestureOrientation: 'vertical' });
+    const l = new Lenis({
+      smoothWheel: true,
+      duration: 0.6,
+      autoRaf: true,
+      autoToggle: true,
+      anchors: true,
+      allowNestedScroll: true,
+      syncTouch: false,
+      stopInertiaOnNavigate: true,
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+    });
     return () => l.destroy();
   }, []);
 }

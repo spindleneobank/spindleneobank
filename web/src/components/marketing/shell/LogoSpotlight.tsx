@@ -7,7 +7,8 @@ const SWEEP_MS = 5000;
 const PERIOD_MS = 5400;
 const LOGO_GRADIENT =
   'linear-gradient(116deg, color-mix(in srgb, rgba(233, 214, 223, 1) 15%, transparent) 0%, color-mix(in srgb, rgba(233, 214, 223, 1) 15%, transparent) 29%, color-mix(in srgb, rgba(233, 214, 223, 1) 15%, transparent) 42%, color-mix(in srgb, rgba(233, 214, 223, 1) 15%, transparent) 59%, color-mix(in srgb, rgba(233, 214, 223, 1) 15%, transparent) 100%)';
-const SPOT_GRADIENT = 'linear-gradient(90deg, rgba(233, 214, 223, 0.1) 0%, rgb(233, 214, 223) 50%, rgba(233, 214, 223, 0.1) 100%)';
+const SPOT_GRADIENT =
+  'linear-gradient(90deg, rgba(233, 214, 223, 0.1) 0%, rgb(233, 214, 223) 50%, rgba(233, 214, 223, 0.1) 100%)';
 const MASK_REPEAT = { WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat' } as const;
 
 /**
@@ -15,7 +16,13 @@ const MASK_REPEAT = { WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat' } a
  * that follows the pointer (opacity fades 0.28s) and, with no pointer, sweeps left to right (5s sweep every 5.4s).
  * The SVG is fetched and recoloured white so it works as a mask, exactly like the original.
  */
-export function LogoSpotlight({ src = '/assets/brand/footer-wordmark.svg', alt = 'Spindle' }: { src?: string; alt?: string }) {
+export function LogoSpotlight({
+  src = '/assets/brand/footer-wordmark.svg',
+  alt = 'Spindle',
+}: {
+  src?: string;
+  alt?: string;
+}) {
   const host = useRef<HTMLDivElement>(null);
   const spot = useRef<HTMLDivElement>(null);
   const box = useRef({ width: 0, height: 0 });
@@ -63,7 +70,9 @@ export function LogoSpotlight({ src = '/assets/brand/footer-wordmark.svg', alt =
           e.removeAttribute('fill-opacity');
           e.removeAttribute('stroke-opacity');
         }
-        url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(doc)], { type: 'image/svg+xml' }));
+        url = URL.createObjectURL(
+          new Blob([new XMLSerializer().serializeToString(doc)], { type: 'image/svg+xml' }),
+        );
         if (!ac.signal.aborted) setMask(url);
       } catch {
         // fall back to the plain src mask
@@ -120,7 +129,12 @@ export function LogoSpotlight({ src = '/assets/brand/footer-wordmark.svg', alt =
 
   const maskImg = useMemo(() => `url("${mask ?? src}")`, [mask, src]);
   const radial = `radial-gradient(circle ${R}px at var(--active-x, -9999px) var(--active-y, 50%), rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) ${FALLOFF}%, rgba(0, 0, 0, 0) 100%)`;
-  const place = { WebkitMaskPosition: 'center', maskPosition: 'center', WebkitMaskSize: '100% 100%', maskSize: '100% 100%' } as const;
+  const place = {
+    WebkitMaskPosition: 'center',
+    maskPosition: 'center',
+    WebkitMaskSize: '100% 100%',
+    maskSize: '100% 100%',
+  } as const;
   const setXY = (e: React.PointerEvent) => {
     const r = e.currentTarget.getBoundingClientRect();
     spot.current?.style.setProperty('--active-x', `${e.clientX - r.left}px`);
@@ -150,15 +164,44 @@ export function LogoSpotlight({ src = '/assets/brand/footer-wordmark.svg', alt =
         setHover(false);
       }}
     >
-      <img src={src} alt={alt} style={{ width: '100%', height: 'auto', display: 'block', opacity: 0, pointerEvents: 'none', userSelect: 'none' }} />
+      <img
+        src={src}
+        alt={alt}
+        style={{
+          width: '100%',
+          height: 'auto',
+          display: 'block',
+          opacity: 0,
+          pointerEvents: 'none',
+          userSelect: 'none',
+        }}
+      />
       <div
         aria-hidden="true"
-        style={{ position: 'absolute', inset: 0, background: LOGO_GRADIENT, WebkitMaskImage: maskImg, maskImage: maskImg, ...MASK_REPEAT, ...place, pointerEvents: 'none' }}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: LOGO_GRADIENT,
+          WebkitMaskImage: maskImg,
+          maskImage: maskImg,
+          ...MASK_REPEAT,
+          ...place,
+          pointerEvents: 'none',
+        }}
       />
       <div
         ref={spot}
         aria-hidden="true"
-        style={{ position: 'absolute', inset: 0, opacity: hover || loop ? 1 : 0, transition: `opacity ${reduced ? 0 : 0.28}s ease`, WebkitMaskImage: radial, maskImage: radial, ...MASK_REPEAT, pointerEvents: 'none' }}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: hover || loop ? 1 : 0,
+          transition: `opacity ${reduced ? 0 : 0.28}s ease`,
+          WebkitMaskImage: radial,
+          maskImage: radial,
+          ...MASK_REPEAT,
+          pointerEvents: 'none',
+        }}
       >
         <div
           style={{

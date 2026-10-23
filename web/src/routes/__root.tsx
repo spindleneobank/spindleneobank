@@ -7,8 +7,8 @@ import {
   useLocation,
 } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
-import { Preloader } from '../components/Preloader';
 import { MarketingShell } from '../components/marketing/shell';
+import { Preloader } from '../components/Preloader';
 import { ToastProvider } from '../components/Toast';
 import appCss from '../styles/index.css?url';
 
@@ -39,7 +39,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
