@@ -116,6 +116,10 @@ export function initCapabilityNav(tree: HTMLElement): () => void {
   const links = Array.from(tree.querySelectorAll<HTMLElement>('a.framer-JhBcR')).filter((a) => /(^|\/|\.)#?(ai-analysis|realtime-dashboards|flow-automation|smart-integrations)$/.test(a.getAttribute('href') ?? ''));
   if (links.length !== ids.length) return () => {};
   let current = Math.max(0, links.findIndex((a) => a.dataset.framerName === 'Active'));
+  // Inline styles of the link's descendants differ between the Active and Inactive variants (the bar, the text colour).
+  const kidStyles = (a: HTMLElement) => Array.from(a.querySelectorAll<HTMLElement>('*')).map((k) => k.getAttribute('style') ?? '');
+  const activeStyles = kidStyles(links[current] as HTMLElement);
+  const inactiveStyles = kidStyles(links.find((a) => a.dataset.framerName !== 'Active') as HTMLElement);
   const set = (i: number, animate: boolean) => {
     links.forEach((a, k) => {
       const on = k === i;
@@ -124,6 +128,13 @@ export function initCapabilityNav(tree: HTMLElement): () => void {
       a.dataset.framerName = on ? 'Active' : 'Inactive';
       a.classList.toggle('framer-v-1jn7imm', on);
       a.classList.toggle('framer-v-7jhj1k', !on);
+      const styles = on ? activeStyles : inactiveStyles;
+      a.querySelectorAll<HTMLElement>('*').forEach((k, n) => {
+        const st = styles[n];
+        if (st === undefined) return;
+        if (st) k.setAttribute('style', st);
+        else k.removeAttribute('style');
+      });
       if (animate && !reduced()) a.animate({ opacity: on ? [0.4, 1] : [1, 0.4] }, { duration: 400, easing: NAV_EASING, fill: 'both' });
     });
     current = i;
