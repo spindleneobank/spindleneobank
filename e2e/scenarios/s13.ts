@@ -15,6 +15,15 @@ export const s13: Scenario = {
     const key = await apiKey(await login(4));
     const ex = join(REPO, 'examples');
     // wait until a node is free of probes: the example scripts do not retry NO_CAPACITY themselves
+    for (let i = 0; i < 3; i++) {
+      const w = await bearer(key, '/v1/chat/completions', {
+        model: 'qwen2.5:0.5b',
+        max_tokens: 4,
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+      await w.text();
+      await new Promise((r) => setTimeout(r, 4000));
+    }
     const warm = await bearer(key, '/v1/chat/completions', {
       model: 'qwen2.5:0.5b',
       max_tokens: 4,
@@ -33,7 +42,14 @@ export const s13: Scenario = {
       PRIVATE_KEY: privateKey(5),
       CLAIMS_ADDRESS: addr('CLAIMS_ADDRESS'),
     };
-    const out = await run(['bash', 'run-all.sh'], { cwd: ex, env, timeoutMs: 900_000 });
+    let out = await run(['bash', 'run-all.sh'], { cwd: ex, env, timeoutMs: 900_000 });
+    if (out.code !== 0) {
+      // nodes can be momentarily busy with a probe/canary (NO_CAPACITY, which the scripts do not retry): one retry, both recorded
+      c.ev('run-all-attempt-1', out);
+      c.note('run-all attempt 1 failed; retrying once');
+      await new Promise((r) => setTimeout(r, 20_000));
+      out = await run(['bash', 'run-all.sh'], { cwd: ex, env, timeoutMs: 900_000 });
+    }
     c.ev('run-all', out);
     c.step(`run-all.sh exit ${out.code}; tail: ${out.stdout.trim().split('\n').slice(-3).join(' | ')}`);
     eq(out.code, 0, 'run-all.sh exits 0');

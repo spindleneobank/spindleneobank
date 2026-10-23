@@ -3,7 +3,7 @@ import { bearer, login, runJob } from '../lib/api';
 import { head, increaseTime, ok, pub, sleep, until, usdgOf, wallet } from '../lib/chain';
 import { psql } from '../lib/db';
 import { addr } from '../lib/env';
-import { admin, syncIndexer } from '../lib/fixtures';
+import { admin, deposit, syncIndexer } from '../lib/fixtures';
 import { assert, eq, type Scenario } from '../lib/harness';
 import { ensureNodeA } from './s01';
 
@@ -11,6 +11,8 @@ import { ensureNodeA } from './s01';
 export async function buildAndPost(c: { step: (m: string) => void; ev: (n: string, d: unknown) => void }) {
   const a = await admin();
   const s3 = await login(3);
+  // the poster refuses insolvent roots: fixture floor payments are not backed by deposits, so fund the claims pool (80% of deposits)
+  await deposit(await login(4), 100_000_000n);
   const from = BigInt(await head());
   // fixture: chat jobs earn only micros, below the 10 USDG minimum claim: add a 15 USDG floor payment for node A
   const nodeA = (await s3.get('/v1/app/nodes')).find((n: any) => n.name === 'e2e-a');

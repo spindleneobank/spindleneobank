@@ -2,7 +2,7 @@ import { login, runJob } from '../lib/api';
 import { pub, setBalance, sleep, until } from '../lib/chain';
 import { psql, rows } from '../lib/db';
 import { API } from '../lib/env';
-import { admin } from '../lib/fixtures';
+import { admin, deposit } from '../lib/fixtures';
 import { assert, eq, type Scenario } from '../lib/harness';
 import { ensureNodeA } from './s01';
 
@@ -51,6 +51,7 @@ export const s12: Scenario = {
         `insert into earning_events (ts, node_id, owner, kind, usdg_micros) values (now(), '${nodeA.id}', '${s3.address}', 'floor', 11000000)`,
       );
       await psql("update earning_events set ts = ts - interval '3 hours' where epoch is null");
+      await deposit(s4, 100_000_000n); // back the fixture floor payment (insolvency guard)
       c.ev('build', await runJob(a, 'epoch-build'));
       c.ev('post-low', await runJob(a, 'post-root'));
       const low = (await rows('select epoch,status from epochs order by epoch desc limit 1'))[0] as string[];

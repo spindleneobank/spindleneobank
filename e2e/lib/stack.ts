@@ -2,7 +2,7 @@
 import { $ } from 'bun';
 import { login, runJob } from './api';
 import { mine, rpc, sleep, syncTime, until } from './chain';
-import { API, REPO } from './env';
+import { API, DOCS, REPO } from './env';
 import { nodeHasEnv, removeNode, startNode } from './node';
 import { registerNode } from './onchain';
 
@@ -31,9 +31,10 @@ export async function resetStack() {
     if ((await p.exited) !== 0) throw new Error(`failed: ${c}`);
   };
   // same as `bun run dev:reset`, plus the E2E override (runs api/worker from this checkout, raises nothing secret)
-  const dc =
-    'docker compose -p spindle-dev -f ../docs/deploy/compose.dev.yml -f ../docs/deploy/compose.e2e.yml';
-  await run(`sudo ${dc} down -v && sudo ${dc} up -d && bun run dev:bootstrap && sudo ${dc} up -d --force-recreate api worker`);
+  const dc = `docker compose -p spindle-dev -f ${DOCS}/deploy/compose.dev.yml -f ${DOCS}/deploy/compose.e2e.yml`;
+  await run(
+    `sudo ${dc} down -v && sudo ${dc} up -d anvil postgres redis migrate izipay-mock && bun run dev:bootstrap && sudo ${dc} up -d`,
+  );
   await waitHealthy();
   for (const n of ['house-node', 'e2e-a', 'e2e-lazy', 'e2e-gpu', 'e2e-pair'])
     await sh(`sudo docker rm -f ${n.startsWith('e2e') ? `e2e-node-${n}` : `spindle-dev-${n}`} 2>&1`);

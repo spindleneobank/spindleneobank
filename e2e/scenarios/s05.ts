@@ -86,7 +86,15 @@ export const s05: Scenario = {
     const s = await sessionChat(6, ['Say one in words.', 'Say two in words.', 'Say three in words.'], c);
     c.ev('session', { ...s, charges: s.charges.map(String), used: String(s.used), auth: undefined });
     const sum = s.charges.reduce((a, b) => a + b, 0n);
-    eq(s.used, sum, 'session usedMicros equals sum of per-call charges');
+    // the last job's accounting runs after its response is on the wire: allow it to land before comparing
+    let used = s.used;
+    for (let i = 0; i < 10 && used !== sum; i++) {
+      await sleep(1000);
+      used = BigInt((await call(`/v1/x402/sessions/${s.sessionId}`, { headers: s.auth })).body.usedMicros);
+    }
+    if (used !== s.used)
+      c.note(`usedMicros was ${s.used} right after close, ${used} after settling time (accounting lag)`);
+    eq(used, sum, 'session usedMicros equals sum of per-call charges');
     const a = await admin();
     const payer = account(6).address.toLowerCase();
     const logs = await until(
