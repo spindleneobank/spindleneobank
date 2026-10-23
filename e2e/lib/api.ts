@@ -22,7 +22,12 @@ export class Session {
   get address() {
     return this.acct.address.toLowerCase() as `0x${string}`;
   }
-  async req<T = any>(method: string, path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
+  async req<T = any>(
+    method: string,
+    path: string,
+    body?: unknown,
+    headers: Record<string, string> = {},
+  ): Promise<T> {
     const res = await fetch(`${API}${path}`, {
       method,
       headers: {
@@ -45,7 +50,8 @@ export class Session {
     try {
       json = text ? JSON.parse(text) : null;
     } catch {}
-    if (!res.ok) throw new ApiError(res.status, json, `${method} ${path} -> ${res.status} ${text.slice(0, 300)}`);
+    if (!res.ok)
+      throw new ApiError(res.status, json, `${method} ${path} -> ${res.status} ${text.slice(0, 300)}`);
     return json as T;
   }
   get = <T = any>(p: string) => this.req<T>('GET', p);
@@ -81,6 +87,15 @@ export const runJob = (s: Session, name: string) => s.post(`/v1/admin/jobs/${nam
 
 /** Bearer-key call (OpenAI-compatible). */
 export async function bearer(key: string, path: string, body?: unknown, extra: Record<string, string> = {}) {
+  // nodes can be briefly busy with a probe/canary: retry NO_CAPACITY for up to 2 minutes
+  const end = Date.now() + 120_000;
+  for (;;) {
+    const r = await raw(key, path, body, extra);
+    if (r.status !== 503 || Date.now() > end) return r;
+    await new Promise((x) => setTimeout(x, 3000));
+  }
+}
+function raw(key: string, path: string, body?: unknown, extra: Record<string, string> = {}) {
   return fetch(`${API}${path}`, {
     method: body === undefined ? 'GET' : 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json', ...extra },

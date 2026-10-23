@@ -28,7 +28,12 @@ export const increaseTime = async (s: number) => {
 export const setBalance = (a: string, wei: bigint) => rpc('anvil_setBalance', [a, `0x${wei.toString(16)}`]);
 export const head = async () => Number(await pub.getBlockNumber({ cacheTime: 0 } as never));
 export const usdgOf = (a: `0x${string}`) =>
-  pub.readContract({ address: USDG(), abi: erc20Abi, functionName: 'balanceOf', args: [a] }) as Promise<bigint>;
+  pub.readContract({
+    address: USDG(),
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [a],
+  }) as Promise<bigint>;
 export const wait = (hash: `0x${string}`) => pub.waitForTransactionReceipt({ hash });
 export async function ok(hash: `0x${string}`) {
   const r = await wait(hash);
@@ -44,7 +49,11 @@ export async function syncTime() {
   await rpc('evm_mine');
 }
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-export async function until<T>(fn: () => Promise<T | undefined | false | null>, ms = 60_000, every = 1500): Promise<T> {
+export async function until<T>(
+  fn: () => Promise<T | undefined | false | null>,
+  ms = 60_000,
+  every = 1500,
+): Promise<T> {
   const end = Date.now() + ms;
   let last: unknown;
   while (Date.now() < end) {

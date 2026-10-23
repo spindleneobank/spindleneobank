@@ -22,7 +22,8 @@
     "contracts:test": "cd contracts && forge test",
     "contracts:fork": "cd contracts && forge test --match-path 'test/fork/*' --fork-url $RHC_RPC_URL",
     "abi:export": "bun run contracts/script/export-abis.ts",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "e2e": "bun run e2e/run.ts"
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.3",

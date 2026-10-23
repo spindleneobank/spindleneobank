@@ -149,7 +149,11 @@ async function main(): Promise<void> {
           : w.catalog;
         if (wanted.length) void sync.ensure(wanted);
       },
-      onModelsEnsure: (m) => void sync.ensure(m.models),
+      // SPINDLE_MODELS restricts what this node pulls, for models.ensure pushes as well as the welcome catalog
+      onModelsEnsure: (m) =>
+        void sync.ensure(
+          config.models ? m.models.filter((x) => config.models?.includes(x.engineModel)) : m.models,
+        ),
       onJobStart: (m) =>
         void probes.gate(5000).then((ok) => {
           // a job never overlaps a probe: defer up to 5 s, else BUSY

@@ -15,7 +15,7 @@ import { loadCatalog, nodeSettings } from '../nodes/service';
 import { type Authorization, getPaymentProvider, parseAuth, serializeAuth } from './payment';
 import { actualCharge, buyerRate, type MaxChargeEstimate, type Rate, unitKindFor, utcDay } from './pricing';
 import { type Candidate, rank, recordTtft, type ScheduleRequest } from './scheduler';
-import { countChatPrompt, countTokens } from './tokenizer';
+import { countChatPrompt, countEmbeddingInput, countTokens } from './tokenizer';
 
 /** Test seams. */
 export const gatewayDeps = {
@@ -479,7 +479,9 @@ export async function finishJob(run: JobRun, done: JobDone): Promise<void> {
         view.recount = { promptTokens: p.tokens, completionTokens: c.tokens };
         view.recountEstimated = p.estimated || c.estimated;
       } else if (run.req.kind === 'embeddings') {
-        const counts = await Promise.all((run.req.inputs ?? []).map((t) => countTokens(run.req.model.id, t)));
+        const counts = await Promise.all(
+          (run.req.inputs ?? []).map((t) => countEmbeddingInput(run.req.model.id, t)),
+        );
         view.recount = { promptTokens: counts.reduce((a, b) => a + b.tokens, 0), completionTokens: 0 };
         view.recountEstimated = counts.some((x) => x.estimated);
       }
