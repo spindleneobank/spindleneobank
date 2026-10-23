@@ -111,8 +111,14 @@
 }
 .chat-empty {
   margin: auto;
+  flex-shrink: 0;
+  padding: 12px 0;
+}
+.chat-setup .sd-seg {
+  justify-self: start;
 }
 .chat-msg {
+  flex-shrink: 0;
   display: grid;
   gap: 6px;
   min-width: 0;
@@ -269,5 +275,24 @@
   }
   .chat-msg.user {
     max-width: 96%;
+  }
+}
+
+.chat-end {
+  scroll-margin-bottom: 170px;
+  height: 1px;
+  flex-shrink: 0;
+}
+@media (max-width: 700px) {
+  .chat-composer {
+    padding: 8px 0 2px;
+    gap: 8px;
+  }
+  .chat-composer textarea {
+    min-height: 44px;
+    height: 44px;
+  }
+  .chat-composer .chat-row > .chat-note {
+    display: none;
   }
 }

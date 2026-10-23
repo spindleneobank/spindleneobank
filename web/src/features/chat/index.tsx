@@ -24,8 +24,11 @@ import { useChat } from './useChat';
 import { useX402Session } from './useSession';
 
 const usd = (micros: string | bigint, digits = 2) => `$${formatMicros(micros, { fractionDigits: digits })}`;
-/** Per-message charges can be sub-cent: show enough digits to be non-zero. */
-const usdCharge = (micros: string) => usd(micros, BigInt(micros) > 0n && BigInt(micros) < 10_000n ? 4 : 3);
+/** Server-reported amounts can be sub-cent: show every micro below one cent, else three decimals. */
+const usdPrecise = (micros: string | bigint) => {
+  const v = BigInt(micros);
+  return v === 0n ? '$0.00' : usd(v, v < 10_000n ? 6 : 3);
+};
 const receiptHref = (u: string) => (u.startsWith('/') ? `${env.apiUrl}${u}` : u);
 
 function Message({ m, streaming }: { m: ChatMsg; streaming: boolean }) {
@@ -45,7 +48,7 @@ function Message({ m, streaming }: { m: ChatMsg; streaming: boolean }) {
       </div>
       {m.chargeMicros !== undefined ? (
         <div className="chat-foot">
-          <span>Cost {usdCharge(m.chargeMicros)}</span>
+          <span>Cost {usdPrecise(m.chargeMicros)}</span>
           {m.tokens !== undefined ? <span>{m.tokens.toLocaleString('en-US')} tokens</span> : null}
           {m.receiptUrl ? (
             <a href={receiptHref(m.receiptUrl)} target="_blank" rel="noreferrer noopener">
@@ -224,7 +227,8 @@ export default function ChatTab() {
                   <button
                     type="button"
                     aria-pressed={mode === 'session'}
-                    disabled={chat.busy}
+                    disabled={chat.busy || (!x402On && balance > 0n)}
+                    title={x402On ? undefined : 'x402 sessions are unavailable right now'}
                     onClick={() => setMode('session')}
                   >
                     Session (x402)
@@ -274,6 +278,12 @@ export default function ChatTab() {
                 </div>
               </div>
             </div>
+            {!x402On ? (
+              <p className="chat-hint chat-bad" role="status">
+                x402 sessions are switched off right now (the settlement keeper is paused). Prepaid balance
+                still works.
+              </p>
+            ) : null}
             {selected ? (
               <p className="chat-hint">
                 Price <b>{usd(selected.pricing.buyerMicrosPerUnit)}</b> per 1M tokens. The cost shown under
@@ -410,10 +420,10 @@ export default function ChatTab() {
                 </div>
                 <div className="chat-meter-facts">
                   <span>
-                    Used {usd(used, 3)} of {usd(capBig)}
+                    Used {usdPrecise(used)} of {usd(capBig)}
                   </span>
                   <span>Fee {usd(fee)}</span>
-                  <span>Left to spend {usd(x402.spendableMicros)}</span>
+                  <span>Left to spend {usdPrecise(x402.spendableMicros)}</span>
                   <span>Expires in {left ?? 'now'}</span>
                 </div>
                 {x402.error ? (
@@ -436,7 +446,7 @@ export default function ChatTab() {
               ) : (
                 messages.map((m) => <Message key={m.id} m={m} streaming={!!m.partial && chat.busy} />)
               )}
-              <div ref={end} />
+              <div ref={end} className="chat-end" />
             </div>
 
             {chat.lastError && chat.lastError.kind !== 'other' ? (

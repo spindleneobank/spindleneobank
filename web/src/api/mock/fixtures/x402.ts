@@ -206,7 +206,7 @@ export async function mockChatCompletion(
         controller.enqueue(enc.encode(chunk({ role: 'assistant' })));
         for (const part of REPLY) {
           for (const word of part.match(/\S+\s*|\s+/g) ?? []) {
-            await sleep(28, signal);
+            await sleep(flag('slow') ? 220 : 28, signal);
             controller.enqueue(enc.encode(chunk({ content: word })));
           }
         }
