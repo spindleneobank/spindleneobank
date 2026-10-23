@@ -8,6 +8,7 @@ import { dbRef } from '../auth/constants';
 import { createEnrollment } from './enroll';
 import { nodeHub } from './hub';
 import { requestFromWorker } from './jobs';
+import { setStakingParamsForTest } from './service';
 import { type FakeNode, fakeNode, startTestServer } from './testing';
 
 let t: TestDb;
@@ -18,10 +19,16 @@ beforeAll(async () => {
   t = await setupTestDb();
   dbRef.db = t.db;
   srv = startTestServer();
+  setStakingParamsForTest({
+    token: '0x00000000000000000000000000000000000000c3',
+    minStakeByClass: { '0': '0', '1': '100', '2': '200', '3': '300', '4': '400' },
+    unstakeDelay: 604800,
+  });
   await nodeHub.start({ redis: true });
 });
 afterAll(async () => {
   n?.conn.stop();
+  setStakingParamsForTest(null);
   await nodeHub.stop();
   srv.stop();
   await t.close();

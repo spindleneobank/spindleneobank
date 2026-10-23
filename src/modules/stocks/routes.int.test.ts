@@ -4,6 +4,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
+import { FORK_SKIP_MESSAGE, forkHealthy } from '../../../test/fork';
 import { type Env, jsonError } from '../../lib/http';
 import { closeRedis } from '../../lib/redis';
 import { dbRef, settings } from '../auth/constants';
@@ -11,6 +12,9 @@ import authRoutes from '../auth/routes';
 import { createTestSession } from '../auth/testing';
 import stocksRoutes from './routes';
 import { DEFAULT_STOCKS, stockDb, upsertVerified } from './service';
+
+const healthy = await forkHealthy();
+if (!healthy) console.warn(`[skip] ${import.meta.file}: ${FORK_SKIP_MESSAGE}`);
 
 const ORIGIN = 'http://localhost:7000';
 const USER = '0x00000000000000000000000000000000000000a1';
@@ -24,6 +28,7 @@ authRoutes(app);
 stocksRoutes(app);
 
 beforeAll(async () => {
+  if (!healthy) return;
   t = await setupTestDb();
   await t.reset();
   dbRef.db = t.db;
@@ -34,6 +39,7 @@ beforeAll(async () => {
 }, 60_000);
 
 afterAll(async () => {
+  if (!healthy) return;
   await t.close();
   await closeRedis();
 });
@@ -45,7 +51,7 @@ const post = (path: string, headers: Record<string, string>, body: unknown) =>
     body: JSON.stringify(body),
   });
 
-describe('stocks routes', () => {
+describe.skipIf(!healthy)('stocks routes', () => {
   test('401 without a session', async () => {
     expect((await app.request('/v1/app/stocks')).status).toBe(401);
   });

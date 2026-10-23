@@ -95,8 +95,10 @@ export class ChunkStream implements AsyncIterable<Delta> {
 
 // ---- Redis bridge (worker -> api) ------------------------------------------------------------------
 
-export const CMD_CHANNEL = 'node:cmd';
-export const evtChannel = (requestId: string) => `node:evt:${requestId}`;
+/** Empty in production; tests set a unique prefix so they never talk to a dev api/worker sharing the Redis. */
+const CHANNEL_PREFIX = process.env.SPINDLE_CHANNEL_PREFIX ?? '';
+export const CMD_CHANNEL = `${CHANNEL_PREFIX}node:cmd`;
+export const evtChannel = (requestId: string) => `${CHANNEL_PREFIX}node:evt:${requestId}`;
 export const WORKER_TIMEOUT_MS = 120_000;
 
 export type WorkerCmd =
