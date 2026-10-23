@@ -29,11 +29,22 @@ const args = process.argv.slice(2);
 const int = args.includes('--int');
 const rest = args.filter((a) => a !== '--int');
 
+// Per-checkout default DB so parallel worktrees never truncate each other's tables.
+const checkout = (
+  process
+    .cwd()
+    .split('/')
+    .find((_, i, a) => a[i - 1] === '.worktrees') ?? 'main'
+)
+  .toLowerCase()
+  .replace(/[^a-z0-9]/g, '_');
+const testDb = `spindle_test_${checkout}`;
+
 const env = {
   ...process.env,
   TEST_DATABASE_URL:
     process.env.TEST_DATABASE_URL ??
-    `postgres://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@127.0.0.1:7232/spindle_test`,
+    `postgres://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@127.0.0.1:7232/${testDb}`,
   REDIS_URL: process.env.REDIS_URL ?? 'redis://127.0.0.1:7279',
   RPC_URLS: process.env.RPC_URLS ?? 'http://127.0.0.1:7245',
   IZIPAY_BASE_URL: process.env.IZIPAY_BASE_URL ?? 'http://127.0.0.1:7290/api/v1',
