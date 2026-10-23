@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useVisibleBox } from './useVisibleBox';
 import { DEFAULTS, FlutedRenderer } from './flutedSwirl';
 
 /** Settings of the old product page's "Hero Shader" (Fluted Swirl instance). */
@@ -29,10 +30,11 @@ export function HeroShader() {
   const box = useRef<HTMLDivElement>(null);
   const cv = useRef<HTMLCanvasElement | null>(null);
   const [, setFailed] = useState(false);
+  const shown = useVisibleBox(box);
 
   useEffect(() => {
     const el = box.current;
-    if (!el) return;
+    if (!el || !shown) return;
     // A fresh canvas per effect run: dispose() loses the GL context, and StrictMode re-runs effects on the same node.
     const canvas = document.createElement('canvas');
     canvas.setAttribute('aria-hidden', 'true');
@@ -166,7 +168,7 @@ export function HeroShader() {
       reduce.removeEventListener('change', restart);
       r.dispose();
     };
-  }, []);
+  }, [shown]);
 
   return (
     <div ref={box} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', background: PROPS.colorB }}>

@@ -1,12 +1,12 @@
 /* Breakpoint variants of the rendered tree: Framer breakpoints desktop >=1200, tablet 810-1199.98, phone <=809.98. */
 @media (min-width: 1200px) {
-  .pp-b-t, .pp-b-p, .pp-b-tp { display: none !important; }
+  [data-pp-b="t"], [data-pp-b="p"], [data-pp-b="tp"] { display: none !important; }
 }
 @media (min-width: 810px) and (max-width: 1199.98px) {
-  .pp-b-d, .pp-b-p, .pp-b-dp { display: none !important; }
+  [data-pp-b="d"], [data-pp-b="p"], [data-pp-b="dp"] { display: none !important; }
 }
 @media (max-width: 809.98px) {
-  .pp-b-d, .pp-b-t, .pp-b-dt { display: none !important; }
+  [data-pp-b="d"], [data-pp-b="t"], [data-pp-b="dt"] { display: none !important; }
 }
 
 /* The old page body has no inherited line-height (SVG text reads `normal`); the new global stylesheet sets one. */
@@ -14,3 +14,8 @@
 
 /* The tool reads a section's background from its first child; breakpoint variants put a hidden sibling first, so the FAQ wrapper carries it too. */
 .pp-scope .framer-9f2sp8-container { background-color: rgb(17, 15, 21); }
+
+/* Reduced motion: the old page runs no infinite animation (the workflow dash flow is the one CSS loop left in the body). */
+@media (prefers-reduced-motion: reduce) {
+  .pp-scope [style*="workflow-flow"] { animation: none !important; }
+}

@@ -1,4 +1,5 @@
 import { type ReactNode, useRef, useState } from 'react';
+import { useVisibleBox } from './useVisibleBox';
 import { Appear, LiquidMetal } from '../../../components/marketing/motion';
 import tree from '../../../content/marketing/product-tree.json';
 import { ChatPanel } from './ChatPanel';
@@ -18,6 +19,17 @@ const data = tree as unknown as {
 };
 
 /** Liquid Metal settings of the old Framer instances (angle, distortion, softness, speed). */
+/** LiquidMetal host that only mounts its canvas while the node has a layout box (hidden breakpoint variants stay empty). */
+function Metal({ m }: { m: { angle: number; distortion: number; softness: number; speed: number } }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const on = useVisibleBox(ref);
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'block', width: '100%', height: '100%', overflow: 'hidden', background: 'transparent' }}>
+      {on ? <LiquidMetal {...m} /> : null}
+    </div>
+  );
+}
+
 const METAL: Record<string, { angle: number; distortion: number; softness: number; speed: number }> = {
   badge: { angle: 70, distortion: 0.01, softness: 0.1, speed: 1.4 },
   button: { angle: 45, distortion: 0.08, softness: 0.1, speed: 1 },
@@ -67,7 +79,7 @@ const makeOverride = (faqOpen: number, toggleFaq: (i: number) => void): Override
   if (!kind) return undefined;
   if (kind === 'hero') return <HeroShader key={key} />;
   const m = METAL[kind];
-  return m ? <LiquidMetal key={key} {...m} /> : undefined;
+  return m ? <Metal key={key} m={m} /> : undefined;
 };
 
 /** The hidden SVG template block is the wrapper's last child so the page body stays a single flat list of sections. */

@@ -16,11 +16,8 @@ export type PNode =
 
 export type Override = (el: PNode & unknown[], key: string, children: ReactNode[], path: string) => ReactNode | undefined;
 
-const cls = (p: Record<string, unknown> | 0, extra: string) => {
-  const o = { ...(p || {}) } as Record<string, unknown>;
-  o.className = o.className ? `${o.className as string} ${extra}` : extra;
-  return o;
-};
+/** Marks a breakpoint variant with a data attribute (the class list stays identical to the old element's). */
+const cls = (p: Record<string, unknown> | 0, bps: string) => ({ ...(p || {}), 'data-pp-b': bps }) as Record<string, unknown>;
 
 export function renderNode(n: PNode, key: string | number, path: string, ov?: Override): ReactNode {
   if (typeof n === 'string') return n;
@@ -39,7 +36,7 @@ export function renderNode(n: PNode, key: string | number, path: string, ov?: Ov
           const el: PNode = [n.t, p, ...n.c];
           const o = ov?.(el as never, `${key}-${bps}`, kids, path);
           if (o !== undefined) return o;
-          return createElement(n.t, { ...cls(p, `pp-b-${bps}`), key: bps }, ...kids);
+          return createElement(n.t, { ...cls(p, bps), key: bps }, ...kids);
         })}
       </Fragment>
     );
@@ -49,7 +46,7 @@ export function renderNode(n: PNode, key: string | number, path: string, ov?: Ov
       {n.v.map(([bps, c]) => {
         if (typeof c === 'string')
           return (
-            <span key={bps} className={`pp-b-${bps}`}>
+            <span key={bps} data-pp-b={bps}>
               {c}
             </span>
           );
@@ -58,7 +55,7 @@ export function renderNode(n: PNode, key: string | number, path: string, ov?: Ov
           const kids = rest.map((x, i) => renderNode(x, i, `${path}/${bps}/${i}`, ov));
           const o = ov?.(c as never, `${key}-${bps}`, kids, path);
           if (o !== undefined) return o;
-          return createElement(tag, { ...cls(p, `pp-b-${bps}`), key: bps }, ...kids);
+          return createElement(tag, { ...cls(p, bps), key: bps }, ...kids);
         }
         return renderNode(c, bps, `${path}/${bps}`, ov);
       })}
