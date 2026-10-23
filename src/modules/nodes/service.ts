@@ -11,6 +11,7 @@ import {
 import { requireAddress } from '../../lib/contracts';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
+import { getRedis } from '../../lib/redis';
 import { publicClient } from '../../lib/viem';
 import { spindleStakingAbi } from '../../shared/abi';
 import { type CatalogModel, DEFAULT_CATALOG } from '../../shared/catalog';
@@ -26,8 +27,8 @@ export const nodeSettings = {
   chainId: config.CHAIN_ID,
   appUrl: config.PUBLIC_APP_URL.replace(/\/$/, ''),
   apiUrl: config.PUBLIC_API_URL.replace(/\/$/, ''),
-  nodeImage: process.env.NODE_IMAGE || 'spindle/node',
-  minAgentVersion: process.env.MIN_AGENT_VERSION || '0.1.0',
+  nodeImage: config.NODE_IMAGE,
+  minAgentVersion: config.MIN_AGENT_VERSION,
   jobTimeoutMs: config.JOB_TIMEOUT_MS,
   maxPerIp: 3,
   maxPerOwner: 5,
@@ -148,8 +149,22 @@ export function setStakingParamsForTest(value: StakingParams | null): void {
   paramsCache = value ? { at: Date.now(), value } : null;
 }
 
-export async function stakingParams(): Promise<StakingParams> {
-  if (paramsCache && Date.now() - paramsCache.at < PARAMS_TTL_MS) return paramsCache.value;
+const REDIS_KEY = 'staking:params';
+let lastAttempt = 0;
+
+/** Reads min stakes / token / delay: memory, then Redis (10 min), then chain. Usable from api and worker. */
+export async function stakingParams(force = false): Promise<StakingParams> {
+  if (!force && paramsCache && Date.now() - paramsCache.at < PARAMS_TTL_MS) return paramsCache.value;
+  try {
+    const raw = await getRedis().get(REDIS_KEY);
+    if (raw) {
+      const value = JSON.parse(raw) as StakingParams;
+      paramsCache = { at: Date.now(), value };
+      return value;
+    }
+  } catch {
+    // Redis unavailable: fall through to the chain
+  }
   const staking = requireAddress('staking');
   const classes = [1, 2, 3, 4] as const;
   const [token, delay, ...mins] = await Promise.all([
@@ -170,7 +185,23 @@ export async function stakingParams(): Promise<StakingParams> {
   });
   const value = { token: token as string, minStakeByClass, unstakeDelay: Number(delay) };
   paramsCache = { at: Date.now(), value };
+  await getRedis()
+    .set(REDIS_KEY, JSON.stringify(value), 'EX', PARAMS_TTL_MS / 1000)
+    .catch(() => {});
   return value;
+}
+
+/** Per-class minimum stake in SPDL wei, shared by api and worker. */
+export async function getMinStakes(): Promise<Record<number, bigint>> {
+  const p = await stakingParams();
+  return Object.fromEntries(Object.entries(p.minStakeByClass).map(([k, v]) => [Number(k), BigInt(v)]));
+}
+
+/** Async staked check for processes without a warm cache (worker). */
+export async function isStakedAsync(node: Pick<NodeRow, 'stakeSpdl' | 'gpuClass'>): Promise<boolean> {
+  const min = (await getMinStakes())[node.gpuClass];
+  const stake = BigInt(node.stakeSpdl);
+  return min != null && stake > 0n && stake >= min;
 }
 
 /** Sync read of the last known per-class minimum (null when never fetched). */
@@ -180,11 +211,20 @@ export function cachedMinStake(gpuClass: number): bigint | null {
 }
 
 export async function refreshMinStakes(): Promise<void> {
+  lastAttempt = Date.now();
   try {
-    await stakingParams();
+    await stakingParams(true);
   } catch (err) {
     logger.debug({ err: String(err) }, 'staking params unavailable');
   }
+}
+
+/** Called from the hub sweep: refresh every 10 min, retry every 60 s while the cache is empty. */
+export async function maybeRefreshMinStakes(now = Date.now()): Promise<void> {
+  const age = paramsCache ? now - paramsCache.at : Number.POSITIVE_INFINITY;
+  if (age < PARAMS_TTL_MS) return;
+  if (!paramsCache && now - lastAttempt < 60_000) return;
+  await refreshMinStakes(); // a failed refresh keeps serving the stale cache
 }
 
 /** Registered on-chain (indexed by B6). Registration is mandatory to receive jobs. */

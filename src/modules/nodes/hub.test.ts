@@ -155,7 +155,7 @@ describe('enrollment and auth', () => {
       seen.add(p.code);
       expect([...p.code.replace('-', '')].every((c) => CROCKFORD.includes(c))).toBe(true);
     }
-    const p = await createPairing('0x' + 'ab'.repeat(20));
+    const p = await createPairing(`0x${'ab'.repeat(20)}`);
     expect(takePairing(p.code, new Date(p.expiresAt.getTime() + 1))).toBeNull();
   });
 
@@ -235,6 +235,31 @@ describe('enrollment and auth', () => {
     const { token } = await createEnrollment(userId, { engine: 'ollama', os: 'linux' });
     const n = spawn({ wsUrl: srv.wsUrl, token, agentVersion: '0.0.1', noReconnect: true });
     await n.waitFor(() => n.closes.includes(CLOSE_CODES.UPGRADE_REQUIRED));
+  });
+});
+
+describe('models and min stakes', () => {
+  test('models.ready outside the ensure set is ignored', async () => {
+    const { n, row } = await enrolled();
+    n.conn.send({
+      v: 1,
+      type: 'models.ready',
+      models: [
+        { id: 'qwen2.5:7b', digest: 'd1' },
+        { id: 'qwen2.5:32b', digest: 'd2' },
+        { id: 'bogus', digest: 'd3' },
+      ],
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    const s = nodeHub.getSession(row.id);
+    expect([...(s?.models ?? [])]).toEqual(['qwen2.5:7b']);
+    const [after] = await t.db.select().from(nodes).where(eq(nodes.id, row.id));
+    expect(((after?.models ?? []) as { id: string }[]).map((m) => m.id)).toEqual(['qwen2.5:7b']);
+  });
+
+  test('getMinStakes reads the cache', async () => {
+    const { getMinStakes } = await import('./service');
+    expect((await getMinStakes())[2]).toBe(200n);
   });
 });
 

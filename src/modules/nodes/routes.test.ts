@@ -204,6 +204,29 @@ describe('nodes routes', () => {
     ).toBe(403);
   });
 
+  test('whitespace-only names are rejected', async () => {
+    const h = await as(alice);
+    expect(
+      (
+        await req('/v1/app/nodes/enroll', {
+          method: 'POST',
+          headers: h,
+          body: { engine: 'ollama', os: 'linux', name: '   ' },
+        })
+      ).status,
+    ).toBe(400);
+    const { nodeId } = await enrollNode(h);
+    expect(
+      (await req(`/v1/app/nodes/${nodeId}`, { method: 'PATCH', headers: h, body: { name: '   ' } })).status,
+    ).toBe(400);
+    const ok = await req(`/v1/app/nodes/${nodeId}`, {
+      method: 'PATCH',
+      headers: h,
+      body: { name: '  Padded  ' },
+    });
+    expect(((await ok.json()) as { name: string }).name).toBe('Padded');
+  });
+
   test('enroll validates input', async () => {
     const h = await as(alice);
     expect(

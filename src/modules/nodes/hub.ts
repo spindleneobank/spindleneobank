@@ -56,6 +56,7 @@ import {
   loadNodeById,
   loadNodeByKey,
   loadNodesByIds,
+  maybeRefreshMinStakes,
   type NodeRow,
   nodeSettings,
   refreshMinStakes,
@@ -101,6 +102,8 @@ export interface Session {
   node?: NodeRow;
   /** catalog ids whose models.ready was reported (cumulative). */
   models: Set<string>;
+  /** catalog ids sent in models.ensure; models.ready outside this set is ignored. */
+  ensured: Set<string>;
   inflight: Map<string, JobCtx>;
   probes: Map<string, ProbeCtx>;
   state: 'idle' | 'busy' | 'loading';
@@ -244,6 +247,7 @@ export class NodeHub {
       nonce: randomBytes(24).toString('base64url'),
       openedAt: Date.now(),
       models: new Set(),
+      ensured: new Set(),
       inflight: new Map(),
       probes: new Map(),
       state: 'idle',
@@ -533,17 +537,13 @@ export class NodeHub {
     }
 
     const catalog = await loadCatalog();
+    s.node = node;
+    const ensure = this.ensureFor(node, hello, catalog);
+    s.ensured = new Set(ensure.map((m) => m.id));
     for (const m of hello.models) {
       const id = catalogIdForEngineModel(catalog, hello.engine, m.id);
-      if (id) s.models.add(id);
+      if (id && s.ensured.has(id)) s.models.add(id);
     }
-    s.node = node;
-    s.phase = 'ready';
-    s.lastSeen = Date.now();
-    this.sessions.set(node.id, s);
-    await this.persistModels(s);
-
-    const ensure = this.ensureFor(node, hello, catalog);
     const deadline = Math.floor(Date.now() / 1000) + nodeSettings.bindingValiditySec;
     const binding = this.bindingFor(s, node, deadline);
     const welcome: WelcomeMsg = {
@@ -564,6 +564,15 @@ export class NodeHub {
     };
     this.send(s, welcome);
     this.send(s, { v: 1, type: 'models.ensure', models: ensure });
+    // Only now may jobs be dispatched to this session.
+    if ((s.phase as Phase) === 'closed') {
+      await this.markOffline(node.id);
+      return;
+    }
+    s.phase = 'ready';
+    s.lastSeen = Date.now();
+    this.sessions.set(node.id, s);
+    await this.persistModels(s);
     this.emit('nodeOnline', node.id);
   }
 
@@ -672,8 +681,12 @@ export class NodeHub {
   }
 
   private async onModelsReady(s: Session, msg: ModelsReadyMsg): Promise<void> {
-    s.models = new Set(msg.models.map((m) => m.id)); // cumulative
-    await this.persistModels(s, msg.models);
+    const accepted = msg.models.filter((m) => s.ensured.has(m.id));
+    const ignored = msg.models.filter((m) => !s.ensured.has(m.id)).map((m) => m.id);
+    if (ignored.length > 0)
+      logger.warn({ nodeId: s.node?.id, ignored }, 'models.ready outside the ensure set ignored');
+    s.models = new Set(accepted.map((m) => m.id)); // cumulative
+    await this.persistModels(s, accepted);
   }
 
   private async persistModels(s: Session, ready?: { id: string; digest: string }[]): Promise<void> {
@@ -692,7 +705,9 @@ export class NodeHub {
     const catalog = await loadCatalog();
     for (const s of this.sessions.values()) {
       if (!s.node || !s.hello) continue;
-      this.send(s, { v: 1, type: 'models.ensure', models: this.ensureFor(s.node, s.hello, catalog) });
+      const ensure = this.ensureFor(s.node, s.hello, catalog);
+      s.ensured = new Set(ensure.map((m) => m.id));
+      this.send(s, { v: 1, type: 'models.ensure', models: ensure });
     }
   }
 
@@ -933,6 +948,7 @@ export class NodeHub {
 
   async sweep(now = Date.now()): Promise<void> {
     sweepPairings(now);
+    void maybeRefreshMinStakes(now);
     const flushIds: string[] = [];
     for (const s of [...this.conns]) {
       if (s.phase === 'pairing') {

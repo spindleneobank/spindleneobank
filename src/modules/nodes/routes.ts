@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import type { Context, Hono } from 'hono';
 import { type Address, erc20Abi } from 'viem';
+import { z } from 'zod';
 import { nodes, users } from '../../db/schema';
 import { requireAddress } from '../../lib/contracts';
 import { AppError } from '../../lib/errors';
@@ -10,9 +11,9 @@ import { publicClient } from '../../lib/viem';
 import { upgradeWebSocket } from '../../lib/ws';
 import {
   GetNodeStakeCallReq,
-  PatchNodeReq,
-  PostNodesEnrollReq,
   PostNodesPairReq,
+  PostNodesEnrollReq as SharedEnrollReq,
+  PatchNodeReq as SharedPatchNodeReq,
 } from '../../shared/api/nodes';
 import { dbRef } from '../auth/constants';
 import { requireSession } from '../auth/middleware';
@@ -65,6 +66,10 @@ export function enrollCommands(token: string, engine: string, os: string) {
       : `curl -fsSL ${nodeSettings.appUrl}/install.sh | sh -s -- --token ${token}`;
   return { docker, installer };
 }
+
+// names are trimmed before validation, so whitespace-only names are rejected
+const PatchNodeReq = SharedPatchNodeReq.extend({ name: z.string().trim().min(1).max(64) });
+const PostNodesEnrollReq = SharedEnrollReq.extend({ name: z.string().trim().min(1).max(64).optional() });
 
 const pairLimit = rateLimit({
   name: 'node_pair',
