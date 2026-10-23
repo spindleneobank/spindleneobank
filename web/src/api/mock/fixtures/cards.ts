@@ -6,7 +6,8 @@ import { readMockSession } from './auth';
  * Mock card backend (stateful, in memory). Page-URL switches for QA:
  *   ?op=<id>            opens the tracker on a seeded operation (see SEEDED below: op_created ... op_refund)
  *   ?cardmode=live-off  issue / top-up POSTs answer 409 LIVE_WRITES_DISABLED
- *   ?apple=busy|expired Apple Pay poll answers busy / expired
+ *   ?apple=idle   Apple Pay never receives a code (default: a card.otp arrives ~8 s after the first poll).
+ *                 In the console, `__mockCardOtp('123456')` delivers a code on demand (newest wins).
  * Magic top-up amounts: $666.66 -> the operation lands in `review` (unknown provider outcome),
  * $9.99 -> 429 RATE_LIMITED, $13.13 -> 409 CONFLICT (open invoice exists).
  */
@@ -236,7 +237,13 @@ const TXS = [
   ['GitHub', '-400', 'declined', 10],
 ] as const;
 
-let apple: { armedAt: number; until: number } | null = null;
+/** Latest delivered Apple Pay code, kept like the server does (10 min lifetime from delivery). */
+let apple: { code: string; at: number } | null = null;
+let firstPoll: number | null = null;
+const OTP_LIFETIME_MS = 10 * 60_000;
+(globalThis as { __mockCardOtp?: (code?: string) => void }).__mockCardOtp = (code = '482913') => {
+  apple = { code, at: Date.now() };
+};
 
 export const cardFixtures: MockFixtures = {
   'GET /v1/app/cards/pricing': () => {
@@ -390,21 +397,18 @@ export const cardFixtures: MockFixtures = {
       throw new ApiError('REAUTH_REQUIRED', 'Please confirm with your wallet.', 403);
     return { number: '5412751234567731', exp: '09/29', cvv: '482', holder: 'SPINDLE USER' };
   },
-  'POST /v1/app/cards/:id/apple-pay': () => {
-    const s = readMockSession();
-    if (!s) throw new ApiError('UNAUTHENTICATED', 'Not signed in', 401);
-    if (s.freshUntil <= Date.now())
-      throw new ApiError('REAUTH_REQUIRED', 'Please confirm with your wallet.', 403);
-    apple = { armedAt: Date.now(), until: Date.now() + 10 * 60_000 };
-    return { armedUntil: iso(apple.until) };
-  },
   'GET /v1/app/cards/:id/apple-pay': () => {
     need();
-    const f = flag('apple');
-    if (f === 'busy') return { status: 'busy', expiresAt: null };
-    if (f === 'expired' || !apple) return { status: 'expired', expiresAt: null };
-    if (Date.now() > apple.until) return { status: 'expired', expiresAt: iso(apple.until) };
-    if (Date.now() - apple.armedAt < 8000) return { status: 'armed', expiresAt: iso(apple.until) };
-    return { status: 'code', code: '482913', expiresAt: iso(apple.until) };
+    firstPoll ??= Date.now();
+    if (!apple && flag('apple') !== 'idle' && Date.now() - firstPoll >= 8000) apple = { code: '482913', at: Date.now() };
+    if (!apple || apple.at + OTP_LIFETIME_MS <= Date.now()) return { status: 'idle' };
+    const expires = apple.at + OTP_LIFETIME_MS;
+    return {
+      status: 'delivered',
+      code: apple.code,
+      receivedAt: iso(apple.at),
+      expiresAt: iso(expires),
+      expiresInSec: Math.max(0, Math.round((expires - Date.now()) / 1000)),
+    };
   },
 };

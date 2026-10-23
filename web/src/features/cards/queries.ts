@@ -120,8 +120,5 @@ export function useCardTransactions(cardId: string, enabled: boolean) {
 export const revealCard = (cardId: string) =>
   apiFetch(`/v1/app/cards/${cardId}/reveal`, { schema: api.PostCardRevealRes, method: 'POST' });
 
-export const armApplePay = (cardId: string) =>
-  apiFetch(`/v1/app/cards/${cardId}/apple-pay`, { schema: api.PostCardApplePayRes, method: 'POST' });
-
 export const pollApplePay = (cardId: string) =>
   apiFetch(`/v1/app/cards/${cardId}/apple-pay`, { schema: api.GetCardApplePayRes });
