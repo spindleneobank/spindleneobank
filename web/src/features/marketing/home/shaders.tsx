@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { LiquidMetal } from '../../../components/marketing/motion';
+import { mountAsciiPattern } from './asciiPattern';
 import { mountHeroShader } from './heroShader';
 
 /**
@@ -13,6 +14,8 @@ export function initShaders(tree: HTMLElement): () => void {
     for (const c of hero.querySelectorAll('canvas')) c.remove();
     off.push(mountHeroShader(hero));
   }
+  const ascii = tree.querySelector<HTMLCanvasElement>('.framer-1hl1ixj-container canvas');
+  if (ascii) off.push(mountAsciiPattern(ascii));
   for (const c of tree.querySelectorAll<HTMLCanvasElement>(
     '.framer-1aggivb-container canvas, .framer-86hip0-container canvas',
   )) {

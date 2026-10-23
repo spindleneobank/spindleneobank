@@ -44,3 +44,20 @@
     stroke-dashoffset: -12;
   }
 }
+
+/* The app's .sp-eyebrow adds a left bar; the old page's eyebrows have none. */
+.framer-VSipU .sp-eyebrow {
+  padding-left: 0;
+  border-left: 0;
+}
+
+/* Reduced motion: the old page runs no infinite animation, including the workflow dash flow. */
+@media (prefers-reduced-motion: reduce) {
+  .framer-VSipU [style*='workflow-flow'] {
+    animation: none !important;
+  }
+}
+
+.framer-VSipU .sp-api-output {
+  border-top: 0;
+}

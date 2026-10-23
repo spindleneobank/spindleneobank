@@ -16,11 +16,11 @@ export function initOrbit(tree: HTMLElement): () => void {
   });
   const base = Number(/rotate\((-?[\d.]+)deg\)/.exec(orbit.style.transform)?.[1] ?? 0);
   let raf = 0;
-  let visible = false;
   let t0 = 0;
+  // Like the old Framer motion value, it keeps turning wherever the page is scrolled; only a hidden tab pauses it.
   const frame = (now: number) => {
     raf = 0;
-    if (!visible || document.hidden) return;
+    if (document.hidden) return;
     if (!t0) t0 = now;
     const a = (base + ((now - t0) / 1000) * 12) % 360;
     orbit.style.transform = `rotate(${a}deg)`;
@@ -28,20 +28,14 @@ export function initOrbit(tree: HTMLElement): () => void {
     raf = requestAnimationFrame(frame);
   };
   const wake = () => {
-    if (!raf && visible && !document.hidden && !reduced()) {
+    if (!raf && !document.hidden && !reduced()) {
       t0 = 0;
       raf = requestAnimationFrame(frame);
     }
   };
-  const io = new IntersectionObserver((e) => {
-    visible = e[0]?.isIntersecting === true;
-    if (visible) wake();
-    else cancelAnimationFrame(raf);
-  });
-  io.observe(orbit);
+  wake();
   document.addEventListener('visibilitychange', wake);
   return () => {
-    io.disconnect();
     cancelAnimationFrame(raf);
     document.removeEventListener('visibilitychange', wake);
   };
@@ -179,24 +173,25 @@ export function initReceiptReveals(tree: HTMLElement): () => void {
   const verified = textP(tree, 'Receipt verified for the epoch');
   const cose = textP(tree, 'receipt.cose');
   const root = textP(tree, 'epoch.root');
-  const items: Array<[HTMLElement | null, Keyframe, number]> = [
-    [ancestorWith(verified, 'receipt.cose'), { opacity: 0, transform: 'scale(0.97)' }, 784],
-    [verified?.parentElement ?? null, { opacity: 0, transform: 'translateY(6px)' }, 471],
-    [ancestorWith(cose, 'Job proof'), { opacity: 0, transform: 'translateX(-12px)' }, 523],
-    [ancestorWith(root, 'Merkle proof'), { opacity: 0, transform: 'translateX(-12px)' }, 461],
+  // [element, from, duration, delay] measured on the old page: spring-like settle, staggered one after another.
+  const items: Array<[HTMLElement | null, Keyframe, number, number]> = [
+    [ancestorWith(verified, 'receipt.cose'), { opacity: 0, transform: 'translateY(16px) scale(0.97)' }, 784, 0],
+    [verified?.parentElement ?? null, { opacity: 0, transform: 'translateY(6px)' }, 471, 150],
+    [ancestorWith(cose, 'Job proof'), { opacity: 0, transform: 'translateX(-12px)' }, 523, 300],
+    [ancestorWith(root, 'Merkle proof'), { opacity: 0, transform: 'translateX(-12px)' }, 461, 460],
   ];
-  const cfg = new Map<Element, [Keyframe, number]>();
+  const cfg = new Map<Element, [Keyframe, number, number]>();
   const io = new IntersectionObserver((entries) => {
     for (const e of entries) {
       if (!e.isIntersecting) continue;
       io.unobserve(e.target);
       const c = cfg.get(e.target);
-      if (c) (e.target as HTMLElement).animate([c[0], { opacity: 1, transform: 'none' }], { duration: c[1], easing: EASE, fill: 'backwards' });
+      if (c) (e.target as HTMLElement).animate([c[0], { opacity: 1, transform: 'none' }], { duration: c[1], delay: c[2], easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' });
     }
   }, { threshold: 0.2 });
-  for (const [el, from, ms] of items) {
+  for (const [el, from, ms, delay] of items) {
     if (!el) continue;
-    cfg.set(el, [from, ms]);
+    cfg.set(el, [from, ms, delay]);
     io.observe(el);
   }
   return () => io.disconnect();
@@ -208,8 +203,9 @@ export function initTicker(tree: HTMLElement): () => void {
   if (!ul || reduced()) return () => {};
   const imgs = Array.from(ul.children).map((li) => li.querySelector('img')?.getAttribute('src') ?? '');
   const k = imgs.indexOf(imgs[0] ?? '', 1);
-  const first = (ul.children[0] as HTMLElement).getBoundingClientRect();
-  const second = (ul.children[1] as HTMLElement).getBoundingClientRect();
+  // the <li>s are display: contents, so measure their first child
+  const first = ((ul.children[0] as HTMLElement).firstElementChild ?? ul).getBoundingClientRect();
+  const second = ((ul.children[1] as HTMLElement).firstElementChild ?? ul).getBoundingClientRect();
   const setW = k > 0 ? k * Math.abs(second.x - first.x) : 0;
   if (!setW) return () => {};
   let x = Number(/translateX\((-?[\d.]+)/.exec(ul.style.transform)?.[1] ?? 0);
@@ -236,7 +232,7 @@ export function initTicker(tree: HTMLElement): () => void {
     visible = e[0]?.isIntersecting === true;
     if (visible) wake();
   });
-  io.observe(ul);
+  io.observe(ul.parentElement?.parentElement ?? ul); // the ul itself is translated out of its clip box
   document.addEventListener('visibilitychange', wake);
   return () => {
     io.disconnect();
