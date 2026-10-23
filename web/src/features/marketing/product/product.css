@@ -1,4 +1,40 @@
 /* Generated from the rendered old /product page (see features/marketing/product/README). Scoped to .pp-scope / #main. */
+.pp-scope .sp-network-working .sp-stream-column{transform-origin: center bottom; animation-duration: 3.8s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; animation-direction: normal; animation-fill-mode: none; animation-name: sp-meter-work; animation-timeline: auto; animation-range: normal; animation-delay: var(--sp-bar-delay); animation-play-state: paused;}
+.pp-scope .sp-network-working.sp-motion-visible .sp-stream-column{animation-play-state: running;}
+.pp-scope .sp-network-working [data-framer-name="Request Volume Chart"]{position: relative; overflow: hidden;}
+.pp-scope .sp-network-packet{position: absolute; top: 39%; left: 0px; width: 100%; height: 3px; background: linear-gradient(90deg, transparent 0px, transparent 40%, rgb(188, 143, 128) 40%, rgb(188, 143, 128) 42%, transparent 42%); border: 0px; pointer-events: none; animation: 4.8s linear 0s infinite normal none paused sp-work-packet; opacity: 0;}
+.pp-scope .sp-motion-visible .sp-network-packet{animation-play-state: running;}
+.pp-scope .sp-network-working.sp-motion-visible [data-framer-name="Streaming Status Dot"]{animation: 2.1s ease-in-out 0s infinite normal none running sp-work-status;}
+@keyframes sp-meter-work { 
+  0%, 100% { transform: scaleY(0.68); opacity: 0.48; }
+  45% { transform: scaleY(1); opacity: 1; }
+  70% { transform: scaleY(0.84); opacity: 0.72; }
+}
+@keyframes sp-work-packet { 
+  0% { transform: translateX(-70%); opacity: 0; }
+  7% { opacity: 0.85; }
+  90% { opacity: 0.85; }
+  100% { transform: translateX(70%); opacity: 0; }
+}
+@keyframes sp-work-status { 
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+@media (prefers-reduced-motion: reduce){.pp-scope .sp-stream-column,.pp-scope .sp-network-packet,.pp-scope .sp-network-working [data-framer-name="Streaming Status Dot"]{will-change: auto; animation: auto ease 0s 1 normal none running none !important;}
+}
+#main .sp-network-working,#main .sp-network-working [data-framer-name="Overview Surface"]{background: rgb(244, 236, 232) !important; box-shadow: none !important; --border-color: #bdaaba !important;}
+#main .sp-network-working :is([data-framer-name^="Metric Card"], [data-framer-name^="Summary Metric"], [data-framer-name="Request Volume Chart"], [data-framer-name="Streaming Status"]){background: rgb(238, 227, 231) !important; --border-color: #c8b6c3 !important;}
+#main .sp-network-working .framer-text{color: rgb(92, 67, 85) !important; --framer-text-color: #5c4355 !important;}
+#main .sp-network-working .sp-stream-dot{background-color: var(--sp-meter-ink,#a27e98) !important;}
+#main .sp-network-working [data-framer-name="Streaming Status Dot"]{background: rgb(167, 134, 155) !important;}
+#main .sp-network-working [data-border="true"]{background-color: rgb(238, 227, 231) !important; --border-color: #c8b6c3 !important;}
+#main .framer-8v5rca-container svg text{fill: rgb(62, 46, 62) !important; opacity: 1 !important; font-family: var(--sp-digital-font) !important;}
+#main .framer-8v5rca-container svg image{filter: brightness(0.36) saturate(0.65);}
+#main .framer-8v5rca-container svg g[stroke]{stroke: rgb(132, 108, 126) !important;}
+#main .framer-8v5rca-container svg path[stroke]{stroke: rgb(132, 108, 126) !important;}
+#main .framer-8v5rca-container svg stop{stop-color: rgb(138, 109, 129) !important;}
+#main .framer-8v5rca-container svg{--sp-fg-token-ae4de4b5-6f19-43e3-b4d9-d916dd58e7a0: #5b4657; --sp-fg-token-36fd4801-1ed5-4456-94b3-71f198c2018f: #3e2e3e;}
+#main .framer-1xhf7nt:has(.framer-8v5rca-container){background: linear-gradient(145deg, rgb(249, 238, 226), rgb(232, 220, 232)) !important; --border-color: #bdabbc !important;}
+#main .framer-8v5rca-container svg text{fill: rgb(47, 37, 48) !important;}
 #main [data-framer-name="Hero Shader"] > div{background: rgb(33, 24, 34) !important;}
 #main img[data-sp-kind="stock"]{filter: url("/assets/duotone.svg#violet");}
 #main .framer-text{--framer-link-current-text-color: #fbd9c8; --framer-link-hover-text-color: #d7cfdf;}
@@ -246,7 +282,7 @@
 .pp-scope .framer-ami7h .framer-121bl77{white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word; flex: 1 0 0px; width: 1px; height: auto; position: relative;}
 .pp-scope .framer-ami7h .framer-mz6pb6{height: 24px; overflow: var(--overflow-clip-fallback,clip); will-change: var(--framer-will-change-override,transform); flex-flow: row; flex: 0 0 auto; place-content: center; align-items: center; gap: 3px; width: 24px; padding: 0px; display: flex; position: relative;}
 .pp-scope .framer-ami7h .framer-ay1zlq,.pp-scope .framer-ami7h .framer-1wso2lb,.pp-scope .framer-ami7h .framer-1go33yn{flex: 0 0 auto; width: 3px; height: 3px; position: relative;}
-.pp-scope .framer-ami7h.framer-v-pfyb46 .framer-vqsz62,.pp-scope .framer-ami7h.framer-v-pfyb46 .framer-aziftk{height: min-content; padding: 8px 0px 0px;}
+.pp-scope .framer-ami7h.framer-v-zzwta4 .framer-vqsz62,.pp-scope .framer-ami7h.framer-v-zzwta4 .framer-aziftk,.pp-scope .framer-ami7h.framer-v-zzwta4 .framer-1y19kyo,.pp-scope .framer-ami7h.framer-v-zzwta4 .framer-gz6uae{height: min-content; padding: 8px 0px 0px;}
 .pp-scope .framer-ami7h[data-border="true"]::after,.pp-scope .framer-ami7h [data-border="true"]::after{content: ""; border-width: var(--border-top-width,0) var(--border-right-width,0) var(--border-bottom-width,0) var(--border-left-width,0); border-color: var(--border-color,none); border-style: var(--border-style,none); box-sizing: border-box; border-radius: inherit; corner-shape: inherit; pointer-events: none; width: 100%; height: 100%; position: absolute; top: 0px; left: 0px;}
 .pp-scope .framer-uCxKU.framer-1tnw2ha{flex-flow: column; place-content: flex-start; align-items: flex-start; gap: 0px; width: 596px; height: min-content; padding: 0px 8px 8px; display: flex; position: relative; overflow: visible;}
 .pp-scope .framer-uCxKU .framer-7dzmlh{flex-flow: row; flex: 0 0 auto; place-content: center space-between; align-items: center; width: 100%; height: 48px; padding: 0px 16px; display: flex; position: relative; overflow: visible;}
