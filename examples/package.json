@@ -1,0 +1,21 @@
+{
+  "name": "@spindle/examples",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Runnable Spindle API examples (API key, x402 exact, x402 session, receipts).",
+  "scripts": {
+    "test": "bun test",
+    "node": "node openai-node.mjs",
+    "x402": "bun x402-client.ts",
+    "session": "bun x402-session.ts",
+    "verify": "bun verify-receipt.ts"
+  },
+  "dependencies": {
+    "openai": "7.43.0",
+    "viem": "2.57.10"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4"
+  }
+}

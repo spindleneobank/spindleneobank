@@ -16,6 +16,7 @@ import { Route as marketingChangelogRouteImport } from './routes/(marketing)/cha
 import { Route as marketingCommunityRouteImport } from './routes/(marketing)/community'
 import { Route as marketingComputeLanesRouteImport } from './routes/(marketing)/compute-lanes'
 import { Route as marketingCookiePolicyRouteImport } from './routes/(marketing)/cookie-policy'
+import { Route as marketingDevelopersRouteImport } from './routes/(marketing)/developers'
 import { Route as marketingPrivacyPolicyRouteImport } from './routes/(marketing)/privacy-policy'
 import { Route as marketingProductRouteImport } from './routes/(marketing)/product'
 import { Route as marketingSolutionsRouteImport } from './routes/(marketing)/solutions'
@@ -67,6 +68,11 @@ const marketingComputeLanesRoute = marketingComputeLanesRouteImport.update({
 const marketingCookiePolicyRoute = marketingCookiePolicyRouteImport.update({
   id: '/(marketing)/cookie-policy',
   path: '/cookie-policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingDevelopersRoute = marketingDevelopersRouteImport.update({
+  id: '/(marketing)/developers',
+  path: '/developers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const marketingPrivacyPolicyRoute = marketingPrivacyPolicyRouteImport.update({
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/community': typeof marketingCommunityRoute
   '/compute-lanes': typeof marketingComputeLanesRoute
   '/cookie-policy': typeof marketingCookiePolicyRoute
+  '/developers': typeof marketingDevelopersRoute
   '/privacy-policy': typeof marketingPrivacyPolicyRoute
   '/product': typeof marketingProductRoute
   '/solutions': typeof marketingSolutionsRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/community': typeof marketingCommunityRoute
   '/compute-lanes': typeof marketingComputeLanesRoute
   '/cookie-policy': typeof marketingCookiePolicyRoute
+  '/developers': typeof marketingDevelopersRoute
   '/privacy-policy': typeof marketingPrivacyPolicyRoute
   '/product': typeof marketingProductRoute
   '/solutions': typeof marketingSolutionsRoute
@@ -219,6 +227,7 @@ export interface FileRoutesById {
   '/(marketing)/community': typeof marketingCommunityRoute
   '/(marketing)/compute-lanes': typeof marketingComputeLanesRoute
   '/(marketing)/cookie-policy': typeof marketingCookiePolicyRoute
+  '/(marketing)/developers': typeof marketingDevelopersRoute
   '/(marketing)/privacy-policy': typeof marketingPrivacyPolicyRoute
   '/(marketing)/product': typeof marketingProductRoute
   '/(marketing)/solutions': typeof marketingSolutionsRoute
@@ -247,6 +256,7 @@ export interface FileRouteTypes {
     | '/community'
     | '/compute-lanes'
     | '/cookie-policy'
+    | '/developers'
     | '/privacy-policy'
     | '/product'
     | '/solutions'
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/community'
     | '/compute-lanes'
     | '/cookie-policy'
+    | '/developers'
     | '/privacy-policy'
     | '/product'
     | '/solutions'
@@ -298,6 +309,7 @@ export interface FileRouteTypes {
     | '/(marketing)/community'
     | '/(marketing)/compute-lanes'
     | '/(marketing)/cookie-policy'
+    | '/(marketing)/developers'
     | '/(marketing)/privacy-policy'
     | '/(marketing)/product'
     | '/(marketing)/solutions'
@@ -325,6 +337,7 @@ export interface RootRouteChildren {
   marketingCommunityRoute: typeof marketingCommunityRoute
   marketingComputeLanesRoute: typeof marketingComputeLanesRoute
   marketingCookiePolicyRoute: typeof marketingCookiePolicyRoute
+  marketingDevelopersRoute: typeof marketingDevelopersRoute
   marketingPrivacyPolicyRoute: typeof marketingPrivacyPolicyRoute
   marketingProductRoute: typeof marketingProductRoute
   marketingSolutionsRoute: typeof marketingSolutionsRoute
@@ -392,6 +405,13 @@ declare module '@tanstack/react-router' {
       path: '/cookie-policy'
       fullPath: '/cookie-policy'
       preLoaderRoute: typeof marketingCookiePolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/developers': {
+      id: '/(marketing)/developers'
+      path: '/developers'
+      fullPath: '/developers'
+      preLoaderRoute: typeof marketingDevelopersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(marketing)/privacy-policy': {
@@ -537,6 +557,7 @@ const rootRouteChildren: RootRouteChildren = {
   marketingCommunityRoute: marketingCommunityRoute,
   marketingComputeLanesRoute: marketingComputeLanesRoute,
   marketingCookiePolicyRoute: marketingCookiePolicyRoute,
+  marketingDevelopersRoute: marketingDevelopersRoute,
   marketingPrivacyPolicyRoute: marketingPrivacyPolicyRoute,
   marketingProductRoute: marketingProductRoute,
   marketingSolutionsRoute: marketingSolutionsRoute,

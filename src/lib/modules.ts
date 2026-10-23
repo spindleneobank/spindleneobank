@@ -18,6 +18,7 @@ import meRoutes from '../modules/me/routes';
 import meteringJobs from '../modules/metering/jobs';
 import networkRoutes from '../modules/network/routes';
 import nodesRoutes from '../modules/nodes/routes';
+import openapi from '../modules/openapi/routes';
 import probeJobs from '../modules/probes/jobs';
 import ratesJobs from '../modules/rates/jobs';
 import receipts from '../modules/receipts/routes';
@@ -50,6 +51,7 @@ export const routeModules: readonly RouteModule[] = [
   meRoutes,
   networkRoutes,
   adminRoutes,
+  openapi,
 ] as const;
 export const jobModules: readonly JobModule[] = [
   chainJobs,
