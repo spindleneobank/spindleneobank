@@ -112,9 +112,7 @@ export function RevealText({ paragraphs }: { paragraphs: string[] }) {
         c.style.color = mix(Math.round(m * 100));
       }
     };
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(apply);
-    };
+    const onScroll = apply;
     const onResize = () => {
       measure();
       onScroll();
