@@ -92,7 +92,15 @@ export function initVideos(tree: HTMLElement): () => void {
     void v.play().catch(() => {});
   };
   const vids = Array.from(tree.querySelectorAll<HTMLVideoElement>('video'));
-  for (const v of vids) v.muted = true;
+  for (const v of vids) {
+    v.muted = true;
+    const flag = () => {
+      const img = v.parentElement?.querySelector('img');
+      if (img) img.dataset.spVideo = '1';
+    };
+    v.addEventListener('loadeddata', flag);
+    if (v.readyState >= 2) flag();
+  }
   const io = new IntersectionObserver(
     (entries) => {
       for (const e of entries) {
