@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { JobKind, Lane, UnitKind } from '../enums';
+import { EpochStatus, JobKind, Lane, UnitKind } from '../enums';
 import { MicrosString } from '../money';
 import { Address, Bytes32, IsoTime, TxHash } from './common';
 import { GpuClass } from './gpu-schema';
@@ -42,6 +42,25 @@ export const GetEpochsLatestRes = z.object({
   txHash: TxHash.nullable(),
   claimableAt: IsoTime.nullable(),
 });
+
+export const EpochListItem = z.object({
+  epoch: z.number().int(),
+  root: Bytes32,
+  totalEarned: MicrosString,
+  owners: z.number().int(),
+  status: z.enum(EpochStatus),
+  postedAt: IsoTime.nullable(),
+  txHash: TxHash.nullable(),
+  claimableAt: IsoTime.nullable(),
+});
+export const GetEpochsReq = z.object({
+  cursor: z
+    .string()
+    .regex(/^\d{1,18}$/)
+    .optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+});
+export const GetEpochsRes = z.object({ items: z.array(EpochListItem), nextCursor: z.string().nullable() });
 
 /** OpenZeppelin StandardMerkleTree.dump() shape. */
 export const MerkleTreeDump = z.object({
