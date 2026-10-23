@@ -22,6 +22,9 @@ const METAL: Record<string, { angle: number; distortion: number; softness: numbe
 
 const override: Override = (el, key): ReactNode | undefined => {
   const p = el[1] as Record<string, unknown> | 0;
+  if (p && typeof p['data-pp-html'] === 'string')
+    // biome-ignore lint/security/noDangerouslySetInnerHtml: static SVG templates extracted from the old page
+    return <div key={key} id="pp-svg-templates" aria-hidden="true" style={p.style as never} dangerouslySetInnerHTML={{ __html: p['data-pp-html'] }} />;
   const kind = p ? (p['data-pp-shader'] as string | undefined) : undefined;
   if (!kind) return undefined;
   if (kind === 'hero') return <HeroShader key={key} />;
@@ -29,18 +32,18 @@ const override: Override = (el, key): ReactNode | undefined => {
   return m ? <LiquidMetal key={key} {...m} /> : undefined;
 };
 
+/** The hidden SVG template block is the wrapper's last child so the page body stays a single flat list of sections. */
+function withTemplates(t: PNode, tpl: string): PNode {
+  if (!Array.isArray(t)) return t;
+  const box: PNode = ['div', { id: 'pp-svg-templates', 'aria-hidden': 'true', style: { position: 'absolute', overflow: 'hidden', bottom: 0, left: 0, width: 0, height: 0, zIndex: 0, contain: 'strict' }, 'data-pp-html': tpl }];
+  return [...t, box] as PNode;
+}
+
 export function ProductBody() {
   const tpl = Object.values(data.templates).join('');
   return (
     <div className={`pp-scope ${data.root.cls.split(/\s+/).slice(0, 2).join(' ')}`} style={data.root.style}>
-      <div
-        id="pp-svg-templates"
-        style={{ position: 'absolute', overflow: 'hidden', bottom: 0, left: 0, width: 0, height: 0, zIndex: 0, contain: 'strict' }}
-        aria-hidden="true"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: static SVG templates extracted from the old page
-        dangerouslySetInnerHTML={{ __html: tpl }}
-      />
-      {renderNode(data.tree, 'root', '', override)}
+      {renderNode(withTemplates(data.tree, tpl), 'root', '', override)}
     </div>
   );
 }
