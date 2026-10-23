@@ -2,6 +2,7 @@ import { Link, useLocation } from '@tanstack/react-router';
 import { AnimatePresence, motion, useAnimationControls } from 'motion/react';
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { FADE } from '../motion/framer';
+import { useBreakpoint } from '../motion/useBreakpoint';
 import { ButtonPrimary } from './Buttons';
 import { COMPANY_A, COMPANY_B, CTA_LABEL, NAV_LINKS, SOLUTIONS, type SubItem } from './nav-data';
 
@@ -139,6 +140,7 @@ export function Header() {
   const coRef = useRef<HTMLButtonElement>(null);
   const [solX, setSolX] = useState(382);
   const nav = useAnimationControls();
+  const bp = useBreakpoint();
   const loc = useLocation({ select: (l) => l.pathname });
   const light = loc === '/'; // the home page uses the Framer "Desktop" (light-text) navbar variant
 
@@ -198,7 +200,7 @@ export function Header() {
         data-light={light || undefined}
         data-open={mobile || undefined}
         initial={false}
-        animate={mobile ? { height: vh } : undefined}
+        animate={bp === 'desktop' ? undefined : { height: mobile ? vh : bp === 'tablet' ? 72 : 62 }}
         transition={SPRING_MENU}
       >
         <div className="sx-hmain" style={{ overflow: mobile ? 'auto' : undefined }}>
