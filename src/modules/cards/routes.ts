@@ -56,6 +56,7 @@ async function body<T extends ZodType>(
 
 const byUser = (c: Context<Env>) => c.get('user')?.address ?? '';
 const sensitiveLimit = rateLimit({ name: 'cards_sensitive', key: byUser, points: 10, windowSec: 600 });
+const applePayLimit = rateLimit({ name: 'card_apple_pay_user_10m', key: byUser, points: 6, windowSec: 600 });
 const writeLimit = rateLimit({ name: 'cards_write', key: byUser, points: 20, windowSec: 600 });
 
 export default function cardRoutes(app: Hono<Env>): void {
@@ -110,7 +111,7 @@ export default function cardRoutes(app: Hono<Env>): void {
     return c.json(details);
   });
 
-  app.post('/v1/app/cards/:id/apple-pay', requireSession, requireFreshAuth, sensitiveLimit, async (c) => {
+  app.post('/v1/app/cards/:id/apple-pay', requireSession, requireFreshAuth, applePayLimit, async (c) => {
     c.header('cache-control', 'no-store');
     return c.json(await armApplePay((await me(c)).userId, c.req.param('id')));
   });

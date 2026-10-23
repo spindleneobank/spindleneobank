@@ -1,11 +1,10 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { createHmac } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { cardOperations, cardProfiles, cards, cardWebhookEvents, sessions } from '../../db/schema';
+import { cardOperations, cardProfiles, cards, cardWebhookEvents, sessions, users } from '../../db/schema';
 import { closeQueues } from '../../lib/queue';
 import { closeRedis, getRedis } from '../../lib/redis';
 import { dbRef } from '../auth/constants';
-import { armApplePay } from './applePay';
 import { provider } from './provider';
 import {
   expireInvoices,
@@ -223,13 +222,25 @@ describe('limits and guards', () => {
       expect(res.status).toBe(409);
       expect((await body(res)).error.code).toBe('LIVE_WRITES_DISABLED');
       expect(calls).toHaveLength(0);
+      // a refused issue persists nothing: no card, no operation, no profile
       const ops = await dbRef.db
         .select()
         .from(cardOperations)
         .where(eq(cardOperations.fundingWallet, u.address));
-      expect(ops).toHaveLength(1);
-      expect(ops[0]?.status).toBe('failed');
-      expect(ops[0]?.error).toBe('LIVE_WRITES_DISABLED');
+      expect(ops).toHaveLength(0);
+      const refusedUser = await dbRef.db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.address, u.address));
+      const owned = refusedUser[0]
+        ? await dbRef.db.select().from(cards).where(eq(cards.userId, refusedUser[0].id))
+        : [];
+      expect(owned).toHaveLength(0);
+      expect(
+        refusedUser[0]
+          ? await dbRef.db.select().from(cardProfiles).where(eq(cardProfiles.userId, refusedUser[0].id))
+          : [],
+      ).toHaveLength(0);
       // provider-level guard as well, independent of the service
       await expect(Promise.resolve().then(() => provider.issue('{}', 'k'))).rejects.toMatchObject({
         code: 'LIVE_WRITES_DISABLED',
@@ -402,30 +413,130 @@ describe('reveal and Apple Pay', () => {
     expect((await body(again)).error.code).toBe('REAUTH_REQUIRED');
   });
 
-  test('apple pay: one card at a time; OTP via webhook, encrypted in Redis, never in the DB', async () => {
+  const otpEvent = (id: string, providerCardId: string | null, code: string, created?: number) =>
+    JSON.stringify({
+      id,
+      type: 'card.otp',
+      ...(created === undefined ? {} : { created }),
+      data: { card_id: providerCardId, code, kind: 'apple_pay', last4: '4242' },
+    });
+  const sendHook = (raw: string) =>
+    kit.app.request('/v1/webhooks/izipay', {
+      method: 'POST',
+      body: raw,
+      headers: {
+        'content-type': 'application/json',
+        'x-izipay-signature': createHmac('sha256', HOOK_SECRET).update(raw).digest('hex'),
+      },
+    });
+  const applePay = async (a: Awaited<ReturnType<typeof issued>>) =>
+    body(await a.u.call('GET', `/v1/app/cards/${a.cardId}/apple-pay`));
+  const nowSec = () => Math.floor(Date.now() / 1000);
+  const eid = () => `otp-${Math.random().toString(36).slice(2)}`;
+
+  test('a code delivered without an arm is shown, encrypted in Redis, never in the DB; no provider calls', async () => {
+    const a = await issued();
+    expect((await applePay(a)).status).toBe('idle');
+    calls.length = 0;
+    const pcid = (await cardRow(a.cardId)).providerCardId as string;
+    expect((await sendHook(otpEvent(eid(), pcid, '482913', nowSec()))).status).toBe(200);
+    const got = await applePay(a);
+    expect(got.status).toBe('delivered');
+    expect(got.code).toBe('482913');
+    expect(got.expiresInSec).toBeGreaterThan(595);
+    expect(got.expiresInSec).toBeLessThanOrEqual(600);
+    const stored = await getRedis().get(`cards:applepay:code:${providerScope()}:${a.cardId}`);
+    expect(stored).not.toContain('482913');
+    expect(JSON.stringify(await dbRef.db.select().from(cardWebhookEvents))).not.toContain('482913');
+    expect(only('apple-pay-code')).toHaveLength(0);
+    // arming is only a waiting window and never reaches izipay
+    const b = await issued();
+    const armed = await body(await b.u.call('POST', `/v1/app/cards/${b.cardId}/apple-pay`));
+    expect(armed.status).toBe('waiting');
+    expect(armed.expiresInSec).toBeGreaterThan(595);
+    expect(only('apple-pay-code')).toHaveLength(0);
+  });
+
+  test('TTL is anchored to the event time', async () => {
+    const a = await issued();
+    const pcid = (await cardRow(a.cardId)).providerCardId as string;
+    await sendHook(otpEvent(eid(), pcid, '111222', nowSec() - 300));
+    const got = await applePay(a);
+    expect(got.expiresInSec).toBeGreaterThan(290);
+    expect(got.expiresInSec).toBeLessThanOrEqual(300);
+    const ttl = await getRedis().ttl(`cards:applepay:code:${providerScope()}:${a.cardId}`);
+    expect(ttl).toBeGreaterThan(290);
+    expect(ttl).toBeLessThanOrEqual(301);
+    // a future event time never extends the lifetime
+    const b = await issued();
+    await sendHook(
+      otpEvent(eid(), (await cardRow(b.cardId)).providerCardId as string, '333444', nowSec() + 3600),
+    );
+    expect((await applePay(b)).expiresInSec).toBeLessThanOrEqual(600);
+  });
+
+  test('a stale code is rejected', async () => {
+    const a = await issued();
+    const pcid = (await cardRow(a.cardId)).providerCardId as string;
+    expect((await sendHook(otpEvent(eid(), pcid, '555666', nowSec() - 700))).status).toBe(200);
+    expect((await applePay(a)).status).toBe('idle');
+    expect(await getRedis().get(`cards:applepay:code:${providerScope()}:${a.cardId}`)).toBeNull();
+  });
+
+  test('an older retried event never overwrites a newer code', async () => {
+    const a = await issued();
+    const pcid = (await cardRow(a.cardId)).providerCardId as string;
+    await sendHook(otpEvent(eid(), pcid, '200200', nowSec() - 5));
+    await sendHook(otpEvent(eid(), pcid, '100100', nowSec() - 60));
+    expect((await applePay(a)).code).toBe('200200');
+    await sendHook(otpEvent(eid(), pcid, '300300', nowSec()));
+    expect((await applePay(a)).code).toBe('300300');
+  });
+
+  test('duplicate event id: same payload is a no-op, different payload is 409', async () => {
+    const a = await issued();
+    const pcid = (await cardRow(a.cardId)).providerCardId as string;
+    const id = eid();
+    const created = nowSec() - 2;
+    expect((await sendHook(otpEvent(id, pcid, '777888', created))).status).toBe(200);
+    expect((await sendHook(otpEvent(id, pcid, '777888', created))).status).toBe(200);
+    expect(
+      (await dbRef.db.select().from(cardWebhookEvents)).filter((e) => e.providerEventId === id),
+    ).toHaveLength(1);
+    const clash = await sendHook(otpEvent(id, pcid, '999000', created));
+    expect(clash.status).toBe(409);
+    expect((await applePay(a)).code).toBe('777888');
+    const row = (await dbRef.db.select().from(cardWebhookEvents)).find((e) => e.providerEventId === id);
+    expect(row?.providerScope).toBe(providerScope());
+    expect(row?.eventAt?.getTime()).toBe(created * 1000);
+  });
+
+  test('a card id from another provider scope is ignored', async () => {
+    const a = await issued();
+    await dbRef.db.update(cards).set({ providerScope: 'izipay:live:other' }).where(eq(cards.id, a.cardId));
+    const pcid = (await cardRow(a.cardId)).providerCardId as string;
+    expect((await sendHook(otpEvent(eid(), pcid, '121212', nowSec()))).status).toBe(200);
+    expect((await applePay(a)).status).toBe('idle');
+    // an unknown card id is acknowledged and ignored too
+    expect((await sendHook(otpEvent(eid(), 'nope', '121212', nowSec()))).status).toBe(200);
+  });
+
+  test('two cards hold their codes independently', async () => {
     const a = await issued();
     const b = await issued();
-    await getRedis().del(`cards:applepay:lock:${providerScope()}`);
-    const armed = await a.u.call('POST', `/v1/app/cards/${a.cardId}/apple-pay`);
-    expect(armed.status).toBe(200);
-    expect(Date.parse((await body(armed)).armedUntil)).toBeGreaterThan(Date.now() + 9 * 60_000);
-    // joining the live window does not re-arm
-    expect((await a.u.call('POST', `/v1/app/cards/${a.cardId}/apple-pay`)).status).toBe(200);
-    expect(only('/apple-pay-code').filter((c) => c.method === 'POST')).toHaveLength(1);
-    const busy = await b.u.call('POST', `/v1/app/cards/${b.cardId}/apple-pay`);
-    expect(busy.status).toBe(409);
-    expect((await body(busy)).error.details.status).toBe('busy');
-    expect((await body(await b.u.call('GET', `/v1/app/cards/${b.cardId}/apple-pay`))).status).toBe('busy');
-    await kit.mock.hooks.idle();
-    const got = await body(await a.u.call('GET', `/v1/app/cards/${a.cardId}/apple-pay`));
-    expect(got.status).toBe('code');
-    expect(got.code).toMatch(/^\d{6}$/);
-    const stored = await getRedis().get(`cards:applepay:code:${providerScope()}:${a.cardId}`);
-    expect(stored).not.toContain(got.code);
-    const events = JSON.stringify(await dbRef.db.select().from(cardWebhookEvents));
-    expect(events).not.toContain(got.code);
-    await getRedis().del(`cards:applepay:lock:${providerScope()}`);
-    void armApplePay;
+    await sendHook(otpEvent(eid(), (await cardRow(a.cardId)).providerCardId as string, '111111', nowSec()));
+    expect((await applePay(b)).status).toBe('idle');
+    await sendHook(otpEvent(eid(), (await cardRow(b.cardId)).providerCardId as string, '222222', nowSec()));
+    expect((await applePay(a)).code).toBe('111111');
+    expect((await applePay(b)).code).toBe('222222');
+  });
+
+  test('only an issued mastercard owned by the caller can read or arm', async () => {
+    const a = await issued();
+    const other = await kit.as(kit.newUser());
+    expect((await other.call('GET', `/v1/app/cards/${a.cardId}/apple-pay`)).status).toBe(404);
+    await dbRef.db.update(cards).set({ product: 'visa' }).where(eq(cards.id, a.cardId));
+    expect((await a.u.call('GET', `/v1/app/cards/${a.cardId}/apple-pay`)).status).toBe(409);
   });
 });
 

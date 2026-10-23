@@ -244,7 +244,8 @@ export async function createCard(
   const email = input.email.trim();
   const pricing = await getPricing();
   const feeCents = BigInt(pricing?.issueFeeUsdCents ?? '0');
-  const blocked = liveWritesBlocked();
+  // Refused before any insert: a blocked issue leaves no card or operation row behind.
+  if (liveWritesBlocked()) throw liveWritesDisabledError();
   let result: { card: CardRow; op: OpRow };
   try {
     result = await dbRef.db.transaction(async (tx) => {
@@ -275,9 +276,10 @@ export async function createCard(
         .insert(cards)
         .values({
           userId: ctx.userId,
+          providerScope: providerScope(),
           product: input.product,
           finish: input.finish ?? null,
-          status: blocked ? 'failed' : 'pending_payment',
+          status: 'pending_payment',
         })
         .returning();
       const [op] = await tx
@@ -292,8 +294,7 @@ export async function createCard(
           ipHash: ctx.ipHash,
           // Snapshot of the profile used for this card: two cards can never cross emails.
           invoice: { profileId: profile?.id },
-          status: blocked ? 'failed' : 'created',
-          error: blocked ? 'LIVE_WRITES_DISABLED' : null,
+          status: 'created',
         })
         .returning();
       return { card: card!, op: op! };
@@ -304,8 +305,6 @@ export async function createCard(
     }
     throw err;
   }
-  // The refusal is recorded (operation `failed`) before the 409 so nothing is ever sent to the provider.
-  if (blocked) throw liveWritesDisabledError();
   await kick();
   return { card: serializeCard(result.card, result.op), operation: serializeOperation(result.op) };
 }
@@ -334,7 +333,7 @@ export async function createTopup(
     );
   }
   await ownCard(ctx.userId, cardId);
-  const blocked = liveWritesBlocked();
+  if (liveWritesBlocked()) throw liveWritesDisabledError();
   const op = await dbRef.db.transaction(async (tx) => {
     await lockUser(tx, ctx.userId);
     const [card] = await tx
@@ -364,13 +363,11 @@ export async function createTopup(
         amountUsdCents,
         fundingWallet: ctx.address.toLowerCase(),
         ipHash: ctx.ipHash,
-        status: blocked ? 'failed' : 'created',
-        error: blocked ? 'LIVE_WRITES_DISABLED' : null,
+        status: 'created',
       })
       .returning();
     return row!;
   });
-  if (blocked) throw liveWritesDisabledError();
   await kick();
   return { operation: serializeOperation(op) };
 }

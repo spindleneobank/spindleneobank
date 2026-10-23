@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../auth/useAuth';
 import { CardFace, CardFinishPicker } from '../../components/CardFace';
 import { CTA } from '../../components/CTA';
 import { Dialog } from '../../components/Dialog';
 import { formatCents } from '../../components/Money';
 import { StatusPill } from '../../components/StatusPill';
-import { countdown, useNow } from '../shell/ui';
+import { useNow } from '../shell/ui';
 import { EMAIL_RE, friendlyError, parseDollars, validateTopup } from './logic';
-import { armApplePay, pollApplePay, revealCard, useCardPricing, useCreateCard, useTopup } from './queries';
+import { pollApplePay, revealCard, useCardPricing, useCreateCard, useTopup } from './queries';
 
 /* ---------------- create ---------------- */
 
@@ -366,7 +366,10 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 
 /* ---------------- Apple Pay ---------------- */
 
-type Apple = Awaited<ReturnType<typeof pollApplePay>>;
+/** Same cadence as pingapp's dialog: codes arrive at any time, so check while open and on return from Wallet. */
+const POLL_MS = 4000;
+
+type Delivered = { code: string; receivedAt: string; deadline: number };
 
 export function ApplePayDialog({ cardId, onClose }: { cardId: string | null; onClose: () => void }) {
   return (
@@ -376,106 +379,70 @@ export function ApplePayDialog({ cardId, onClose }: { cardId: string | null; onC
   );
 }
 
-function ApplePayBody({ cardId, onClose }: { cardId: string; onClose: () => void }) {
-  const auth = useAuth();
-  const now = useNow(1000);
-  const [state, setState] = useState<'idle' | 'arming' | 'polling'>('idle');
-  const [apple, setApple] = useState<Apple | null>(null);
-  const [armedUntil, setArmedUntil] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+function mmss(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
 
-  // Resume an already-armed window (e.g. dialog reopened); never arms by itself.
-  useEffect(() => {
-    let live = true;
-    pollApplePay(cardId)
-      .then((a) => {
-        if (live && (a.status === 'armed' || a.status === 'code')) {
-          setApple(a);
-          setArmedUntil(a.expiresAt);
-          setState('polling');
-        }
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
+function ApplePayBody({ cardId, onClose }: { cardId: string; onClose: () => void }) {
+  const now = useNow(1000);
+  const [delivered, setDelivered] = useState<Delivered | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const mounted = useRef(true);
+
+  const poll = useCallback(async () => {
+    try {
+      const a = await pollApplePay(cardId);
+      if (!mounted.current) return;
+      setError(null);
+      // The deadline comes from the server's remaining seconds, so a skewed device clock cannot hide a valid
+      // code or keep an expired one on screen.
+      setDelivered(
+        a.status === 'delivered'
+          ? { code: a.code, receivedAt: a.receivedAt, deadline: Date.now() + a.expiresInSec * 1000 }
+          : null,
+      );
+    } catch (e) {
+      if (mounted.current) setError(friendlyError(e));
+    }
   }, [cardId]);
 
   useEffect(() => {
-    if (state !== 'polling') return;
-    let live = true;
-    const tick = () =>
-      pollApplePay(cardId)
-        .then((a) => live && setApple(a))
-        .catch((e) => live && setError(friendlyError(e)));
-    const t = setInterval(tick, 5000);
-    void tick();
-    return () => {
-      live = false;
-      clearInterval(t);
-      setApple(null);
+    mounted.current = true;
+    void poll();
+    const t = setInterval(() => void poll(), POLL_MS);
+    const visible = () => {
+      if (!document.hidden) void poll();
     };
-  }, [state, cardId]);
+    document.addEventListener('visibilitychange', visible);
+    return () => {
+      mounted.current = false;
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', visible);
+    };
+  }, [poll]);
 
-  const arm = async () => {
-    setError(null);
-    setState('arming');
-    try {
-      const r = await auth.withReauth(() => armApplePay(cardId));
-      setArmedUntil(r.armedUntil);
-      setState('polling');
-    } catch (e) {
-      setError(friendlyError(e));
-      setState('idle');
-    }
-  };
-
-  const status = apple?.status;
-  const expiresAt = apple?.expiresAt ?? armedUntil;
-  const left = expiresAt ? countdown(expiresAt, now) : null;
-  const timedOut = state === 'polling' && !!expiresAt && Date.parse(expiresAt) <= now && status !== 'code';
+  const live = delivered && delivered.deadline > now ? delivered : null;
   return (
     <div className="cd-form">
-      {state === 'idle' || state === 'arming' ? (
-        <>
-          <ol className="cd-howto">
-            <li>Press the button below. It opens a 10 minute window.</li>
-            <li>On your iPhone, open Wallet and add this card. Choose to verify by email.</li>
-            <li>Your code shows up here as soon as it arrives.</li>
-          </ol>
-          <p className="cd-fee">
-            Only one card can be activated at a time. Do not start a second one during the window.
-          </p>
-          <div className="sd-actions-row">
-            <CTA icon="" disabled={state === 'arming'} onClick={() => void arm()}>
-              {state === 'arming' ? 'Confirm in wallet…' : 'Start activation'}
-            </CTA>
-          </div>
-        </>
-      ) : status === 'busy' ? (
-        <div role="status">
-          <StatusPill tone="warn">Busy</StatusPill>
-          <p>Another activation is in progress. Try again in a few minutes.</p>
-        </div>
-      ) : status === 'code' && apple?.code ? (
-        <div role="status" className="cd-otp">
+      {live ? (
+        <div role="status" className="cd-otp" aria-live="polite">
           <small>Your Apple Pay verification code</small>
-          <code data-testid="otp">{apple.code}</code>
-          <small>Enter it in Wallet. {left ? `Window closes in ${left}.` : ''}</small>
-        </div>
-      ) : status === 'expired' || timedOut ? (
-        <div role="status">
-          <StatusPill tone="neutral">Expired</StatusPill>
-          <p>The activation window ended without a code. Start again when you are ready to add the card.</p>
-          <CTA variant="secondary" icon="" onClick={() => setState('idle')}>
-            Start over
-          </CTA>
+          <code data-testid="otp">{live.code}</code>
+          <small data-testid="otp-countdown">Expires in {mmss(live.deadline - now)}.</small>
+          <CopyButton value={live.code} label="code" />
+          <small>Wallet asked again? The newer code replaces this one as soon as it arrives.</small>
         </div>
       ) : (
-        <div role="status">
-          <StatusPill tone="info">Waiting for the code</StatusPill>
-          <p>Add the card in Wallet on your iPhone now. Window closes in {left ?? '…'}.</p>
-        </div>
+        <>
+          <ol className="cd-howto">
+            <li>On your iPhone, open Wallet and add this card. Choose to verify by email.</li>
+            <li>Your code shows up here as soon as it arrives. Codes received in the last 10 minutes show too.</li>
+          </ol>
+          <div role="status">
+            <StatusPill tone="info">Waiting for the code</StatusPill>
+          </div>
+        </>
       )}
       {error ? (
         <p className="cd-error" role="alert">

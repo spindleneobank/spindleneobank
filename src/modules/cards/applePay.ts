@@ -1,40 +1,39 @@
-import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
+import type { z } from 'zod';
 import { cards } from '../../db/schema';
 import { AppError } from '../../lib/errors';
 import { getRedis } from '../../lib/redis';
+import type { GetCardApplePayRes } from '../../shared/api/cards';
 import { dbRef } from '../auth/constants';
-import { record, str } from './domain';
-import { provider } from './provider';
 import { ownCard } from './service';
 import { applePayContext, decryptCardData, encryptCardData, providerScope, requireCards } from './settings';
 
 /**
- * Apple Pay OTP capture. izipay matches the issuer's code email by timing only, so ONE card is armed at a
- * time across the whole provider account, for the full 10 minute window plus a 30 s margin. The code is held
- * AES-GCM encrypted in Redis until the window ends and never reaches the DB or logs.
+ * Apple Pay activation (same design as pingapp's `card.otp` flow). izipay delivers the issuer's one-time code as
+ * a signed `card.otp` webhook carrying the provider card id, so nothing is armed at the provider and nothing is
+ * polled from it. The latest code per card is kept AES-GCM encrypted in Redis until it expires; it never reaches
+ * the database or logs.
  */
 export const WINDOW_SEC = 600;
-const LOCK_SEC = WINDOW_SEC + 30;
-const lockKey = () => `cards:applepay:lock:${providerScope()}`;
 const codeKey = (cardId: string) => `cards:applepay:code:${providerScope()}:${cardId}`;
-const pollKey = (cardId: string) => `cards:applepay:poll:${providerScope()}:${cardId}`;
+// Plaintext delivery time of the stored code, so a late retry never replaces a newer code.
+const codeAtKey = (cardId: string) => `cards:applepay:code-at:${providerScope()}:${cardId}`;
+// Clients may open a per-card waiting window before polling (no lock, no provider call).
+const waitKey = (cardId: string) => `cards:applepay:wait:${providerScope()}:${cardId}`;
 
-type Lock = { cardId: string; nonce: string; armedUntil: number };
+const deliverScript = `
+local current = tonumber(redis.call('GET', KEYS[2]) or '0')
+if current > tonumber(ARGV[1]) then return 0 end
+redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+redis.call('SET', KEYS[2], ARGV[1], 'EX', ARGV[3])
+return 1`;
 
-const releaseScript =
-  "local v = redis.call('GET', KEYS[1]) if v and cjson.decode(v).nonce == ARGV[1] then return redis.call('DEL', KEYS[1]) end return 0";
+export type ApplePayState = z.infer<typeof GetCardApplePayRes>;
 
-async function readLock(): Promise<Lock | null> {
-  const raw = await getRedis().get(lockKey());
-  if (!raw) return null;
-  try {
-    const lock = JSON.parse(raw) as Lock;
-    return lock.armedUntil + 30_000 > Date.now() ? lock : null;
-  } catch {
-    return null;
-  }
-}
+const windowOf = (expiresAt: number) => ({
+  expiresAt: new Date(expiresAt).toISOString(),
+  expiresInSec: Math.max(0, Math.round((expiresAt - Date.now()) / 1000)),
+});
 
 async function applePayCard(userId: string, id: string) {
   const card = await ownCard(userId, id);
@@ -43,93 +42,79 @@ async function applePayCard(userId: string, id: string) {
     throw new AppError('CONFLICT', 'Apple Pay activation needs the Mastercard card type.', 409);
   if (card.status !== 'issued' || !card.providerCardId)
     throw new AppError('CONFLICT', 'Your card is not ready yet.', 409);
-  return card as typeof card & { providerCardId: string };
+  return card;
 }
 
-/** POST: arms capture. Another card holding the window answers 409 with `details.status = 'busy'`. */
-export async function armApplePay(userId: string, id: string): Promise<{ armedUntil: string }> {
-  const card = await applePayCard(userId, id);
-  const redis = getRedis();
-  const lock: Lock = { cardId: card.id, nonce: randomUUID(), armedUntil: Date.now() + WINDOW_SEC * 1000 };
-  const acquired = await redis.set(lockKey(), JSON.stringify(lock), 'EX', LOCK_SEC, 'NX');
-  if (!acquired) {
-    const current = await readLock();
-    if (current?.cardId === card.id) return { armedUntil: new Date(current.armedUntil).toISOString() };
-    throw new AppError('CONFLICT', 'Another card is being activated. Try again in a few minutes.', 409, {
-      status: 'busy',
-    });
-  }
-  try {
-    await provider.armApplePay(card.providerCardId);
-  } catch (err) {
-    await redis.eval(releaseScript, 1, lockKey(), lock.nonce).catch(() => {});
-    if (err instanceof AppError) throw err;
-    throw new AppError('UPSTREAM_UNAVAILABLE', 'Could not start Apple Pay activation. Try again shortly.');
-  }
-  return { armedUntil: new Date(lock.armedUntil).toISOString() };
-}
-
-type State = { status: 'armed' | 'code' | 'expired' | 'busy'; code?: string; expiresAt: string | null };
-
-async function storedCode(cardId: string): Promise<string | null> {
+async function deliveredCode(cardId: string): Promise<ApplePayState | null> {
   const raw = await getRedis().get(codeKey(cardId));
   if (!raw) return null;
   try {
-    return str(JSON.parse(decryptCardData(raw, applePayContext(cardId))).code, 12);
+    const { code, deliveredAt, expiresAt } = JSON.parse(decryptCardData(raw, applePayContext(cardId))) as {
+      code: string;
+      deliveredAt: number;
+      expiresAt: number;
+    };
+    return expiresAt > Date.now()
+      ? { status: 'delivered', code, receivedAt: new Date(deliveredAt).toISOString(), ...windowOf(expiresAt) }
+      : null;
   } catch {
     return null;
   }
 }
 
-async function store(cardId: string, code: string, lock: Lock) {
-  const ttl = Math.max(1, Math.ceil((lock.armedUntil + 30_000 - Date.now()) / 1000));
-  await getRedis().set(
-    codeKey(cardId),
-    encryptCardData(JSON.stringify({ code }), applePayContext(cardId)),
-    'EX',
-    ttl,
-  );
+async function currentState(cardId: string): Promise<ApplePayState> {
+  const delivered = await deliveredCode(cardId);
+  if (delivered) return delivered;
+  const waitUntil = Number(await getRedis().get(waitKey(cardId)));
+  return waitUntil > Date.now() ? { status: 'waiting', ...windowOf(waitUntil) } : { status: 'idle' };
 }
 
-/** GET: the delivered code (if any), polling the provider at most once per 15 s while armed. */
-export async function getApplePay(userId: string, id: string): Promise<State> {
+/** POST: opens a per-card waiting window (NX: a live window is joined, not extended). Nothing reaches izipay. */
+export async function armApplePay(userId: string, id: string): Promise<ApplePayState> {
   const card = await applePayCard(userId, id);
-  const lock = await readLock();
-  if (!lock) return { status: 'expired', expiresAt: null };
-  if (lock.cardId !== card.id) return { status: 'busy', expiresAt: new Date(lock.armedUntil).toISOString() };
-  const expiresAt = new Date(lock.armedUntil).toISOString();
-  let code = await storedCode(card.id);
-  if (
-    !code &&
-    Date.now() < lock.armedUntil &&
-    (await getRedis().set(pollKey(card.id), '1', 'EX', 15, 'NX'))
-  ) {
-    try {
-      const data = record(await provider.applePayCode(card.providerCardId));
-      const polled = str(data.code, 12);
-      if (data.status === 'delivered' && polled && /^\d{4,10}$/.test(polled)) {
-        await store(card.id, polled, lock);
-        code = polled;
-      }
-    } catch {
-      /* the webhook is the primary path */
-    }
-  }
-  if (code) return { status: 'code', code, expiresAt };
-  return { status: Date.now() < lock.armedUntil ? 'armed' : 'expired', expiresAt };
+  await getRedis().set(waitKey(card.id), String(Date.now() + WINDOW_SEC * 1000), 'EX', WINDOW_SEC, 'NX');
+  return currentState(card.id);
 }
 
-/** `card.otp` webhook delivery. Stores only while this card holds the window; returns whether it was kept. */
-export async function deliverOtp(event: { providerCardId: string; code: string }): Promise<boolean> {
+/** GET: the stored code (armed or not) with a server-computed `expiresInSec`. */
+export async function getApplePay(userId: string, id: string): Promise<ApplePayState> {
+  const card = await applePayCard(userId, id);
+  return currentState(card.id);
+}
+
+/**
+ * `card.otp` webhook delivery. Stores the code for any known card of this provider scope, armed or not; the
+ * lifetime is anchored to min(now, event time). Returns false for an unknown card, a malformed code or a
+ * code that is already expired.
+ */
+export async function deliverOtp(event: {
+  providerCardId: string;
+  code: string;
+  eventAt: string | null;
+}): Promise<boolean> {
   if (!/^\d{4,10}$/.test(event.code)) return false;
   const [card] = await dbRef.db
     .select({ id: cards.id })
     .from(cards)
-    .where(eq(cards.providerCardId, event.providerCardId))
+    .where(and(eq(cards.providerScope, providerScope()), eq(cards.providerCardId, event.providerCardId)))
     .limit(1);
   if (!card) return false;
-  const lock = await readLock();
-  if (!lock || lock.cardId !== card.id) return false;
-  await store(card.id, event.code, lock);
+  const deliveredAt = Math.min(Date.now(), event.eventAt ? new Date(event.eventAt).getTime() : Date.now());
+  const expiresAt = deliveredAt + WINDOW_SEC * 1000;
+  const ttl = Math.ceil((expiresAt - Date.now()) / 1000);
+  if (ttl <= 0) return false;
+  const sealed = encryptCardData(
+    JSON.stringify({ code: event.code, deliveredAt, expiresAt }),
+    applePayContext(card.id),
+  );
+  await getRedis().eval(
+    deliverScript,
+    2,
+    codeKey(card.id),
+    codeAtKey(card.id),
+    String(deliveredAt),
+    sealed,
+    String(ttl),
+  );
   return true;
 }

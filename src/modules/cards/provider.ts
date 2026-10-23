@@ -168,8 +168,6 @@ export const provider = {
   transactions: (id: string, offset: number) =>
     request('GET', `${cardPath(id)}/transactions?limit=100&offset=${offset}`),
   pricing: () => request('GET', '/balance'),
-  armApplePay: (id: string) => request('POST', `${cardPath(id)}/apple-pay-code`),
-  applePayCode: (id: string) => request('GET', `${cardPath(id)}/apple-pay-code`),
   /** Mock-only: marks an invoice paid (stands in for the on-chain payment). */
   sandboxConfirm(paymentId: string) {
     if (cardSettings.mode !== 'mock') throw new ProviderError('not_sent', 'invalid_response');

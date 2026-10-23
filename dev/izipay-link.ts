@@ -27,7 +27,11 @@ if (process.env.NODE_ENV === 'production') {
   process.exit(1);
 }
 const [providerCardId, ownerAddress] = args;
-if (!providerCardId || !/^[A-Za-z0-9_-]{1,128}$/.test(providerCardId) || !/^0x[0-9a-fA-F]{40}$/.test(ownerAddress ?? '')) {
+if (
+  !providerCardId ||
+  !/^[A-Za-z0-9_-]{1,128}$/.test(providerCardId) ||
+  !/^0x[0-9a-fA-F]{40}$/.test(ownerAddress ?? '')
+) {
   console.error(USAGE);
   process.exit(2);
 }
@@ -35,7 +39,7 @@ if (!providerCardId || !/^[A-Za-z0-9_-]{1,128}$/.test(providerCardId) || !/^0x[0
 // Imported lazily so --help and the production refusal never load config or touch the network.
 const { provider } = await import('../src/modules/cards/provider');
 const { normalizeCard, decimalToCents } = await import('../src/modules/cards/domain');
-const { liveWritesBlocked } = await import('../src/modules/cards/settings');
+const { liveWritesBlocked, providerScope } = await import('../src/modules/cards/settings');
 if (!liveWritesBlocked() && process.env.IZIPAY_MODE === 'live') {
   console.error('izipay-link: refusing, live writes are enabled (IZIPAY_LIVE_WRITES must be false)');
   process.exit(1);
@@ -53,15 +57,23 @@ try {
     insert into users (address) values (${address})
     on conflict (address) do update set address = excluded.address returning id`;
   const [row] = await sql`
-    insert into cards (user_id, provider_card_id, client_card_ref, product, last4, status, balance_usd_cents, issued_at, synced_at)
-    values (${user!.id}, ${providerCardId}, ${crypto.randomUUID()}, 'mastercard', ${data.last4}, ${status},
+    insert into cards (user_id, provider_scope, provider_card_id, client_card_ref, product, last4, status, balance_usd_cents, issued_at, synced_at)
+    values (${user!.id}, ${providerScope()}, ${providerCardId}, ${crypto.randomUUID()}, 'mastercard', ${data.last4}, ${status},
             ${cents === null ? null : cents.toString()}, ${data.issuedAt}, now())
     on conflict (provider_card_id) do update set
-      user_id = excluded.user_id, last4 = excluded.last4, status = excluded.status,
+      user_id = excluded.user_id, provider_scope = excluded.provider_scope, last4 = excluded.last4, status = excluded.status,
       balance_usd_cents = excluded.balance_usd_cents, issued_at = excluded.issued_at, synced_at = now()
     returning id, status, last4, balance_usd_cents`;
   console.log(
-    JSON.stringify({ linked: true, cardId: row!.id, providerCardId, status: row!.status, last4: row!.last4, balanceUsdCents: String(row!.balance_usd_cents), owner: address }),
+    JSON.stringify({
+      linked: true,
+      cardId: row!.id,
+      providerCardId,
+      status: row!.status,
+      last4: row!.last4,
+      balanceUsdCents: String(row!.balance_usd_cents),
+      owner: address,
+    }),
   );
 } finally {
   await sql.end();

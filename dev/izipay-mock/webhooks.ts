@@ -6,8 +6,6 @@ export interface WebhookConfig {
   secret: string;
   /** Delay between card.paid and card.issued / topup.completed (default 2000). */
   stepDelayMs: number;
-  /** Delay from arming Apple Pay to card.otp (default 3000). */
-  otpDelayMs: number;
 }
 
 /** hex HMAC-SHA256(raw body, secret): identical to pingapp `verifyWebhook`. */
@@ -27,11 +25,11 @@ export class Webhooks {
   }
 
   /** Sends one signed event now. With `dup`, sends the same body (same event id) twice. */
-  async send(type: string, data: Record<string, unknown>, dup = false): Promise<void> {
+  async send(type: string, data: Record<string, unknown>, dup = false, created?: number): Promise<void> {
     const body = JSON.stringify({
       id: this.state.nextEventId(),
       type,
-      created: Math.floor(Date.now() / 1000),
+      created: created ?? Math.floor(Date.now() / 1000),
       data,
     });
     const times = dup ? 2 : 1;

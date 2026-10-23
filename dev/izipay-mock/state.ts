@@ -67,7 +67,6 @@ export class MockState {
   refs = new Map<string, string>(); // client_card_ref -> card_id
   payments = new Map<string, Payment>();
   txs = new Map<string, Transaction[]>();
-  otpArmed = new Map<string, { expiresAt: number; code: string | null }>();
   seenSignatures = new Map<string, number>();
   stickyFaults = new Set<Fault>();
   /** Every non-admin request received (also those answered with an injected fault): for E2E assertions. */
@@ -79,7 +78,6 @@ export class MockState {
     this.refs.clear();
     this.payments.clear();
     this.txs.clear();
-    this.otpArmed.clear();
     this.seenSignatures.clear();
     this.stickyFaults.clear();
     this.requests.length = 0;
