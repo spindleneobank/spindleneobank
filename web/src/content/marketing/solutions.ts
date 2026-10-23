@@ -202,7 +202,7 @@ export const roles: Role[] = [
     title: 'Operate a node with evidence behind the work.',
     lead: 'Inspect GPU capability, node identity, stake and reputation alongside signed job receipts and receipt epochs.',
     bullets: [
-      'Node registration with a wallet signature', // exception: old "…with a passkey smart account"
+      'Node registration with a wallet signature', // exception (approved)
       'Metering checked against the gateway record',
       'Attestation checks for eligible sealed-lane nodes',
     ],
