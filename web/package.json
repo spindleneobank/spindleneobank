@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "vite build && bun scripts/sitemap.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p .",
     "lint": "biome check .",

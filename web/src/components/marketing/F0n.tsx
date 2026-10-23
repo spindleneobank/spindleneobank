@@ -1,28 +1,18 @@
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { routeHead } from '../../seo/head';
 import { CTA } from '../CTA';
 import { Eyebrow } from '../Eyebrow';
 import './f0n.css';
 
-const SITE = 'Spindle';
-
-/** Standard head() output for a marketing page. */
+/** Standard head() output for a marketing page (delegates to `src/seo`). */
 export function pageHead(
   title: string,
   description: string,
   path: string,
   opts?: { noindex?: boolean; refreshTo?: string },
 ) {
-  const meta: Record<string, string>[] = [
-    { title: `${title} | ${SITE}` },
-    { name: 'description', content: description },
-    { property: 'og:title', content: `${title} | ${SITE}` },
-    { property: 'og:description', content: description },
-    { property: 'og:type', content: 'website' },
-  ];
-  if (opts?.noindex) meta.push({ name: 'robots', content: 'noindex' });
-  if (opts?.refreshTo) meta.push({ httpEquiv: 'refresh', content: `0; url=${opts.refreshTo}` });
-  return { meta, links: [{ rel: 'canonical', href: opts?.refreshTo ?? path }] };
+  return routeHead({ title, description, path, ...opts });
 }
 
 export function PageHero({
