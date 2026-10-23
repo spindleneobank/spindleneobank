@@ -255,7 +255,7 @@ export function initQuoteAppear(tree: HTMLElement): () => void {
     if (e[0]?.isIntersecting !== true) return;
     io.disconnect();
     hold.cancel();
-    el.animate([{ opacity: 0.001 }, { opacity: 1 }], { duration: 600, delay: 200, easing: 'linear', fill: 'backwards' });
+    el.animate([{ opacity: 0.001, transform: 'none' }, { opacity: 1, transform: 'none' }], { duration: 600, delay: 200, easing: 'linear', fill: 'backwards' });
   });
   io.observe(el);
   return () => {
