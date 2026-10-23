@@ -79,6 +79,17 @@ function stubChat(n) { // replace the chat container's content with a marker
 if (Object.keys(chatStates).length === BPS.length) for (const b of BPS) stubChat(trees[b]);
 for (const b of BPS) stubTypewriter(trees[b]);
 
+// "Explore the paths" tabs (capture-tabs.mjs): the container keeps its attrs, the state root is rendered by <TabGroup>
+const tabRaw = {};
+for (const b of BPS) { const f = `${EXT}/tabs-${b}.json`; if (fs.existsSync(f)) tabRaw[b] = JSON.parse(fs.readFileSync(f, 'utf8')); }
+const hasTabs = Object.keys(tabRaw).length === BPS.length;
+function stubTabs(n) {
+  if (typeof n === 'string') return;
+  if ((n.a.class || '').split(' ').includes('framer-u0pvqb-container') && n.c.length === 1) { n.c = [{ t: 'div', a: { 'data-pp-tabs': '1' }, c: [] }]; return; }
+  n.c.forEach(stubTabs);
+}
+if (hasTabs) for (const b of BPS) stubTabs(trees[b]);
+
 // FAQ accordion (capture-faq.mjs): items keep their container, the state root is rendered by <FaqItem>
 const faqRaw = {};
 for (const b of BPS) { const f = `${EXT}/faq-${b}.json`; if (fs.existsSync(f)) faqRaw[b] = JSON.parse(fs.readFileSync(f, 'utf8')); }
@@ -170,7 +181,9 @@ if (hasFaq) {
     faq.items.push(item);
   }
 }
-const out = { faq, chat, root: { cls: X.desktop.rootCls, style: styleObj(X.desktop.rootStyle || '') }, tree: conv(merged), templates: tpl };
+let tabs = null;
+if (hasTabs) tabs = { states: [0, 1, 2].map((i) => conv(merge(Object.fromEntries(BPS.map((b) => [b, norm(tabRaw[b].states[i]).c[0]]))))) };
+const out = { tabs, faq, chat, root: { cls: X.desktop.rootCls, style: styleObj(X.desktop.rootStyle || '') }, tree: conv(merged), templates: tpl };
 fs.writeFileSync(OUT_JSON, JSON.stringify(out));
 console.log('variantNodes', variantNodes, 'json', JSON.stringify(out).length);
 
