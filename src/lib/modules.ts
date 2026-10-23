@@ -6,7 +6,6 @@ import indexerJobs from '../modules/indexer/jobs';
 import nodesRoutes from '../modules/nodes/routes';
 import stocksJobs from '../modules/stocks/jobs';
 import stocks from '../modules/stocks/routes';
->>>>>>> main
 import type { Env } from './http';
 import type { WorkerCtx } from './queue';
 
@@ -15,9 +14,5 @@ import type { WorkerCtx } from './queue';
 export type RouteModule = (app: Hono<Env>) => void;
 export type JobModule = (ctx: WorkerCtx) => void | Promise<void>;
 
-<<<<<<< HEAD
-export const routeModules: readonly RouteModule[] = [auth, health] as const;
-export const jobModules: readonly JobModule[] = [chainJobs, indexerJobs] as const;
-=======
 export const routeModules: readonly RouteModule[] = [auth, health, stocks, nodesRoutes] as const;
 export const jobModules: readonly JobModule[] = [chainJobs, stocksJobs, indexerJobs] as const;
