@@ -11,3 +11,6 @@
 
 /* The old page body has no inherited line-height (SVG text reads `normal`); the new global stylesheet sets one. */
 .pp-scope { line-height: normal; }
+
+/* The tool reads a section's background from its first child; breakpoint variants put a hidden sibling first, so the FAQ wrapper carries it too. */
+.pp-scope .framer-9f2sp8-container { background-color: rgb(17, 15, 21); }

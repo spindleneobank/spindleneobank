@@ -397,7 +397,7 @@
 .pp-scope .framer-egeFU .framer-dwvy2q-container,.pp-scope .framer-egeFU .framer-1g1so52-container{flex: 1 0 0px; width: 1px; height: 100%; position: relative;}
 .pp-scope .framer-egeFU.framer-v-1j6ltr8.framer-29z3ga{flex-direction: column; height: 680px;}
 .pp-scope .framer-egeFU.framer-v-1j6ltr8 .framer-aitp2v-container{width: 100%; height: 65%;}
-.pp-scope .framer-egeFU.framer-v-1j6ltr8 .framer-dwvy2q-container,.pp-scope .framer-egeFU.framer-v-1j6ltr8 .framer-1g1so52-container{width: 100%; height: 1px;}
+.pp-scope .framer-egeFU.framer-v-1j6ltr8 .framer-dwvy2q-container,.pp-scope .framer-egeFU.framer-v-1j6ltr8 .framer-1g1so52-container,.pp-scope .framer-egeFU.framer-v-1lhf0s0 .framer-dwvy2q-container,.pp-scope .framer-egeFU.framer-v-1lhf0s0 .framer-1g1so52-container{width: 100%; height: 1px;}
 .pp-scope .framer-egeFU.framer-v-1lhf0s0.framer-29z3ga{flex-direction: column; width: 350px; height: 600px;}
 .pp-scope .framer-egeFU.framer-v-1lhf0s0 .framer-aitp2v-container{width: 100%; height: 75%;}
 .pp-scope .framer-E7aMW.framer-l1l35v{cursor: default; height: 464px; overflow: var(--overflow-clip-fallback,clip); will-change: var(--framer-will-change-override,transform); flex-flow: column; place-content: flex-start space-between; align-items: flex-start; width: 800px; padding: 32px; display: flex; position: relative;}
@@ -435,7 +435,7 @@
 .pp-scope .framer-lQ0KU .framer-bgfdyq-container{flex: 1 0 0px; width: 1px; max-width: 748px; height: auto; position: relative;}
 .pp-scope .framer-lQ0KU.framer-v-1rpxtp9.framer-1vdcmek{width: 810px; padding: 80px 24px;}
 .pp-scope .framer-lQ0KU.framer-v-1rpxtp9 .framer-4v593{flex-direction: column; gap: 64px; padding: 0px 24px;}
-.pp-scope .framer-lQ0KU.framer-v-1rpxtp9 .framer-5knjfq{flex: 0 0 auto; width: 100%; padding: 0px;}
+.pp-scope .framer-lQ0KU.framer-v-1rpxtp9 .framer-5knjfq,.pp-scope .framer-lQ0KU.framer-v-53ffki .framer-5knjfq{flex: 0 0 auto; width: 100%; padding: 0px;}
 .pp-scope .framer-lQ0KU.framer-v-1rpxtp9 .framer-bgfdyq-container{max-width: unset; flex: 0 0 auto; width: 100%;}
 .pp-scope .framer-lQ0KU.framer-v-53ffki.framer-1vdcmek{width: 390px; padding: 60px 6px;}
 .pp-scope .framer-lQ0KU.framer-v-53ffki .framer-4v593{flex-direction: column; gap: 40px; padding: 0px 16px;}

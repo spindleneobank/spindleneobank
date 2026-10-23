@@ -40,6 +40,8 @@ function norm(n, anc = []) {
     }
     a[k] = v;
   }
+  // the old page resolves this background to the 800w stock file on every breakpoint (its script rewrites srcset after load)
+  if (n.t === 'img' && /soap-film-web-v10/.test(a.src || '')) { delete a.srcset; delete a.sizes; }
   const cls = a.class || ''; return { t: n.t, a, c: n.c.map((c) => norm(c, [...anc.slice(-8), cls])) };
 }
 const trees = Object.fromEntries(BPS.map((b) => [b, norm(X[b].tree)]));
@@ -58,6 +60,18 @@ function stubChat(n) { // replace the chat container's content with a marker
   n.c.forEach(stubChat);
 }
 if (Object.keys(chatStates).length === BPS.length) for (const b of BPS) stubChat(trees[b]);
+
+// FAQ accordion (capture-faq.mjs): items keep their container, the state root is rendered by <FaqItem>
+const faqRaw = {};
+for (const b of BPS) { const f = `${EXT}/faq-${b}.json`; if (fs.existsSync(f)) faqRaw[b] = JSON.parse(fs.readFileSync(f, 'utf8')); }
+const hasFaq = Object.keys(faqRaw).length === BPS.length;
+function stubFaq(n) {
+  if (typeof n === 'string') return;
+  const m = /^Question ([1-6])$/.exec(n.a['data-framer-name'] || '');
+  if (m && (n.a.class || '').includes('-container') && n.c.length === 1) { n.c = [{ t: 'div', a: { 'data-pp-faq': m[1] }, c: [] }]; return; }
+  n.c.forEach(stubFaq);
+}
+if (hasFaq) for (const b of BPS) stubFaq(trees[b]);
 
 // ---------- merge
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -128,7 +142,16 @@ if (Object.keys(chatStates).length === BPS.length) {
   chat = { names: chatStates.desktop.map((s) => s.name), states: [] };
   for (let i = 0; i < n; i++) chat.states.push(conv(merge({ desktop: chatStates.desktop[i].node.c[0], tablet: chatStates.tablet[i].node.c[0], phone: chatStates.phone[i].node.c[0] })));
 }
-const out = { chat, root: { cls: X.desktop.rootCls, style: styleObj(X.desktop.rootStyle || '') }, tree: conv(merged), templates: tpl };
+let faq = null;
+if (hasFaq) {
+  faq = { initial: faqRaw.desktop.initial.findIndex((x) => x === 'Opened'), single: faqRaw.desktop.single, items: [] };
+  for (let i = 0; i < 6; i++) {
+    const item = {};
+    for (const st of ['opened', 'closed']) item[st] = conv(merge(Object.fromEntries(BPS.map((b) => [b, norm(faqRaw[b].items[i][st]).c[0]]))));
+    faq.items.push(item);
+  }
+}
+const out = { faq, chat, root: { cls: X.desktop.rootCls, style: styleObj(X.desktop.rootStyle || '') }, tree: conv(merged), templates: tpl };
 fs.writeFileSync(OUT_JSON, JSON.stringify(out));
 console.log('variantNodes', variantNodes, 'json', JSON.stringify(out).length);
 
@@ -136,7 +159,15 @@ console.log('variantNodes', variantNodes, 'json', JSON.stringify(out).length);
 const all = new Map(); // key -> rule
 const order = (k) => k.split(/[s.]/).filter(Boolean).map(Number);
 const cmpK = (a, b) => { const x = order(a), y = order(b); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] ?? -1) - (y[i] ?? -1); if (d) return d; } return 0; };
-function collect(rules, into) { for (const r of rules) { const ex = into.get(r.k); if (r.inner) { if (!ex) into.set(r.k, { ...r, inner: new Map() }); collect(r.inner, into.get(r.k).inner); } else if (!ex) into.set(r.k, r); } }
+const splitSel = (s) => s.split(/,(?![^(]*\))(?![^\[]*\])/).map((x) => x.trim()).filter(Boolean);
+function collect(rules, into) {
+  for (const r of rules) {
+    const ex = into.get(r.k);
+    if (r.inner) { if (!ex) into.set(r.k, { ...r, inner: new Map() }); collect(r.inner, into.get(r.k).inner); }
+    else if (!ex) into.set(r.k, { ...r });
+    else if (r.sel && ex.sel !== r.sel) ex.sel = [...new Set([...splitSel(ex.sel), ...splitSel(r.sel)])].join(', '); // each breakpoint keeps only the parts that match its own tree
+  }
+}
 const map = new Map();
 for (const b of BPS) for (const sh of X[b].sheets) collect(sh.rules, map);
 const treeText = JSON.stringify(out.tree) + JSON.stringify(out.root);
