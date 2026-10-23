@@ -13,8 +13,11 @@ import { s07 } from './scenarios/s07';
 import { s08 } from './scenarios/s08';
 import { s09 } from './scenarios/s09';
 import { s10 } from './scenarios/s10';
+import { s11 } from './scenarios/s11';
+import { s12 } from './scenarios/s12';
+import { s13 } from './scenarios/s13';
 
-const all: Scenario[] = [s01, s02, s03, s04, s05, s06, s07, s08, s09, s10];
+const all: Scenario[] = [s01, s02, s03, s04, s05, s06, s07, s08, s09, s10, s11, s12, s13];
 const only = (
   process.argv.find((a) => a.startsWith('--only='))?.slice(7) ??
   process.argv[process.argv.indexOf('--only') + 1] ??
