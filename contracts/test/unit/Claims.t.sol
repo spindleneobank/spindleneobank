@@ -253,6 +253,19 @@ contract ClaimsTest is Test {
         assertEq(claims.latestClaimableEpoch(), 2);
     }
 
+    function test_postRoot_epochAboveVetoedMax() public {
+        _post(1, 10e6, 10e6);
+        _post(5, 20e6, 10e6);
+        vm.prank(guardian);
+        claims.vetoRoot(5);
+        assertEq(claims.lastEpoch(), 1);
+        vm.prank(poster);
+        vm.expectRevert(ISpindleClaims.EpochNotIncreasing.selector);
+        claims.postRoot(3, bytes32(uint256(1)), 30e6);
+        _post(6, 20e6, 10e6);
+        assertEq(claims.lastEpoch(), 6);
+    }
+
     // ---- JS vector ----
     function test_jsVectorMatches() public {
         string memory json = vm.readFile("test/fixtures/merkle-vector.json");

@@ -22,6 +22,8 @@ contract SpindleClaims is ISpindleClaims, ReentrancyGuardTransient {
 
     /// @notice Last posted, non-vetoed epoch (0 if none).
     uint64 public lastEpoch;
+    /// @notice Highest epoch ever posted (including vetoed); new epochs must exceed it.
+    uint64 public maxPostedEpoch;
     uint256 public totalClaimed;
     mapping(uint64 => Root) public roots;
     mapping(address => uint256) public claimed;
@@ -43,10 +45,8 @@ contract SpindleClaims is ISpindleClaims, ReentrancyGuardTransient {
     /// @param totalEarned Sum of all cumulative amounts; bounded by cap and solvency.
     function postRoot(uint64 epoch, bytes32 root, uint256 totalEarned) external {
         if (msg.sender != poster) revert NotPoster();
-        if (epoch <= lastEpoch) revert EpochNotIncreasing();
+        if (epoch <= maxPostedEpoch) revert EpochNotIncreasing();
         if (root == bytes32(0)) revert ZeroRoot();
-        // A vetoed epoch number may never be reused: roots[epoch] must be empty.
-        if (roots[epoch].postedAt != 0) revert EpochNotIncreasing();
 
         uint256 prevTotal = lastEpoch == 0 ? 0 : roots[lastEpoch].totalEarned;
         if (totalEarned < prevTotal) revert TotalDecreased();
@@ -56,6 +56,7 @@ contract SpindleClaims is ISpindleClaims, ReentrancyGuardTransient {
         roots[epoch] = Root(root, totalEarned, uint64(block.timestamp), false);
         postedEpochs.push(epoch);
         lastEpoch = epoch;
+        maxPostedEpoch = epoch;
         emit RootPosted(epoch, root, totalEarned);
     }
 
