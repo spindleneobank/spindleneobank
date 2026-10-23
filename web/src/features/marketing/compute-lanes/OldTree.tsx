@@ -1,4 +1,8 @@
+import { useRef, useState } from 'react';
 import { useBreakpoint } from '../../../components/marketing/motion';
+import { ComingDialog } from '../../../components/marketing/shell';
+import { SOCIALS } from '../../../components/marketing/shell/nav-data';
+import { useShaderHosts } from '../shaders';
 import { rootClass, trees, wrapClass } from './markup';
 import './old.css';
 
@@ -18,8 +22,23 @@ function applyExceptions(html: string) {
 export function OldTree({ onMount }: { onMount?: (root: HTMLElement) => void | (() => void) }) {
   const bp = useBreakpoint();
   const html = applyExceptions(trees[bp] ?? trees.all);
+  const ref = useRef<HTMLDivElement>(null);
+  const shaders = useShaderHosts(ref, bp);
+  const [what, setWhat] = useState<(typeof SOCIALS)[number] | null>(null);
   return (
-    <div className={rootClass} data-p5-root>
+    <div className={rootClass}
+      data-p5-root
+      ref={ref}
+      onClick={(e) => {
+        // old spindle.js coming(): social buttons open the "coming soon" dialog
+        const b = (e.target as HTMLElement).closest<HTMLElement>('[data-sp-social]');
+        const s = b && SOCIALS.find((x) => x.key === b.dataset.spSocial);
+        if (s) {
+          e.preventDefault();
+          setWhat(s);
+        }
+      }}
+    >
       <div
         data-framer-root=""
         className={wrapClass}
@@ -27,6 +46,8 @@ export function OldTree({ onMount }: { onMount?: (root: HTMLElement) => void | (
         // biome-ignore lint/security/noDangerouslySetInnerHtml: static markup generated from the old rendered DOM
         dangerouslySetInnerHTML={{ __html: html }}
       />
+      {shaders}
+      <ComingDialog what={what} onClose={() => setWhat(null)} />
     </div>
   );
 }
