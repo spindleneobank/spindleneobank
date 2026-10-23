@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useBreakpoint } from '../../../components/marketing/motion';
 import { ComingDialog } from '../../../components/marketing/shell';
 import { SOCIALS } from '../../../components/marketing/shell/nav-data';
@@ -21,9 +22,11 @@ function applyExceptions(html: string) {
 
 export function OldTree({ onMount }: { onMount?: (root: HTMLElement) => void | (() => void) }) {
   const bp = useBreakpoint();
-  const html = applyExceptions(trees[bp] ?? trees.all);
+  const html = applyExceptions(trees[bp] ?? trees.all ?? '');
   const ref = useRef<HTMLDivElement>(null);
   const shaders = useShaderHosts(ref, bp);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [what, setWhat] = useState<(typeof SOCIALS)[number] | null>(null);
   return (
     <div className={rootClass}
@@ -47,7 +50,7 @@ export function OldTree({ onMount }: { onMount?: (root: HTMLElement) => void | (
         dangerouslySetInnerHTML={{ __html: html }}
       />
       {shaders}
-      <ComingDialog what={what} onClose={() => setWhat(null)} />
+      {typeof document !== 'undefined' && mounted ? createPortal(<ComingDialog what={what} onClose={() => setWhat(null)} />, document.body) : null}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 /* Generated from the old rendered DOM (post-hydration), filtered to rules that match this page. */
-[data-p5-root]{color:rgb(238, 229, 241);font-family:sans-serif;font-size:12px;font-weight:400;font-style:normal;font-variant:normal;line-height:normal;letter-spacing:normal;word-spacing:0px;text-align:start;text-transform:none;text-indent:0px;white-space:normal;direction:ltr;visibility:visible;list-style:outside none disc;-webkit-font-smoothing:antialiased;font-feature-settings:normal;font-variant-numeric:normal;text-wrap:wrap;--sp-bg:#100c18;--sp-panel:#191321;--sp-peach:#fbd9c8;--sp-text:#eee5f1;--sp-muted:#ac9bc9;--sp-purple:#5f5391;--sp-border:#382d47;--sp-body-font:'Spindle Sans',Inter,Arial,sans-serif;--sp-digital-font:'Chakra Petch',Arial,sans-serif;--token-36fd4801-1ed5-4456-94b3-71f198c2018f:#0e0b0a;--token-f6a8d8cb-9e85-4bc1-a178-0191b832f963:#0e0b0aa8;--token-c59c216f-2206-46ab-a890-ed31224f213d:#0e0b0a66;--token-ae4de4b5-6f19-43e3-b4d9-d916dd58e7a0:#fff;--token-d8cae593-1b6a-4d38-9825-e83e61ca7f0e:#ffffffb3;--token-cecf13b1-6e17-46de-b32d-d09a9f1fea8b:#fff6;--token-5b2f134b-e83d-4423-89b6-195c9cf15e94:#fafafa;--token-bd2532eb-a2e4-4dc3-950b-63cbe12960ec:#f5f5f5;--token-562d18fd-cf04-40e1-83ea-58e3a738f142:#e6e5e5;--token-dd35983b-1c7b-4c1f-92a7-4c3f53d956ed:#262323;--token-c7bbe1f7-7c01-463c-b321-4483d699b5fb:#000;--token-19394555-ede9-4787-a55a-9ca36da2f69b:red;--token-74d9d790-ae04-448d-bc25-9406925cac80:#000;--token-0c5d4565-8c4b-4ed7-9ecc-ef06d91cb000:#4d4d4d;--framer-will-change-override:transform;--framer-will-change-filter-override:filter;--overflow-clip-fallback:hidden;--one-if-corner-shape-supported:1;--framer-aspect-ratio-supported:auto;}
+[data-p5-root]{color:rgb(238, 229, 241);font-family:sans-serif;font-size:12px;font-weight:400;font-style:normal;font-variant:normal;line-height:normal;letter-spacing:normal;word-spacing:0px;text-align:start;text-transform:none;text-indent:0px;white-space:normal;direction:ltr;visibility:visible;list-style:outside none disc;-webkit-font-smoothing:antialiased;font-feature-settings:normal;font-variant-numeric:normal;text-wrap:wrap;--sp-bg:#100c18;--sp-panel:#191321;--sp-peach:#fbd9c8;--sp-text:#eee5f1;--sp-muted:#ac9bc9;--sp-purple:#5f5391;--sp-border:#382d47;--sp-body-font:'Spindle Sans',Inter,Arial,sans-serif;--sp-digital-font:'Chakra Petch',Arial,sans-serif;--token-36fd4801-1ed5-4456-94b3-71f198c2018f:#0e0b0a;--token-f6a8d8cb-9e85-4bc1-a178-0191b832f963:#0e0b0aa8;--token-c59c216f-2206-46ab-a890-ed31224f213d:#0e0b0a66;--token-ae4de4b5-6f19-43e3-b4d9-d916dd58e7a0:#fff;--token-d8cae593-1b6a-4d38-9825-e83e61ca7f0e:#ffffffb3;--token-cecf13b1-6e17-46de-b32d-d09a9f1fea8b:#fff6;--token-5b2f134b-e83d-4423-89b6-195c9cf15e94:#fafafa;--token-bd2532eb-a2e4-4dc3-950b-63cbe12960ec:#f5f5f5;--token-562d18fd-cf04-40e1-83ea-58e3a738f142:#e6e5e5;--token-dd35983b-1c7b-4c1f-92a7-4c3f53d956ed:#262323;--token-c7bbe1f7-7c01-463c-b321-4483d699b5fb:#000;--token-19394555-ede9-4787-a55a-9ca36da2f69b:red;--token-74d9d790-ae04-448d-bc25-9406925cac80:#000;--token-0c5d4565-8c4b-4ed7-9ecc-ef06d91cb000:#4d4d4d;--framer-will-change-override:none;--framer-will-change-filter-override:none;}
 .sx-shell [data-p5-root] *{font-variant-numeric:normal}
 [data-p5-root] :where(img,svg,video,canvas){display:inline;max-width:none}
 [data-p5-root] :where(h1,h2,h3,h4,h5,h6,p,ul,ol,figure,blockquote){margin:revert}
@@ -337,43 +337,43 @@ mark.framer-text, p.framer-text, div.framer-text, h1.framer-text, h2.framer-text
 .framer-D72R9 .framer-styles-preset-1ebkype:not(.rich-text-wrapper), .framer-D72R9 .framer-styles-preset-1ebkype.rich-text-wrapper p { --framer-font-family: "Inter", "Inter Placeholder", sans-serif; --framer-font-family-bold: "Inter", "Inter Placeholder", sans-serif; --framer-font-family-bold-italic: "Inter", "Inter Placeholder", sans-serif; --framer-font-family-italic: "Inter", "Inter Placeholder", sans-serif; --framer-font-open-type-features: "blwf" on, "cv03" on, "cv04" on, "cv09" on, "cv11" on; --framer-font-size: 14px; --framer-font-style: normal; --framer-font-style-bold: normal; --framer-font-style-bold-italic: italic; --framer-font-style-italic: italic; --framer-font-variation-axes: normal; --framer-font-weight: 400; --framer-font-weight-bold: 700; --framer-font-weight-bold-italic: 700; --framer-font-weight-italic: 400; --framer-letter-spacing: 0px; --framer-line-height: 22px; --framer-paragraph-spacing: 20px; --framer-text-alignment: start; --framer-text-color: var(--sp-fg-token-36fd4801-1ed5-4456-94b3-71f198c2018f,rgba(243, 218, 205, 1)); --framer-text-decoration: none; --framer-text-stroke-color: initial; --framer-text-stroke-width: initial; --framer-text-transform: none; }
 .framer-BiCoW .framer-styles-preset-1u4ub8q:not(.rich-text-wrapper), .framer-BiCoW .framer-styles-preset-1u4ub8q.rich-text-wrapper p { --framer-font-family: "Geist Mono", "Geist Mono Placeholder", monospace; --framer-font-family-bold: "Geist Mono", "Geist Mono Placeholder", monospace; --framer-font-family-bold-italic: "Geist Mono", "Geist Mono Placeholder", monospace; --framer-font-family-italic: "Geist Mono", "Geist Mono Placeholder", monospace; --framer-font-open-type-features: "blwf" on, "cv03" on, "cv04" on, "cv09" on, "cv11" on; --framer-font-size: 14px; --framer-font-style: normal; --framer-font-style-bold: normal; --framer-font-style-bold-italic: italic; --framer-font-style-italic: italic; --framer-font-variation-axes: normal; --framer-font-weight: 400; --framer-font-weight-bold: 700; --framer-font-weight-bold-italic: 700; --framer-font-weight-italic: 400; --framer-letter-spacing: 0px; --framer-line-height: 20px; --framer-paragraph-spacing: 20px; --framer-text-alignment: start; --framer-text-color: rgba(190, 140, 168, 1); --framer-text-decoration: none; --framer-text-stroke-color: initial; --framer-text-stroke-width: initial; --framer-text-transform: uppercase; }
 .framer-d7BIe .framer-styles-preset-19rt131:not(.rich-text-wrapper), .framer-d7BIe .framer-styles-preset-19rt131.rich-text-wrapper p { --framer-font-family: "Inter", "Inter Placeholder", sans-serif; --framer-font-family-bold: "Inter", "Inter Placeholder", sans-serif; --framer-font-family-bold-italic: "Inter", "Inter Placeholder", sans-serif; --framer-font-family-italic: "Inter", "Inter Placeholder", sans-serif; --framer-font-open-type-features: "blwf" on, "cv03" on, "cv04" on, "cv09" on, "cv11" on; --framer-font-size: 16px; --framer-font-style: normal; --framer-font-style-bold: normal; --framer-font-style-bold-italic: italic; --framer-font-style-italic: italic; --framer-font-variation-axes: normal; --framer-font-weight: 400; --framer-font-weight-bold: 700; --framer-font-weight-bold-italic: 700; --framer-font-weight-italic: 400; --framer-letter-spacing: -.02em; --framer-line-height: 24px; --framer-paragraph-spacing: 8px; --framer-text-alignment: start; --framer-text-color: var(--sp-fg-token-f6a8d8cb-9e85-4bc1-a178-0191b832f963,rgba(243, 218, 205, 0.6588235294117647)); --framer-text-decoration: none; --framer-text-stroke-color: initial; --framer-text-stroke-width: initial; --framer-text-transform: none; }
-@keyframes dash-anim-clockwise-9ws8acyjj { 
+@keyframes dash-anim-clockwise-vlgio7tqr { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-ddegaenmr { 
+@keyframes dash-anim-clockwise-22oy2tbf1 { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-g9z532mok { 
+@keyframes dash-anim-clockwise-7f84jty4s { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-nq2xuxtzw { 
+@keyframes dash-anim-clockwise-yd0t7fue7 { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-ia998x3rt { 
+@keyframes dash-anim-clockwise-j4yjnrqzl { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-m1vis3jk8 { 
+@keyframes dash-anim-clockwise-8ili9qb9p { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-8fvkxti1z { 
+@keyframes dash-anim-clockwise-1up6hxleq { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-2e5uzxbye { 
+@keyframes dash-anim-clockwise-zigeeacw6 { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-efnvd5gtw { 
+@keyframes dash-anim-clockwise-skiyapk0h { 
   100% { stroke-dashoffset: -13; }
 }
-@keyframes dash-anim-clockwise-bysq1fgpv { 
+@keyframes dash-anim-clockwise-nx7q05p9n { 
   100% { stroke-dashoffset: -14; }
 }
-@keyframes dash-anim-clockwise-jds7gzpjf { 
+@keyframes dash-anim-clockwise-ch1lt4464 { 
   100% { stroke-dashoffset: -14; }
 }
-@keyframes dash-anim-clockwise-htr4r1mtw { 
+@keyframes dash-anim-clockwise-9hddl9qpx { 
   100% { stroke-dashoffset: -14; }
 }
-@keyframes dash-anim-clockwise-cvu6ryoc1 { 
+@keyframes dash-anim-clockwise-wox85pdw6 { 
   100% { stroke-dashoffset: -14; }
 }
 @keyframes shimmer-r3o { 
