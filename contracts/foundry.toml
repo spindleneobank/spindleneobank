@@ -1,0 +1,25 @@
+# Pinned libraries (installed with `forge install --no-git`, vendored under lib/):
+#   forge-std              foundry-rs/forge-std @ 9964d28dd139cbceb8a7c7c3e182c29cd9888bfd (master HEAD at install, 2026-10-23)
+#   openzeppelin-contracts OpenZeppelin/openzeppelin-contracts @ v5.7.0 (cab19933c33c2ad1d4c7a84864a3601dddfd16f3)
+#   permit2                Uniswap/permit2 @ cc56ad0f3439c502c246fc5cfcc3db92bb8b7219 (main HEAD at install, 2026-10-23)
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+solc = "0.8.28"
+# C1 verifies RHC supports transient storage; if not, use "shanghai" and swap ReentrancyGuardTransient for ReentrancyGuard.
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 10_000
+fs_permissions = [{ access = "read-write", path = "./deployments" }]
+
+[fuzz]
+runs = 512
+
+[invariant]
+runs = 128
+
+[rpc_endpoints]
+rhc = "${RHC_RPC_URL}"
