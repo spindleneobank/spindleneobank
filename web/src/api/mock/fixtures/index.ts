@@ -4,6 +4,7 @@ import { claimFixtures } from './claims';
 import { earningsFixtures } from './earnings';
 import { meFixtures } from './me';
 import { networkFixtures } from './network';
+import { nodeFixtures } from './nodes';
 import { receiptFixtures } from './receipts';
 
 /** Later F-tasks add their own `*.ts` and spread it here. Keys are `METHOD /v1/path/:param`. */
@@ -14,4 +15,5 @@ export const fixtures: MockFixtures = {
   ...earningsFixtures,
   ...receiptFixtures,
   ...claimFixtures,
+  ...nodeFixtures,
 };
