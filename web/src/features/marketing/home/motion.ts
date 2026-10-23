@@ -16,11 +16,11 @@ export function initOrbit(tree: HTMLElement): () => void {
   });
   const base = Number(/rotate\((-?[\d.]+)deg\)/.exec(orbit.style.transform)?.[1] ?? 0);
   let raf = 0;
-  let visible = false;
   let t0 = 0;
+  // Like the old Framer motion value, it keeps turning wherever the page is scrolled; only a hidden tab pauses it.
   const frame = (now: number) => {
     raf = 0;
-    if (!visible || document.hidden) return;
+    if (document.hidden) return;
     if (!t0) t0 = now;
     const a = (base + ((now - t0) / 1000) * 12) % 360;
     orbit.style.transform = `rotate(${a}deg)`;
@@ -28,23 +28,14 @@ export function initOrbit(tree: HTMLElement): () => void {
     raf = requestAnimationFrame(frame);
   };
   const wake = () => {
-    if (!raf && visible && !document.hidden && !reduced()) {
+    if (!raf && !document.hidden && !reduced()) {
       t0 = 0;
       raf = requestAnimationFrame(frame);
     }
   };
-  const io = new IntersectionObserver((e) => {
-    visible = e[0]?.isIntersecting === true;
-    if (visible) wake();
-    else {
-      cancelAnimationFrame(raf);
-      raf = 0;
-    }
-  });
-  io.observe(orbit);
+  wake();
   document.addEventListener('visibilitychange', wake);
   return () => {
-    io.disconnect();
     cancelAnimationFrame(raf);
     document.removeEventListener('visibilitychange', wake);
   };
