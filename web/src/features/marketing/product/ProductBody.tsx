@@ -8,6 +8,7 @@ import { Typewriter } from './Typewriter';
 import { useHeroGraph } from './useHeroGraph';
 import { useMotionVisible } from './useMotionVisible';
 import { useWorkflowSignal } from './useWorkflowSignal';
+import { useReceiptEnter } from './useReceiptEnter';
 import { useSlideshow } from './useSlideshow';
 import { useOrbit } from './useOrbit';
 import { type Override, type PNode, renderNode } from './render';
@@ -107,6 +108,7 @@ export function ProductBody() {
   useHeroGraph(root);
   useWorkflowSignal(root);
   useSlideshow(root);
+  useReceiptEnter(root);
   // Framer's appear also animates `transform` (none -> none, same spring timing) next to opacity
   useEffect(() => {
     const el = root.current;
