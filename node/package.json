@@ -1,6 +1,13 @@
 {
   "name": "@spindle/node",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/main.ts",
+    "build": "bun build src/main.ts --compile --minify --outfile dist/spindle-node",
+    "build:arm64": "bun build src/main.ts --compile --minify --target=bun-linux-arm64 --outfile dist/spindle-node-arm64",
+    "test": "bun test test",
+    "typecheck": "tsc --noEmit -p ."
+  }
 }
