@@ -19,7 +19,11 @@ const TEXT = {
   'Sealed lane': 'Sealed testing',
   'Sealed jobs require eligible confidential GPUs and attestation. Open jobs are non-sensitive workloads.': 'Sealed jobs (in testing) need confidential GPUs and attestation. Open jobs are non-sensitive workloads.',
 };
+// per-instance ids (React useId: r18 vs r1k per breakpoint) are made equal so the instances merge
+const fixIds = (s) => s.replace(/(workflow-(?:halo|signal-square|flow))-r[0-9a-z]+/g, '$1-p3');
 function norm(n, anc = []) {
+  if (typeof n === 'string') n = fixIds(n);
+  if (typeof n === 'string' && n === '16%') return '84%'; // workflow pill label is set live; the snapshot value is arbitrary
   if (typeof n === 'string') return TEXT[n.trim()] ? n.replace(n.trim(), TEXT[n.trim()]) : n;
   // Liquid Metal / hero shader hosts: a div whose only child is a canvas -> marker rendered by a real component
   if (n.t === 'div' && n.c.length === 1 && typeof n.c[0] !== 'string' && n.c[0].t === 'canvas') {
@@ -32,13 +36,13 @@ function norm(n, anc = []) {
     if (DROP.has(k)) continue;
     if (k === 'class') { const c = stripCls(v); if (c) a.class = c; continue; }
     if (k === 'style') {
-      let s = normStyle(v);
+      let s = fixIds(normStyle(v));
       // per-character reveal spans (Framer text effect): final state in the markup, replayed at runtime
       if (n.t === 'span' && /display:\s*inline-block/.test(s) && /opacity:\s*0\.001/.test(s) && n.c.length === 1 && typeof n.c[0] === 'string') { s = s.replace(/opacity:\s*0\.001/, 'opacity: 1'); a['data-pp-ch'] = '1'; }
       if (s) a.style = s;
       continue;
     }
-    a[k] = v;
+    a[k] = typeof v === 'string' ? fixIds(v) : v;
   }
   // the old page resolves this background to the 800w stock file on every breakpoint (its script rewrites srcset after load)
   if (n.t === 'img' && /soap-film-web-v10/.test(a.src || '')) { delete a.srcset; delete a.sizes; }
