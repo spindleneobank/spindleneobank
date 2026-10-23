@@ -179,24 +179,25 @@ export function initReceiptReveals(tree: HTMLElement): () => void {
   const verified = textP(tree, 'Receipt verified for the epoch');
   const cose = textP(tree, 'receipt.cose');
   const root = textP(tree, 'epoch.root');
-  const items: Array<[HTMLElement | null, Keyframe, number]> = [
-    [ancestorWith(verified, 'receipt.cose'), { opacity: 0, transform: 'scale(0.97)' }, 784],
-    [verified?.parentElement ?? null, { opacity: 0, transform: 'translateY(6px)' }, 471],
-    [ancestorWith(cose, 'Job proof'), { opacity: 0, transform: 'translateX(-12px)' }, 523],
-    [ancestorWith(root, 'Merkle proof'), { opacity: 0, transform: 'translateX(-12px)' }, 461],
+  // [element, from, duration, delay] measured on the old page: spring-like settle, staggered one after another.
+  const items: Array<[HTMLElement | null, Keyframe, number, number]> = [
+    [ancestorWith(verified, 'receipt.cose'), { opacity: 0, transform: 'translateY(16px) scale(0.97)' }, 784, 0],
+    [verified?.parentElement ?? null, { opacity: 0, transform: 'translateY(6px)' }, 471, 150],
+    [ancestorWith(cose, 'Job proof'), { opacity: 0, transform: 'translateX(-12px)' }, 523, 300],
+    [ancestorWith(root, 'Merkle proof'), { opacity: 0, transform: 'translateX(-12px)' }, 461, 460],
   ];
-  const cfg = new Map<Element, [Keyframe, number]>();
+  const cfg = new Map<Element, [Keyframe, number, number]>();
   const io = new IntersectionObserver((entries) => {
     for (const e of entries) {
       if (!e.isIntersecting) continue;
       io.unobserve(e.target);
       const c = cfg.get(e.target);
-      if (c) (e.target as HTMLElement).animate([c[0], { opacity: 1, transform: 'none' }], { duration: c[1], easing: EASE, fill: 'backwards' });
+      if (c) (e.target as HTMLElement).animate([c[0], { opacity: 1, transform: 'none' }], { duration: c[1], delay: c[2], easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' });
     }
   }, { threshold: 0.2 });
-  for (const [el, from, ms] of items) {
+  for (const [el, from, ms, delay] of items) {
     if (!el) continue;
-    cfg.set(el, [from, ms]);
+    cfg.set(el, [from, ms, delay]);
     io.observe(el);
   }
   return () => io.disconnect();
