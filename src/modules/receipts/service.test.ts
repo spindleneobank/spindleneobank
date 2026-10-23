@@ -398,3 +398,15 @@ describe('routes', () => {
     );
   });
 });
+
+describe('already settled by the reaper', () => {
+  test('keeps the provisional charge instead of overwriting it with 0', async () => {
+    const { settleJob } = await import('../gateway/service');
+    const id = await newJob();
+    await t.db.update(jobs).set({ buyerUsdgMicros: 107n }).where(eq(jobs.id, id));
+    await settleJob(id, 107n); // reaper path settled first
+    await onJobFinished(id, done(id), view());
+    expect((await t.db.select().from(jobs))[0]?.buyerUsdgMicros).toBe(107n);
+    expect(await charges()).toHaveLength(1);
+  });
+});

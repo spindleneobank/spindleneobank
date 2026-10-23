@@ -1,5 +1,5 @@
 import { and, desc, eq, ilike, lt, or, sql } from 'drizzle-orm';
-import { buyers, earningEvents, jobs, nodes, receipts } from '../../db/schema';
+import { buyerLedger, buyers, earningEvents, jobs, nodes, receipts } from '../../db/schema';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import type { GatewayView, OnJobFinished } from '../../shared/contracts/jobs';
@@ -119,6 +119,8 @@ export const onJobFinished: OnJobFinished = async (jobId, done, view) => {
 
     // ---- charge ----
     let charged = 0n;
+    let alreadySettled = false;
+    let keepEarning = true;
     let units = Number(job.units);
     let counts: Counts = { p: job.promptTokens ?? 0, c: job.completionTokens ?? 0, n: 0 };
     const nodeCounts: Counts = {
@@ -137,13 +139,28 @@ export const onJobFinished: OnJobFinished = async (jobId, done, view) => {
       if (!rate) throw new Error(`no rate card row for job ${jobId}`);
       const wanted = actualCharge(billed.usage, rate);
       // finalize clamps to the reservation and returns what was actually charged; null = already settled elsewhere
-      charged = (await settleJob(jobId, wanted)) ?? 0n;
+      const settled = await settleJob(jobId, wanted);
+      if (settled !== null) charged = settled;
+      else {
+        // already settled elsewhere (reaper): keep what was really charged, else the gateway's provisional charge
+        const [led] = await tx
+          .select({ n: sql<string>`coalesce(sum(-${buyerLedger.usdgMicros}), 0)` })
+          .from(buyerLedger)
+          .where(and(eq(buyerLedger.jobId, jobId), eq(buyerLedger.kind, 'charge')));
+        const fromLedger = BigInt(led?.n ?? 0);
+        charged = fromLedger > 0n ? fromLedger : job.buyerUsdgMicros;
+        alreadySettled = true;
+        keepEarning = fromLedger > 0n;
+      }
     } else {
       await releaseJob(jobId);
     }
 
     // ---- earnings: verified, non-canary, non-probe only ----
-    const provider = v.verified && !free && charged > 0n ? bpsOf(charged, PROVIDER_SHARE_BPS) : 0n;
+    const provider =
+      v.verified && !free && charged > 0n && (!alreadySettled || keepEarning)
+        ? bpsOf(charged, PROVIDER_SHARE_BPS)
+        : 0n;
     if (provider > 0n) {
       await tx.insert(earningEvents).values({
         ts: new Date(),
