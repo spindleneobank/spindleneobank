@@ -21,6 +21,7 @@ import {
   type PosterChain,
   type PosterDeps,
   postEpoch,
+  postingKey,
   postPending,
 } from './poster';
 import epochRoutes from './routes';
@@ -170,6 +171,8 @@ describe('builder', () => {
     expect(await bal(102n)).toEqual({ [A]: 140n, [B]: 7n });
     const v = await t.db.select().from(earningEvents).where(eq(earningEvents.epoch, 101n));
     expect(v).toHaveLength(0);
+    // the following hour (closed = 102) continues at 103: the post-veto rebuild does not block it
+    expect(await nextEpochNumber(new Date(h1.getTime() + S * 1000))).toBe(103n);
     // second run is a no-op
     expect((await buildEpoch(102n, { now: h1 })).kind).toBe('exists');
   });
@@ -341,16 +344,27 @@ describe('poster', () => {
     expect((await postEpoch(100n, mkDeps(chain).deps)).kind).toBe('failed');
   });
 
-  test('stale posting with no receipt and no root is re-armed to built', async () => {
+  test('stale posting (15 min after send) with no receipt and no root is re-armed to built', async () => {
     await built();
-    await t.db.update(epochs).set({
-      status: 'posting',
-      txHash: ROOT(5),
-      builtAt: new Date(NOW.getTime() - POSTING_STALE_MS - 1000),
+    await t.db.update(epochs).set({ status: 'posting', txHash: ROOT(5) });
+    await t.db.insert(kv).values({
+      key: postingKey(100n),
+      value: { since: new Date(NOW.getTime() - POSTING_STALE_MS - 1000).toISOString() },
     });
-    const { deps } = mkDeps(mkChain().chain);
-    await postEpoch(100n, deps);
+    await postEpoch(100n, mkDeps(mkChain().chain).deps);
     expect(await status()).toBe('built');
+  });
+
+  test('failed for >15 min, then sent, then unknown -> not re-armed next minute', async () => {
+    await built();
+    await t.db
+      .update(epochs)
+      .set({ status: 'failed', builtAt: new Date(NOW.getTime() - 3 * POSTING_STALE_MS) });
+    const unknown = mkDeps(mkChain().chain, async () => ({ hash: ROOT(8), status: 'unknown' }));
+    expect((await postPending(unknown.deps)).kind).toBe('posting');
+    const next = { ...unknown.deps, now: () => new Date(NOW.getTime() + 60_000) };
+    await postPending(next);
+    expect(await status()).toBe('posting');
   });
 
   test('reverted tx -> failed and is not retried', async () => {

@@ -21,18 +21,13 @@ const bigMin = (a: bigint, b: bigint) => (a < b ? a : b);
 const ADVISORY_KEY = 80801;
 
 /**
- * Epoch number to build at `now`: the closed hour, or (highest vetoed epoch + 1) when a veto forces a rebuild
- * under a new, higher number (the contract needs it above the vetoed one).
+ * Epoch number to build at `now`: max(closed hour, highest existing epoch + 1), so a post-veto rebuild
+ * (which had to skip past the vetoed number) never blocks the following hour.
  */
 export async function nextEpochNumber(now: Date): Promise<bigint> {
   const closed = closedEpochAt(now);
-  const [v] = await dbRef.db
-    .select({ e: epochs.epoch })
-    .from(epochs)
-    .where(eq(epochs.status, 'vetoed'))
-    .orderBy(desc(epochs.epoch))
-    .limit(1);
-  return v && v.e >= closed ? v.e + 1n : closed;
+  const [top] = await dbRef.db.select({ e: epochs.epoch }).from(epochs).orderBy(desc(epochs.epoch)).limit(1);
+  return top && top.e + 1n > closed ? top.e + 1n : closed;
 }
 
 /**

@@ -34,6 +34,7 @@ export interface PosterDeps {
   now(): Date;
 }
 
+export const postingKey = (epoch: bigint) => `epoch:posting:${epoch}`;
 export const ALERT_KEY = 'epoch:alert';
 /** A `posting` epoch whose tx never shows up and whose root is not on chain is re-armed after this long. */
 export const POSTING_STALE_MS = 15 * 60_000;
@@ -111,6 +112,26 @@ export async function raiseEpochAlert(epoch: bigint, reason: string, extra: Reco
     .onConflictDoUpdate({ target: kv.key, set: { value, updatedAt: new Date() } });
 }
 
+/** Marks the moment the tx was sent (or its hash saved); the stale re-arm timer runs from here. */
+async function markPostingSince(epoch: bigint, at: Date) {
+  const value = { since: at.toISOString() };
+  await dbRef.db
+    .insert(kv)
+    .values({ key: postingKey(epoch), value })
+    .onConflictDoUpdate({ target: kv.key, set: { value, updatedAt: new Date() } });
+}
+
+async function postingSince(epoch: bigint, now: Date): Promise<Date> {
+  const [r] = await dbRef.db
+    .select()
+    .from(kv)
+    .where(eq(kv.key, postingKey(epoch)));
+  const v = (r?.value as { since?: string } | undefined)?.since;
+  if (v) return new Date(v);
+  await markPostingSince(epoch, now); // legacy row without a marker: start the clock now
+  return now;
+}
+
 async function setStatus(epoch: bigint, from: string[], set: Partial<typeof epochs.$inferInsert>) {
   await dbRef.db
     .update(epochs)
@@ -146,7 +167,10 @@ export async function reconcilePosting(row: EpochRow, deps: PosterDeps): Promise
   }
   const st = row.txHash ? await deps.chain.receiptStatus(row.txHash as Hex) : null;
   if (st === 'reverted') return fail(row.epoch, 'postRoot reverted', { txHash: row.txHash });
-  if (st === null && deps.now().getTime() - row.builtAt.getTime() > POSTING_STALE_MS) {
+  if (
+    st === null &&
+    deps.now().getTime() - (await postingSince(row.epoch, deps.now())).getTime() > POSTING_STALE_MS
+  ) {
     await setStatus(row.epoch, ['posting'], { status: 'built', txHash: null });
     logger.warn({ epoch: row.epoch.toString() }, 'posting epoch has no tx receipt and no root; re-armed');
   }
@@ -204,6 +228,7 @@ export async function postEpoch(epoch: bigint, deps: PosterDeps = defaultPosterD
     return fail(epoch, 'keeper ETH below critical', { ...info, keeperEth: pre.eth.toString() });
 
   await setStatus(epoch, ['built', 'failed'], { status: 'posting' });
+  await markPostingSince(epoch, deps.now());
   const data = encodeFunctionData({
     abi: spindleClaimsAbi,
     functionName: 'postRoot',
@@ -231,6 +256,7 @@ export async function postEpoch(epoch: bigint, deps: PosterDeps = defaultPosterD
     return fail(epoch, 'postRoot reverted', { txHash: res.hash });
   }
   await setStatus(epoch, ['posting'], { txHash: res.hash });
+  await markPostingSince(epoch, deps.now());
   logger.warn({ epoch: epoch.toString(), hash: res.hash }, 'postRoot outcome unknown; epoch stays posting');
   return { kind: 'posting', epoch, txHash: res.hash };
 }

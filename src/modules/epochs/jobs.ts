@@ -1,11 +1,11 @@
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { epochs, kv } from '../../db/schema';
 import type { JobModule } from '../../lib/modules';
 import { getRedis } from '../../lib/redis';
 import { dbRef } from '../auth/constants';
 import { buildEpoch, nextEpochNumber } from './builder';
 import { type PostOutcome, postPending } from './poster';
-import { epochSettings } from './service';
+import { closedEpochAt, epochSettings } from './service';
 
 export const LOCK_KEY = 'lock:epoch';
 /** kv: last epoch number the builder ran for, so a skipped (unchanged) hour is not recomputed every minute. */
@@ -31,14 +31,22 @@ export async function runEpochOnce(now = new Date()): Promise<EpochRunResult> {
     const out: EpochRunResult = {};
     const secIntoHour = Math.floor(now.getTime() / 1000) % epochSettings.epochSeconds;
     if (secIntoHour >= BUILD_DELAY_S) {
-      const target = await nextEpochNumber(now);
+      const [v] = await dbRef.db
+        .select({ e: epochs.epoch })
+        .from(epochs)
+        .where(eq(epochs.status, 'vetoed'))
+        .orderBy(desc(epochs.epoch))
+        .limit(1);
+      // one attempt per (closed hour, highest veto): a new veto triggers an immediate rebuild
+      const marker = `${closedEpochAt(now)}:${v?.e ?? 0}`;
       const [att] = await dbRef.db.select().from(kv).where(eq(kv.key, ATTEMPT_KEY));
-      if ((att?.value as { epoch?: string } | undefined)?.epoch === target.toString()) {
+      const target = await nextEpochNumber(now);
+      if ((att?.value as { epoch?: string } | undefined)?.epoch === marker) {
         out.build = 'attempted';
       } else {
         const r = await buildEpoch(target, { now });
         out.build = r.kind === 'skipped' ? `skipped:${r.reason}` : r.kind;
-        const value = { epoch: target.toString() };
+        const value = { epoch: marker };
         await dbRef.db
           .insert(kv)
           .values({ key: ATTEMPT_KEY, value })
@@ -71,3 +79,12 @@ export const epochJobs: JobModule = async (ctx) => {
 };
 
 export default epochJobs;
+
+/** Admin job registry entries (`POST /v1/admin/jobs/:name/run`). */
+export const adminJobs = {
+  'epoch-build': async () => {
+    const now = new Date();
+    return buildEpoch(await nextEpochNumber(now), { now });
+  },
+  'post-root': () => postPending(),
+} as const;
