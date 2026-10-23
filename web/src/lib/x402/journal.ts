@@ -3,6 +3,8 @@ import { z } from 'zod';
 
 /** Pending sign-requests expire server-side after 10 min, so an unresolved record older than this is dead. */
 export const PENDING_TTL_MS = 10 * 60_000;
+/** Session ttl is at most 1 h; an `open` record older than this is stale. */
+export const OPEN_TTL_MS = 70 * 60_000;
 
 const Record = z.object({
   id: z.string(),
@@ -72,7 +74,10 @@ export class SessionJournal {
       this.store.removeItem(this.key);
       return null;
     }
-    if (rec.status === 'closed') return null;
+    if (rec.status === 'closed' || (rec.status === 'open' && now - rec.createdAt > OPEN_TTL_MS)) {
+      this.store.removeItem(this.key);
+      return null;
+    }
     return rec;
   }
 
