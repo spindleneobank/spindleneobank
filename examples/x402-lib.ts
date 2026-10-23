@@ -44,7 +44,7 @@ export async function readChallenge(res: Response): Promise<Accept> {
   const header = res.headers.get('payment-required');
   const challenge = header ? fromB64json<Challenge>(header) : ((await res.json()) as Challenge);
   const accept = challenge.accepts?.[0];
-  if (!accept || accept.scheme !== 'exact') throw new Error('no exact scheme in the challenge');
+  if (accept?.scheme !== 'exact') throw new Error('no exact scheme in the challenge');
   return accept;
 }
 
