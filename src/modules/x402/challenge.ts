@@ -20,7 +20,11 @@ export const MAX_TIMEOUT_SEC = 300;
 export const challengeKey = (paymentId: string) => `x402:challenge:${paymentId.toLowerCase()}`;
 
 /** Resolved contract addresses (config, falling back to the known RHC deployments). */
-export function x402Addresses(): { usdg: Address; vault: Address; permit2: Address } {
+export type X402Addresses = { usdg: Address; vault: Address; permit2: Address };
+/** Test seam: set to bypass config for the contract addresses. */
+export const addressOverride: { current?: X402Addresses } = {};
+export function x402Addresses(): X402Addresses {
+  if (addressOverride.current) return addressOverride.current;
   return {
     usdg: ((config.USDG_ADDRESS as Address | undefined) ?? KNOWN.USDG).toLowerCase() as Address,
     vault: requireAddress('vault').toLowerCase() as Address,

@@ -62,17 +62,16 @@ export const resetGuardMemo = () => {
 export type StateDeps = {
   kv: KvStore;
   now: () => Date;
-  enabledInConfig: boolean;
+  enabledInConfig: () => boolean;
   /** Fallback when kv('keeper:status') is missing or stale. */
   liveLevel: () => Promise<KeeperLevel>;
   surcharge: () => Promise<bigint | null>;
 };
-const defaultStateDeps: StateDeps = {
+/** Mutable so tests can swap the pieces. */
+export const defaultStateDeps: StateDeps = {
   kv: pgKv,
   now: () => new Date(),
-  get enabledInConfig() {
-    return config.X402_ENABLED;
-  },
+  enabledInConfig: () => config.X402_ENABLED,
   liveLevel: async () => (await keeperState()).level,
   surcharge: () => currentSurchargeMicros(),
 };
@@ -89,7 +88,7 @@ export async function x402State(
 }
 
 async function compute(deps: StateDeps): Promise<X402State> {
-  if (!deps.enabledInConfig) return { enabled: false, reason: 'config' };
+  if (!deps.enabledInConfig()) return { enabled: false, reason: 'config' };
   let level: KeeperLevel;
   try {
     const stored = (await deps.kv.get(KEEPER_STATUS_KEY).catch(() => undefined)) as KeeperStatus | undefined;
