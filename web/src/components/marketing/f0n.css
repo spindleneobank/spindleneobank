@@ -11,7 +11,7 @@
   inset: 0;
   background-size: cover;
   background-position: center;
-  opacity: 0.55;
+  opacity: 0.9;
 }
 .f0n-hero-media::after {
   content: "";
@@ -405,4 +405,78 @@
   .f0n-search {
     width: 100%;
   }
+}
+
+/* Match the old site: Chakra Petch display headings and duotone imagery (flower-palette.svg filters). */
+.f0n-hero h1,
+.f0n-section h2,
+.f0n-section h3,
+.f0n-cta h2,
+.f0n-notfound h1,
+.f0n-card h3,
+.f0n-release h2,
+.f0n-prose h2,
+.f0n-article h2,
+.f0n-legal h2 {
+  font-family: var(--sp-font-digital);
+  font-weight: 400;
+}
+.f0n-card-img,
+.f0n-cover,
+.f0n-inside img {
+  filter: url("/assets/flower-palette.svg#orchid");
+}
+.f0n-card:nth-child(even) .f0n-card-img {
+  filter: url("/assets/flower-palette.svg#ember");
+}
+.f0n-hero-media {
+  filter: url("/assets/flower-palette.svg#orchid");
+}
+.f0n-card-img {
+  border: 1px solid var(--sp-night-line);
+  border-radius: 0;
+}
+.f0n-roles-grid .f0n-card-img {
+  aspect-ratio: 303 / 311;
+}
+.f0n-inside {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+.f0n-inside img {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  object-fit: cover;
+}
+@media (max-width: 600px) {
+  .f0n-inside {
+    grid-template-columns: 1fr;
+  }
+}
+.f0n-role-art {
+  position: relative;
+  display: block;
+}
+.f0n-role-pixel {
+  position: absolute;
+  inset: 12% 12%;
+  width: 76%;
+  height: 76%;
+  object-fit: contain;
+  filter: none;
+  pointer-events: none;
+}
+.f0n-inside {
+  grid-template-columns: 2fr 1fr;
+}
+.f0n-inside img {
+  height: 420px;
+  min-height: 0;
+}
+.f0n-hero {
+  min-height: 460px;
+  display: grid;
+  align-items: center;
 }

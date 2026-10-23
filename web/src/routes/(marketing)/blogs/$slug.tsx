@@ -78,10 +78,10 @@ function Post() {
           <div className="f0n-grid-3">
             {related.map((x) => (
               <Link key={x.slug} to="/blogs/$slug" params={{ slug: x.slug }} className="f0n-card">
-                <img className="f0n-card-img" src={x.image} alt="" loading="lazy" />
+                <img className="f0n-card-img" src={x.image} alt="" />
                 <span className="f0n-card-kicker">{x.category}</span>
-                <h3>{x.lead}</h3>
-                <p>{x.title}</p>
+                <h3>{x.title}</h3>
+                <p>{x.lead}</p>
               </Link>
             ))}
           </div>

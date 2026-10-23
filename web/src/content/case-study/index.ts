@@ -18,7 +18,7 @@ export const FLOWS: Flow[] = [
     title: 'A GPU Provider’s Path from Node Registration to Signed Work Receipts',
     stage: 'From completed job to a signed receipt',
     role: 'GPU providers',
-    image: '/assets/stock/role-gpu-cooling-v10.webp',
+    image: '/assets/stock/wood-spiral-web-v10.webp',
     start:
       'Illustrative flow: a GPU provider wants to supply suitable compute and understand how a completed AI job becomes a work record. The provider needs a benchmarked GPU, a node identity and a clear distinction between confidential hardware and the open lane. Available hardware does not itself guarantee demand or earnings.',
     flow: 'The provider installs the Docker node agent. It benchmarks GPU capability, creates a node key, and the provider registers the node from their wallet. Registration is required; staking is optional and adds a routing priority tier. The scheduler matches suitable jobs by lane, VRAM fit, latency and reputation. Completed jobs produce signed receipts; verified work accrues in USDG and enters the next cumulative receipt epoch.',
@@ -32,7 +32,7 @@ export const FLOWS: Flow[] = [
     title: 'A Node Operator’s View of Registered Identity and Verified Job Receipts',
     stage: 'Signed work verification',
     role: 'Node operators',
-    image: '/assets/stock/role-node-switch-v10.webp',
+    image: '/assets/stock/stone-helix-web-v10.webp',
     start:
       'Illustrative flow: a node operator needs to connect completed AI work to the node that served it, the units billed and the earnings recorded. A hardware label alone does not establish that work occurred. Registered node identity and signed receipts are the common references for this path.',
     flow: 'The node signs a COSE receipt for each job. A verifier checks its signature, the job-to-billing match and token counts against the gateway. Eligible sealed-lane nodes attach attestation evidence. Metering applies the rate card to verified work, then an epoch builder records cumulative entitlement in an hourly Merkle root on Robinhood Chain.',
@@ -50,7 +50,7 @@ export const FLOWS: Flow[] = [
     title: 'An AI Builder’s Request through the Attested Sealed Compute Lane',
     stage: 'Sealed lane flow (in testing)',
     role: 'AI builders',
-    image: '/assets/stock/role-ai-light-v10.webp',
+    image: '/assets/stock/spiral-lightwell-web-v10.webp',
     start:
       'Illustrative flow: an AI builder has a workload that requires a defined confidentiality boundary. Routing it to an ordinary consumer GPU would not make the prompts private from the operator. The sealed-lane design instead requires eligible confidential GPUs and a TDX environment with current attestation. The lane is in testing.',
     flow: 'The builder selects the sealed lane in the compatible API request. The OHTTP relay passes the encrypted body to the gateway and the eligible node decrypts it within the confidential environment. The completed job returns a response and a signed receipt linked to environment, model and GPU evidence. The design leaves the host operator with ciphertext.',
@@ -64,7 +64,7 @@ export const FLOWS: Flow[] = [
     title: 'A Provider’s Path from USDG Claim to Card or Stock Token',
     stage: 'Claim and payout flow',
     role: 'Payout explorers',
-    image: '/assets/stock/receipt-connectors-v10.webp',
+    image: '/assets/stock/white-spiral-web-v10.webp',
     start:
       'Illustrative flow: a GPU provider has verified USDG earnings and wants to decide what to do with them. Selling a separate earnings token is not part of the flow. The provider first claims USDG to their own wallet, and can then fund a card or swap to a stock token, subject to program conditions.',
     flow: 'The dashboard builds the claim against the provider’s cumulative Merkle entitlement, and the provider signs it from their wallet. To use a card, they fund it from the wallet through izipay and a Relay route. To hold a stock token, they swap USDG for a token on the curated stock list after reviewing the quote and price impact. Each step is its own wallet transaction.',

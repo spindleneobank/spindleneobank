@@ -19,9 +19,12 @@ function Component() {
   const { c } = Route.useLoaderData();
   return (
     <>
-      <PageHero back={{ to: '/architecture', label: 'All components' }} title={c.title} lead={c.lead}>
-        <PixelIcon name={c.icon} size={56} className="f0n-icon-big" />
-      </PageHero>
+      <PageHero
+        back={{ to: '/architecture', label: 'All components' }}
+        title={c.title}
+        lead={c.lead}
+        before={<PixelIcon name={c.icon} size={56} className="f0n-icon-big" />}
+      />
       <section className="f0n-section">
         <div className="sp-container f0n-split">
           <div className="f0n-prose">

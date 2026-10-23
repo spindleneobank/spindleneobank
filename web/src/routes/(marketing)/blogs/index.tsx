@@ -58,10 +58,10 @@ function Blogs() {
           <div className="f0n-grid-3">
             {shown.map((p) => (
               <Link key={p.slug} to="/blogs/$slug" params={{ slug: p.slug }} className="f0n-card">
-                <img className="f0n-card-img" src={p.image} alt="" loading="lazy" />
+                <img className="f0n-card-img" src={p.image} alt="" />
                 <span className="f0n-card-kicker">{p.category}</span>
-                <h3>{p.lead}</h3>
-                <p>{p.title}</p>
+                <h3>{p.title}</h3>
+                <p>{p.lead}</p>
               </Link>
             ))}
           </div>

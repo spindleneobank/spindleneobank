@@ -33,6 +33,7 @@ export function PageHero({
   center,
   wide,
   back,
+  before,
   children,
 }: {
   eyebrow?: string;
@@ -42,6 +43,7 @@ export function PageHero({
   center?: boolean;
   wide?: boolean;
   back?: { to: string; label: string };
+  before?: ReactNode;
   children?: ReactNode;
 }) {
   return (
@@ -55,6 +57,7 @@ export function PageHero({
             ← {back.label}
           </Link>
         ) : null}
+        {before}
         {eyebrow ? <Eyebrow tone="light">{eyebrow}</Eyebrow> : null}
         <h1>{title}</h1>
         {lead ? <p className="f0n-lead">{lead}</p> : null}

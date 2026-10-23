@@ -29,7 +29,7 @@ function CaseStudies() {
           <div className="f0n-grid-2">
             {FLOWS.map((f) => (
               <Link key={f.slug} to="/case-study/$slug" params={{ slug: f.slug }} className="f0n-card">
-                <img className="f0n-card-img" src={f.image} alt="" loading="lazy" />
+                <img className="f0n-card-img" src={f.image} alt="" />
                 <span className="f0n-card-kicker">{f.stage}</span>
                 <h3>{f.title}</h3>
                 <p>Explore flow</p>

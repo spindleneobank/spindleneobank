@@ -4,6 +4,13 @@ import { CtaBand, LegacyLinks, PageHero, pageHead } from '../../../components/ma
 import { PixelIcon } from '../../../components/PixelIcon';
 import { ABOUT_BUILD, ABOUT_VALUES, OLD_ROLE_SLUGS, ROLES } from '../../../content/about';
 
+const PIXEL: Record<string, string> = {
+  'api-developer': 'code',
+  'node-operator': 'nodes',
+  'gpu-provider': 'gpu',
+  'payout-explorer': 'receipts',
+};
+
 export const Route = createFileRoute('/(marketing)/about/')({
   head: () =>
     pageHead(
@@ -22,7 +29,7 @@ function About() {
         wide
         eyebrow="About Spindle"
         title="We connect GPU work to a payout you can choose"
-        media="/assets/media/pink-cloud-eye-brand-v8.webp"
+        media="/assets/stock/liquid-swirls.jpg"
       >
         <a href="#roles" className="sp-cta sp-cta-secondary">
           <span>Explore network roles</span>
@@ -84,14 +91,29 @@ function About() {
             <Eyebrow tone="light">Core network roles</Eyebrow>
             <h2>The roles behind each job</h2>
           </div>
-          <div className="f0n-grid-4">
+          <div className="f0n-grid-4 f0n-roles-grid">
             {ROLES.map((r) => (
               <Link key={r.slug} to="/about/$role" params={{ role: r.slug }} className="f0n-card">
-                <img className="f0n-card-img" src={r.image} alt="" loading="lazy" />
+                <span className="f0n-role-art">
+                  <img className="f0n-card-img" src={r.image} alt="" />
+                  <img className="f0n-role-pixel" src={`/assets/pixel/${PIXEL[r.slug]}.svg`} alt="" />
+                </span>
                 <h3>{r.name}</h3>
                 <p>{r.summary}</p>
               </Link>
             ))}
+          </div>
+        </div>
+      </section>
+      <section className="f0n-section">
+        <div className="sp-container">
+          <div className="f0n-head">
+            <Eyebrow tone="light">Network design</Eyebrow>
+            <h2>Inside Spindle</h2>
+          </div>
+          <div className="f0n-inside">
+            <img src="/assets/stock/inside-glass-v10.webp" alt="" />
+            <img src="/assets/stock/inside-copper-v10.webp" alt="" />
           </div>
         </div>
       </section>

@@ -18,7 +18,7 @@ export const POSTS: Post[] = [
     category: 'Architecture',
     title: 'How Spindle Connects GPU Work, Signed Receipts and Provider Claims',
     lead: 'A clear path connects AI requests, verified work and payout choice.',
-    image: '/assets/stock/network-core-v10.webp',
+    image: '/assets/stock/mineral-color-web-v10.webp',
     date: DATE,
     sections: [
       {
@@ -45,7 +45,7 @@ export const POSTS: Post[] = [
     category: 'Compute',
     title: 'How Hourly Receipt Roots Record Cumulative Provider Earnings',
     lead: 'Signed receipts connect each job to its metered work.',
-    image: '/assets/stock/notes-epoch-v10.webp',
+    image: '/assets/stock/purple-universe-web-v10.webp',
     date: DATE,
     sections: [
       {
@@ -72,7 +72,7 @@ export const POSTS: Post[] = [
     category: 'Claim flow',
     title: 'How Claims, Cards and Stock Tokens Share One Ledger',
     lead: 'Every claim pays your wallet first. Cards and swaps follow from there.',
-    image: '/assets/stock/receipt-connectors-v10.webp',
+    image: '/assets/stock/crystalline-granite-web-v10.webp',
     date: DATE,
     sections: [
       {
@@ -99,7 +99,7 @@ export const POSTS: Post[] = [
     category: 'Architecture',
     title: 'How the Sealed Lane Keeps Prompts Inside Eligible Attested GPUs',
     lead: 'Confidential compute belongs in the attested sealed lane, which is in testing.',
-    image: '/assets/stock/notes-privacy-v10.webp',
+    image: '/assets/stock/concrete-stair-room-web-v10.webp',
     date: DATE,
     sections: [
       {
@@ -126,7 +126,7 @@ export const POSTS: Post[] = [
     category: 'Compute',
     title: 'How the Scheduler Matches AI Workloads to Suitable GPU Nodes',
     lead: 'GPU capability decides which compute lane can serve a job.',
-    image: '/assets/stock/notes-routing-v10.webp',
+    image: '/assets/stock/concrete-platform-web-v10.webp',
     date: DATE,
     sections: [
       {
@@ -153,7 +153,7 @@ export const POSTS: Post[] = [
     category: 'Claim flow',
     title: 'How Node Identity, Stake and Reputation Fit the Compute Network',
     lead: 'Registered identity and receipt checks support node accountability.',
-    image: '/assets/stock/notes-node-v10.webp',
+    image: '/assets/stock/concrete-empty-hall-web-v10.webp',
     date: DATE,
     sections: [
       {
@@ -180,7 +180,7 @@ export const POSTS: Post[] = [
     category: 'Architecture',
     title: 'How Builders Use Chat, Embeddings and Image Endpoints',
     lead: 'One compatible API links AI builders to the compute network.',
-    image: '/assets/stock/developer-traces-v10.webp',
+    image: '/assets/stock/amber-steel-web-v10.webp',
     date: DATE,
     sections: [
       {
