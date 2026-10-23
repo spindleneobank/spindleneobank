@@ -36,7 +36,7 @@ export const pgKv: KvStore = {
     return rows[0]?.value;
   },
   async set(key, value) {
-    await sql`insert into kv (key, value, updated_at) values (${key}, ${sql.json(value as never)}, now())
+    await sql`insert into kv (key, value, updated_at) values (${key}, ${JSON.stringify(value)}::text::jsonb, now())
       on conflict (key) do update set value = excluded.value, updated_at = now()`;
   },
 };
