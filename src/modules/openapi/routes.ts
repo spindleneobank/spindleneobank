@@ -57,7 +57,7 @@ export function buildOpenApiDocument(version = '1') {
   r.registerComponent('securitySchemes', 'apiKey', {
     type: 'http',
     scheme: 'bearer',
-    description: 'Authorization: Bearer sk-spdl-... (prepaid balance)',
+    description: 'Authorization: Bearer sk-spdl-... (credit balance)',
   });
   r.registerComponent('securitySchemes', 'x402Payment', {
     type: 'apiKey',

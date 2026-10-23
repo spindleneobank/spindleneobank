@@ -6,7 +6,7 @@ import { currentSurchargeMicros } from './surcharge';
 
 export const KEEPER_STATUS_KEY = 'keeper:status';
 export const STATUS_MAX_AGE_MS = 15 * 60_000;
-export const DISABLED_MESSAGE = 'x402 temporarily unavailable — use an API key with prepaid balance';
+export const DISABLED_MESSAGE = 'x402 temporarily unavailable — use an API key with a credit balance';
 
 export type KeeperStatus = {
   level: KeeperLevel;

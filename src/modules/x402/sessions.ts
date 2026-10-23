@@ -176,7 +176,7 @@ export async function createSession(
   if (surcharge === null)
     throw new AppError(
       'PAYMENT_REQUIRED',
-      'x402 temporarily unavailable — use an API key with prepaid balance',
+      'x402 temporarily unavailable — use an API key with a credit balance',
     );
   if (input.capMicros <= surcharge) {
     throw new AppError('VALIDATION', `capMicros must exceed the surcharge (${surcharge} micros).`);
