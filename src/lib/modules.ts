@@ -15,6 +15,8 @@ import ratesJobs from '../modules/rates/jobs';
 import receipts from '../modules/receipts/routes';
 import stocksJobs from '../modules/stocks/jobs';
 import stocks from '../modules/stocks/routes';
+import x402Jobs from '../modules/x402/jobs';
+import x402Routes from '../modules/x402/routes';
 import type { Env } from './http';
 import type { WorkerCtx } from './queue';
 
@@ -32,6 +34,7 @@ export const routeModules: readonly RouteModule[] = [
   gateway,
   cardRoutes,
   cardWebhooks,
+  x402Routes,
   receipts,
 ] as const;
 export const jobModules: readonly JobModule[] = [
@@ -40,6 +43,7 @@ export const jobModules: readonly JobModule[] = [
   cardsJobs,
   indexerJobs,
   gatewayJobs,
+  x402Jobs,
   ratesJobs,
   meteringJobs,
 ] as const;

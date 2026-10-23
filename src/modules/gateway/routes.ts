@@ -15,7 +15,7 @@ import {
 import type { Lane } from '../../shared/enums';
 import type { Delta } from '../nodes/jobs';
 import { type JobDone, JobFailure } from '../nodes/jobs';
-import { isChallenge, selectProvider } from './payment';
+import { getPaymentProvider, isChallenge, selectProvider } from './payment';
 import { maxCharge, type Rate } from './pricing';
 import {
   cancelRun,
@@ -101,6 +101,16 @@ async function begin(c: Context<Env>, req: GatewayRequest): Promise<Started> {
     throw err;
   }
   return { run: new JobRun(init) };
+}
+
+/** Provider-specific response headers (x402 X-PAYMENT-RESPONSE), empty for providers without the hook. */
+function payHeaders(run: JobRun, charged: bigint): Record<string, string> {
+  try {
+    return getPaymentProvider(run.auth.provider)?.responseHeaders?.(run.auth, charged) ?? {};
+  } catch (err) {
+    logger.warn({ err: String(err) }, 'payment response headers failed');
+    return {};
+  }
 }
 
 function jobHeaders(jobId: string): Record<string, string> {
@@ -282,6 +292,9 @@ async function respondChatStream(c: Context<Env>, run: JobRun): Promise<Response
                   jobId: run.jobId,
                   chargeMicros: completed.chargeMicros.toString(),
                   receiptUrl: receiptUrl(run.jobId),
+                  ...(payHeaders(run, completed.chargeMicros)['X-PAYMENT-RESPONSE']
+                    ? { paymentResponse: payHeaders(run, completed.chargeMicros)['X-PAYMENT-RESPONSE'] }
+                    : {}),
                 },
               ),
             ),
@@ -334,6 +347,7 @@ async function respondChatJson(c: Context<Env>, run: JobRun): Promise<Response> 
   void finishJob(run, done);
   c.header(HEADER_CHARGE_MICROS, completed.chargeMicros.toString());
   for (const [k, v] of Object.entries(jobHeaders(run.jobId))) c.header(k, v);
+  for (const [k, v] of Object.entries(payHeaders(run, completed.chargeMicros))) c.header(k, v);
   return c.json({
     id: `chatcmpl-${run.jobId}`,
     object: 'chat.completion',
@@ -383,6 +397,7 @@ async function respondUnary(c: Context<Env>, run: JobRun): Promise<Response> {
   void finishJob(run, done);
   c.header(HEADER_CHARGE_MICROS, completed.chargeMicros.toString());
   for (const [k, v] of Object.entries(jobHeaders(run.jobId))) c.header(k, v);
+  for (const [k, v] of Object.entries(payHeaders(run, completed.chargeMicros))) c.header(k, v);
   const spindle = {
     jobId: run.jobId,
     chargeMicros: completed.chargeMicros.toString(),

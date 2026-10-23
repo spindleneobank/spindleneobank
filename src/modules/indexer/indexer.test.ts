@@ -333,6 +333,34 @@ describe('indexer', () => {
     expect(b?.failReason).toBe('0xdeadbeef');
   });
 
+  test('SettleFailed never overwrites a settled payment', async () => {
+    await t.db
+      .insert(x402Payments)
+      .values({ paymentId: hash(3), payer: BUYER.toLowerCase(), scheme: 'exact', status: 'settling' });
+    const m = mockClient({
+      head: 140,
+      events: [
+        {
+          block: 110,
+          address: VLT,
+          name: 'Settled',
+          args: { paymentId: hash(3), payer: BUYER, used: 5n, surcharge: 1n },
+        },
+        {
+          block: 111,
+          address: VLT,
+          name: 'SettleFailed',
+          args: { paymentId: hash(3), payer: BUYER, reason: '0xdeadbeef' },
+        },
+      ],
+    });
+    await runIndexOnce(deps(m.client));
+    const r = (await t.db.select().from(x402Payments)).find((x) => x.paymentId === hash(3));
+    expect(r?.status).toBe('settled');
+    expect(r?.failReason).toBeNull();
+    expect(r?.usedMicros).toBe(5n);
+  });
+
   test('registration, stake deltas (read unavailable), eligibility events, unknown node warning', async () => {
     const [u] = await t.db
       .insert(users)
