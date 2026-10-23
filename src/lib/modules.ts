@@ -5,6 +5,8 @@ import cardWebhooks from '../modules/card-webhooks/routes';
 import cardsJobs from '../modules/cards/jobs';
 import cardRoutes from '../modules/cards/routes';
 import chainJobs from '../modules/chain/jobs';
+import epochJobs from '../modules/epochs/jobs';
+import epochRoutes from '../modules/epochs/routes';
 import gatewayJobs from '../modules/gateway/jobs';
 import gateway from '../modules/gateway/routes';
 import health from '../modules/health/routes';
@@ -36,6 +38,7 @@ export const routeModules: readonly RouteModule[] = [
   cardWebhooks,
   x402Routes,
   receipts,
+  epochRoutes,
 ] as const;
 export const jobModules: readonly JobModule[] = [
   chainJobs,
@@ -46,4 +49,5 @@ export const jobModules: readonly JobModule[] = [
   x402Jobs,
   ratesJobs,
   meteringJobs,
+  epochJobs,
 ] as const;
