@@ -63,6 +63,8 @@ export interface SyntheticEnv {
     opts?: { nonce?: string; arch?: 'HOPPER' | 'BLACKWELL'; reportDataFor?: string; nrasResult?: boolean },
   ): Promise<{ bundle: AttestationBundle; hpkePrivateKey: CryptoKey }>;
   setNow(ms: number): void;
+  /** Make the stubbed verifier/NRAS report these values (for bundles built elsewhere, e.g. by the node collector). */
+  bind(v: { reportData: string; rtmr3: string; nonce: string }): void;
 }
 
 export async function installSyntheticEnv(
@@ -132,6 +134,12 @@ export async function installSyntheticEnv(
   };
 
   return {
+    bind: (v) => {
+      reportData = v.reportData;
+      rtmr3 = v.rtmr3;
+      nrasNonce = v.nonce;
+      nrasResult = true;
+    },
     setNow: (ms) => {
       nowMs = ms;
     },
