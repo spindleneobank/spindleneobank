@@ -12,7 +12,7 @@ import { type ChatState, initChat } from './chat';
 import desktopChat from './markup/desktop.chat.json';
 import phoneChat from './markup/phone.chat.json';
 import tabletChat from './markup/tablet.chat.json';
-import { initApiConsole, initCapabilityNav, initOrbit, initReceiptReveals, initTicker } from './motion';
+import { initApiConsole, initCapabilityNav, initOrbit, initQuoteAppear, initReceiptReveals, initTicker } from './motion';
 import { initShaders } from './shaders';
 import { mountDigitalPreview } from './digitalPreview';
 import './home.generated.css';
@@ -80,7 +80,7 @@ export function HomePage() {
     if (tree) {
       disposers.push(initGroups(tree, STATES[bp]));
       disposers.push(initVideos(tree));
-      disposers.push(initOrbit(tree), initApiConsole(tree), initCapabilityNav(tree), initShaders(tree), initChat(tree, CHAT[bp]), initReceiptReveals(tree), initTicker(tree));
+      disposers.push(initOrbit(tree), initApiConsole(tree), initCapabilityNav(tree), initShaders(tree), initChat(tree, CHAT[bp]), initReceiptReveals(tree), initTicker(tree), initQuoteAppear(tree));
     }
     for (const host of el.querySelectorAll<HTMLElement>('[data-sp-dashboard-preview]')) disposers.push(mountDigitalPreview(host));
     el.addEventListener('click', onClick, true);

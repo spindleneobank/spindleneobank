@@ -233,3 +233,22 @@ export function initTicker(tree: HTMLElement): () => void {
     document.removeEventListener('visibilitychange', wake);
   };
 }
+
+/** Framer appear of the quote block: held at opacity .001, then 0.6s linear fade (0.2s delay) once it scrolls into view. */
+export function initQuoteAppear(tree: HTMLElement): () => void {
+  const p = Array.from(tree.querySelectorAll<HTMLElement>('p')).find((x) => x.textContent?.trim().startsWith('“Install a node'));
+  const el = p?.closest<HTMLElement>('[data-framer-component-type="RichTextContainer"]') ?? p?.parentElement;
+  if (!el || reduced()) return () => {};
+  const hold = el.animate([{ opacity: 0.001 }, { opacity: 0.001 }], { duration: 10000, fill: 'both' });
+  const io = new IntersectionObserver((e) => {
+    if (e[0]?.isIntersecting !== true) return;
+    io.disconnect();
+    hold.cancel();
+    el.animate([{ opacity: 0.001 }, { opacity: 1 }], { duration: 600, delay: 200, easing: 'linear', fill: 'backwards' });
+  });
+  io.observe(el);
+  return () => {
+    io.disconnect();
+    hold.cancel();
+  };
+}
