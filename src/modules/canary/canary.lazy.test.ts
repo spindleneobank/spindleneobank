@@ -20,8 +20,7 @@ import { nodeSettings, setStakingParamsForTest } from '../nodes/service';
 import { type FakeNode, fakeNode, startTestServer } from '../nodes/testing';
 import { slashingDeps } from '../slashing/service';
 import { addr } from '../slashing/testkit';
-import { CHAT_FIXTURES } from './fixtures';
-import { canaryDeps, sendCanary } from './service';
+import { canaryDeps, pendingSpecCount, sendCanary } from './service';
 
 const MODEL = DEFAULT_CATALOG.find((m) => m.id === 'qwen2.5:7b') as (typeof DEFAULT_CATALOG)[number];
 
@@ -91,9 +90,13 @@ async function agent(lazy: boolean) {
           kind: 'ollama',
           listModels: async () => [{ id: 'qwen2.5:7b', digest: 'sha256:abc', sizeMb: 1 }],
           ensureModel: async () => 'sha256:abc',
-          // an honest engine that knows the answer to the first fixture ("What is 17 + 25?")
-          chatStream: async function* () {
-            yield { content: '42', usage: { promptTokens: 20, completionTokens: 1 } };
+          // an honest engine: answers whatever canary it is asked
+          chatStream: async function* (req) {
+            const msgs = req.messages as { role: string; content: string }[];
+            yield {
+              content: solve(msgs.at(-1)?.content ?? ''),
+              usage: { promptTokens: 20, completionTokens: 1 },
+            };
           },
           chat: async () => ({}),
           embeddings: async () => ({}),
@@ -128,27 +131,37 @@ async function agent(lazy: boolean) {
   return { n, id, owner: (row as typeof nodes.$inferSelect).owner };
 }
 
+const CAPS: Record<string, string> = { France: 'Paris', Japan: 'Tokyo', Spain: 'Madrid', Germany: 'Berlin' };
+function solve(prompt: string): string {
+  const echo = prompt.match(/nothing else: (\w+)/);
+  if (echo) return echo[1] as string;
+  const cap = prompt.match(/capital of (\w+)/);
+  if (cap) return CAPS[cap[1] as string] ?? '';
+  const [a, b] = (prompt.match(/\d+/g) ?? []).map(Number) as [number, number];
+  return String(/times/.test(prompt) ? a * b : a + b);
+}
+
 const target = (id: string) => ({ node: { nodeId: id, isHouse: false, engine: 'ollama' }, model: MODEL });
 
 describe('canaries against real N1 job runners', () => {
-  test('a lazy node fails 3 canaries: withheld earnings, suspended, slash case, indistinguishable jobs', async () => {
+  test('a lazy node fails every canary (and its retry): withheld earnings, suspended, slash case, indistinguishable jobs', async () => {
     const { n, id, owner } = await agent(true);
     await t.db
       .insert(earningEvents)
       .values({ ts: new Date(), nodeId: id, owner, kind: 'job', usdgMicros: 7_000_000n });
-    canaryDeps.random = () => 0; // fixture 0: "What is 17 + 25?"
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 5; i++) {
       expect(await sendCanary(target(id))).not.toBeNull();
-      await n.waitFor(() => n.jobs.length === i + 1);
+      await n.waitFor(() => n.jobs.length === (i + 1) * 2); // each failure is retried at once
     }
     const rows = await t.db.select().from(canaryResults);
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(10);
     expect(rows.every((r) => !r.pass)).toBe(true);
+    expect(rows.filter((r) => (r.observed as { attempt?: number }).attempt === 1)).toHaveLength(5);
     expect(rows[0]?.observed).toMatchObject({ text: 'ok' });
 
     const [node] = await t.db.select().from(nodes).where(eq(nodes.id, id));
     expect(node?.status).toBe('suspended');
-    expect(node?.reputation).toBe(700);
+    expect(node?.reputation).toBe(900); // one failure event, at the fifth confirmed failure
     const net = (await t.db.select().from(earningEvents)).reduce((a, e) => a + e.usdgMicros, 0n);
     expect(net).toBe(0n); // withheld exactly what was earned, never more
     expect(
@@ -158,6 +171,7 @@ describe('canaries against real N1 job runners', () => {
     expect(c?.nodeId).toBe(id);
     expect(c?.reason).toBe('canary_fraud');
     await n.waitFor(() => n.closes.includes(CLOSE_CODES.SUSPENDED), 3000);
+    expect(pendingSpecCount()).toBe(0);
 
     // no money moved: free jobs, no buyer charge, no provider earning
     expect(await t.db.select().from(buyerLedger)).toHaveLength(0);
@@ -170,43 +184,36 @@ describe('canaries against real N1 job runners', () => {
     ).toBe(true);
 
     // what the node saw: exactly the fields of a buyer job.start, and a plain OpenAI chat body
-    const m = n.jobs[0] as Record<string, unknown>;
-    expect(Object.keys(m).sort()).toEqual(
-      [
-        'deadlineMs',
-        'engineModel',
-        'jobId',
-        'kind',
-        'lane',
-        'maxTokens',
-        'model',
-        'request',
-        'type',
-        'v',
-      ].sort(),
-    );
-    expect(m.model).toBe('qwen2.5:7b');
-    const reqBody = m.request as Record<string, unknown>;
-    expect(Object.keys(reqBody).sort()).toEqual([
-      'max_tokens',
-      'messages',
-      'model',
-      'seed',
-      'stream',
-      'temperature',
-    ]);
-    expect(reqBody.temperature).toBe(0);
-    expect(reqBody.seed).toBe(7);
-    expect(JSON.stringify(m)).not.toMatch(/canary/i);
-    expect(CHAT_FIXTURES[0]?.prompt).toBe((reqBody.messages as { content: string }[])[0]?.content as string);
+    for (const m of n.jobs as unknown as Record<string, unknown>[]) {
+      expect(Object.keys(m).sort()).toEqual(
+        [
+          'deadlineMs',
+          'engineModel',
+          'jobId',
+          'kind',
+          'lane',
+          'maxTokens',
+          'model',
+          'request',
+          'type',
+          'v',
+        ].sort(),
+      );
+      expect(m.model).toBe('qwen2.5:7b');
+      const reqBody = m.request as Record<string, unknown>;
+      for (const k of Object.keys(reqBody))
+        expect(['model', 'messages', 'stream', 'max_tokens', 'temperature', 'seed']).toContain(k);
+      expect(reqBody.stream).toBe(true);
+      expect(JSON.stringify(m)).not.toMatch(/canary/i);
+    }
   });
 
   test('an honest node passes: reputation up, no case, no earnings change', async () => {
     const { n, id } = await agent(false);
-    canaryDeps.random = () => 0;
     expect(await sendCanary(target(id))).not.toBeNull();
     await n.waitFor(() => n.jobs.length === 1);
     const [r] = await t.db.select().from(canaryResults);
+    expect(pendingSpecCount()).toBe(0);
     expect(r?.pass).toBe(true);
     const [node] = await t.db.select().from(nodes).where(eq(nodes.id, id));
     expect(node?.reputation).toBe(1002);

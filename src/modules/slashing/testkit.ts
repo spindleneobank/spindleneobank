@@ -53,3 +53,25 @@ export async function makeCanaryJob(nodeId: string) {
     .returning();
   return j?.id as string;
 }
+
+/** Inserts finished canary rows directly (history for the sample-size rule). */
+export async function seedCanaries(nodeId: string, fails: number, passes: number) {
+  const { canaryResults } = await import('../../db/schema');
+  const rows = [
+    ...Array.from({ length: fails }, () => ({
+      nodeId,
+      kind: 'chat',
+      pass: false,
+      expected: {},
+      observed: {},
+    })),
+    ...Array.from({ length: passes }, () => ({
+      nodeId,
+      kind: 'chat',
+      pass: true,
+      expected: {},
+      observed: {},
+    })),
+  ];
+  if (rows.length) await dbRef.db.insert(canaryResults).values(rows);
+}

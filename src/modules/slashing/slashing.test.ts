@@ -14,7 +14,7 @@ import { createTestSession } from '../auth/testing';
 import { recordCanaryResult } from '../canary/service';
 import slashingRoutes from './routes';
 import { evidenceHash, openCase, safeTxFor, slashingDeps } from './service';
-import { addr, makeCanaryJob, makeNode } from './testkit';
+import { addr, makeCanaryJob, makeNode, seedCanaries } from './testkit';
 
 const STAKING = '0x00000000000000000000000000000000000057a4';
 const ADMIN = addr();
@@ -71,7 +71,8 @@ describe('slashing', () => {
 
   async function caseWithEvidence() {
     const n = await makeNode({ stakeSpdl: '10' });
-    for (let i = 0; i < 3; i++)
+    await seedCanaries(n.id, 2, 2);
+    for (let i = 0; i < 1; i++)
       await recordCanaryResult({
         nodeId: n.id,
         jobId: await makeCanaryJob(n.id),
@@ -116,7 +117,7 @@ describe('slashing', () => {
     expect(evidenceHash(json)).toBe(c?.evidenceHash as `0x${string}`);
     // key order is irrelevant
     expect(evidenceHash(reverseKeys(json))).toBe(c?.evidenceHash as `0x${string}`);
-    expect(json.canaries).toHaveLength(3);
+    expect(json.canaries).toHaveLength(5);
     expect(json.receipts).toBeArray();
     expect(json.reason).toBe('canary_fraud');
   });
@@ -127,6 +128,24 @@ describe('slashing', () => {
     const b = await openCase(n.id, 'probe_misrepresentation');
     expect(b.id).toBe(a.id);
     expect((await openCase(n.id, 'receipt_fraud')).proposedBps).toBe(5000);
+  });
+
+  test('concurrent openCase calls share one open case; concurrent transitions have one winner', async () => {
+    const n = await makeNode();
+    const rows = await Promise.all(Array.from({ length: 8 }, () => openCase(n.id, 'canary_fraud')));
+    expect(new Set(rows.map((r) => r.id)).size).toBe(1);
+    const id = rows[0]?.id as string;
+    const results = await Promise.all([
+      req('POST', `/v1/admin/slash-cases/${id}/submitted`, { txHash: `0x${'cd'.repeat(32)}` }),
+      req('POST', `/v1/admin/slash-cases/${id}/dismiss`, { reason: 'x' }),
+      req('POST', `/v1/admin/slash-cases/${id}/dismiss`, { reason: 'y' }),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409, 409]);
+    expect(
+      (await t.db.select().from(auditLog)).filter(
+        (l) => l.action.startsWith('slash_case.') && l.action !== 'slash_case.open',
+      ),
+    ).toHaveLength(1);
   });
 
   test('submitted and dismiss are recorded in the audit log and are one-shot', async () => {

@@ -3,10 +3,11 @@ import { eq } from 'drizzle-orm';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
 import { canaryResults, earningEvents, nodes, slashCases } from '../../db/schema';
 import { closeRedis } from '../../lib/redis';
+import { DEFAULT_CATALOG } from '../../shared/catalog';
 import { dbRef } from '../auth/constants';
-import { slashingDeps } from '../slashing/service';
-import { makeCanaryJob, makeNode } from '../slashing/testkit';
-import { CANARY_FIXTURE_VERSION, CHAT_FIXTURES, EMBEDDING_SENTENCES } from './fixtures';
+import { slashingDeps, unsuspendNode } from '../slashing/service';
+import { makeCanaryJob, makeNode, seedCanaries } from '../slashing/testkit';
+import { CANARY_FIXTURE_VERSION, generateChatCanary, generateEmbeddingInputs } from './fixtures';
 import { canaryHooks } from './hooks';
 import {
   canaryDeps,
@@ -16,44 +17,69 @@ import {
   cosine,
   evaluateChat,
   evaluateEmbeddings,
+  pendingSpecCount,
   recordCanaryResult,
   scheduleCanaries,
+  sendCanary,
+  sweepSpecs,
   withholdAmount,
 } from './service';
 
-describe('fixtures', () => {
-  test('about 40 chat prompts with unique ids, 20 embedding sentences', () => {
-    expect(CHAT_FIXTURES.length).toBe(40);
-    expect(new Set(CHAT_FIXTURES.map((f) => f.id)).size).toBe(40);
-    expect(EMBEDDING_SENTENCES.length).toBe(20);
-    expect(CANARY_FIXTURE_VERSION).toBeGreaterThan(0);
+describe('generated canaries', () => {
+  const rng = (seed: number) => () => {
+    seed = (seed + 0x6d2b79f5) | 0; // mulberry32
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const draws = Array.from({ length: 300 }, (_, i) => generateChatCanary(rng(i + 1)));
+  test('deterministic for a given random source', () => {
+    expect(generateChatCanary(rng(5))).toEqual(generateChatCanary(rng(5)));
   });
-  test('every regex fixture compiles and accepts its own plain answer', () => {
-    for (const f of CHAT_FIXTURES) {
-      const e = f.expect;
+  test('prompts, sampling and shape vary so canaries cannot be fingerprinted', () => {
+    expect(new Set(draws.map((d) => d.messages.at(-1)?.content)).size).toBeGreaterThan(100);
+    expect(new Set(draws.map((d) => d.id)).size).toBeGreaterThanOrEqual(4);
+    expect(draws.some((d) => d.temperature === 0)).toBe(true);
+    expect(draws.some((d) => d.temperature === undefined)).toBe(true);
+    expect(draws.some((d) => d.seed === undefined)).toBe(true);
+    expect(draws.some((d) => d.seed !== undefined)).toBe(true);
+    expect(draws.some((d) => d.messages.length === 2 && d.messages[0]?.role === 'system')).toBe(true);
+    expect(draws.every((d) => d.messages.length <= 2 && d.maxTokens >= 16 && d.maxTokens <= 64)).toBe(true);
+    expect(new Set(draws.map((d) => d.maxTokens)).size).toBeGreaterThan(20);
+  });
+  test('every expectation compiles; the lazy engine answer "ok" fails all of them', () => {
+    for (const d of draws) {
+      const e = d.expect;
       if ('regex' in e) expect(() => new RegExp(e.regex, 'i')).not.toThrow();
+      expect(evaluateChat(d.expect, 'ok')).toBe(false);
     }
+  });
+  test('arithmetic answers are accepted as digits or words, wrong ones are not', () => {
+    const add = draws.find((d) => d.id === 'add');
+    const [a, b] = (add?.messages.at(-1)?.content.match(/\d+/g) ?? []).map(Number) as [number, number];
+    expect(evaluateChat(add?.expect as never, String(a + b))).toBe(true);
+    expect(evaluateChat(add?.expect as never, `The answer is ${a + b}.`)).toBe(true);
+    expect(evaluateChat(add?.expect as never, String(a + b + 1))).toBe(false);
+    expect(evaluateChat(add?.expect as never, `${a + b}0`)).toBe(false);
+  });
+  test('embedding inputs: 8-16 unique sentences, different every time', () => {
+    const a = generateEmbeddingInputs(rng(1));
+    const b = generateEmbeddingInputs(rng(2));
+    expect(a.length).toBeGreaterThanOrEqual(8);
+    expect(a.length).toBeLessThanOrEqual(16);
+    expect(new Set(a).size).toBe(a.length);
+    expect(a).not.toEqual(b);
+    expect(CANARY_FIXTURE_VERSION).toBeGreaterThan(0);
   });
 });
 
 describe('chat evaluation', () => {
-  const num = CHAT_FIXTURES.find((f) => f.id === 'add-1')?.expect as never;
-  const word = CHAT_FIXTURES.find((f) => f.id === 'cap-fr')?.expect as never;
-  test('numeric answers', () => {
-    expect(evaluateChat(num, '42')).toBe(true);
-    expect(evaluateChat(num, 'The answer is 42.')).toBe(true);
-    expect(evaluateChat(num, '142')).toBe(false);
-    expect(evaluateChat(num, '420')).toBe(false);
-    expect(evaluateChat(num, 'ok')).toBe(false);
-  });
+  const word = { anyOf: ['paris'] };
   test('word answers are case insensitive', () => {
     expect(evaluateChat(word, 'Paris')).toBe(true);
     expect(evaluateChat(word, 'It is PARIS.')).toBe(true);
     expect(evaluateChat(word, 'London')).toBe(false);
     expect(evaluateChat(word, '')).toBe(false);
-  });
-  test('the lazy engine answer "ok" fails every fixture', () => {
-    expect(CHAT_FIXTURES.filter((f) => evaluateChat(f.expect, 'ok'))).toEqual([]);
   });
 });
 
@@ -161,12 +187,13 @@ describe('results, withholds, escalation', () => {
     expect((await t.db.select().from(canaryResults))[0]?.pass).toBe(true);
   });
 
-  test('fail: reputation -100 and withhold of exactly the unbuilt-epoch earnings', async () => {
+  test('fail with a full sample: reputation -100 and withhold of exactly the unbuilt-epoch earnings', async () => {
     const n = await makeNode();
     await earn(n.id, n.owner, 3_000_000n);
     await earn(n.id, n.owner, 2_000_000n);
     await earn(n.id, n.owner, 9_000_000n, 41n); // already built epoch: untouched
-    const r = await fail(n.id);
+    await seedCanaries(n.id, 2, 2);
+    const r = await fail(n.id); // 5 canaries, 3 failed
     expect(r.withheld).toBe(-5_000_000n);
     const [row] = await t.db.select().from(nodes).where(eq(nodes.id, n.id));
     expect(row?.reputation).toBe(900);
@@ -176,9 +203,59 @@ describe('results, withholds, escalation', () => {
     expect(w[0]?.epoch).toBeNull();
   });
 
+  test('a node is not judged on fewer than 5 canaries', async () => {
+    const n = await makeNode();
+    await earn(n.id, n.owner, 1_000_000n);
+    for (let i = 0; i < 4; i++) expect((await fail(n.id)).withheld).toBe(0n);
+    const [row] = await t.db.select().from(nodes).where(eq(nodes.id, n.id));
+    expect(row?.reputation).toBe(1000);
+    expect(row?.status).toBe('online');
+    expect(await t.db.select().from(slashCases)).toHaveLength(0);
+    expect((await fail(n.id)).suspended).toBe(true); // the 5th: 5/5 failed
+  });
+
+  test('fewer than half failing is not a failure event', async () => {
+    const n = await makeNode();
+    await earn(n.id, n.owner, 1_000_000n);
+    await seedCanaries(n.id, 1, 4);
+    const r = await fail(n.id); // 2 of 6
+    expect(r.withheld).toBe(0n);
+    expect(r.suspended).toBe(false);
+    const [row] = await t.db.select().from(nodes).where(eq(nodes.id, n.id));
+    expect(row?.reputation).toBe(1000);
+  });
+
+  test('a failed first attempt is stored but counts for nothing until the retry', async () => {
+    const n = await makeNode();
+    await earn(n.id, n.owner, 1_000_000n);
+    await seedCanaries(n.id, 4, 0);
+    const r = await recordCanaryResult({
+      nodeId: n.id,
+      jobId: await makeCanaryJob(n.id),
+      kind: 'chat',
+      expected: {},
+      observed: { text: 'x' },
+      pass: false,
+      final: false,
+    });
+    expect(r).toEqual({ withheld: 0n, suspended: false });
+    const [row] = await t.db.select().from(nodes).where(eq(nodes.id, n.id));
+    expect(row?.reputation).toBe(1000);
+    expect(
+      (await t.db.select().from(canaryResults)).filter(
+        (c) => (c.observed as { attempt?: number }).attempt === 1,
+      ),
+    ).toHaveLength(1);
+    // the superseded row is not part of the sample: 4 counted fails + this retry failing = 5
+    const rr = await fail(n.id);
+    expect(rr.suspended).toBe(true);
+    expect(rr.withheld).toBe(-1_000_000n);
+  });
+
   test('a second failure in the same epoch withholds nothing more (net is zero)', async () => {
     const n = await makeNode();
     await earn(n.id, n.owner, 1_000_000n);
+    await seedCanaries(n.id, 4, 0);
     await fail(n.id);
     const r = await fail(n.id);
     expect(r.withheld).toBe(0n);
@@ -188,16 +265,15 @@ describe('results, withholds, escalation', () => {
 
   test('fail with no earnings writes no withhold row', async () => {
     const n = await makeNode();
+    await seedCanaries(n.id, 4, 0);
     const r = await fail(n.id);
     expect(r.withheld).toBe(0n);
     expect(await t.db.select().from(earningEvents)).toHaveLength(0);
   });
 
-  test('3 fails in 24h: suspended, closed, one slash case with 20% proposal', async () => {
+  test('3+ failures in a failing sample: suspended, closed, one slash case at 20%', async () => {
     const n = await makeNode();
-    await fail(n.id);
-    await fail(n.id);
-    expect(await t.db.select().from(slashCases)).toHaveLength(0);
+    await seedCanaries(n.id, 2, 2);
     const r = await fail(n.id);
     expect(r.suspended).toBe(true);
     const [row] = await t.db.select().from(nodes).where(eq(nodes.id, n.id));
@@ -210,25 +286,47 @@ describe('results, withholds, escalation', () => {
     expect(cases[0]?.status).toBe('open');
   });
 
-  test('passes in between do not reset the 24h failure count', async () => {
+  test('re-offence after unsuspend opens a fresh case and supersedes the stale open one', async () => {
     const n = await makeNode();
+    await seedCanaries(n.id, 4, 0);
     await fail(n.id);
-    await recordCanaryResult({
-      nodeId: n.id,
-      jobId: null,
-      kind: 'chat',
-      expected: {},
-      observed: {},
-      pass: true,
+    const [first] = await t.db.select().from(slashCases);
+    await unsuspendNode(n.id, '0xadmin');
+    await Bun.sleep(10);
+    await seedCanaries(n.id, 4, 0);
+    await fail(n.id);
+    const cases = await t.db.select().from(slashCases);
+    expect(cases).toHaveLength(2);
+    expect(cases.filter((c) => c.status === 'open')).toHaveLength(1);
+    expect(cases.find((c) => c.id === first?.id)?.status).toBe('dismissed');
+  });
+
+  test('specs of canaries that never finish are swept after the TTL', async () => {
+    const n = await makeNode();
+    const real = { ...canaryDeps };
+    let release: (e: Error) => void = () => {};
+    canaryDeps.dispatch = () => new Promise((_, rej) => (release = rej));
+    const sent = sendCanary({
+      node: { nodeId: n.id, isHouse: false, engine: 'ollama' },
+      model: DEFAULT_CATALOG.find((m) => m.id === 'qwen2.5:7b') as never,
     });
-    await fail(n.id);
-    const r = await fail(n.id);
-    expect(r.suspended).toBe(true);
+    try {
+      await Bun.sleep(50);
+      expect(pendingSpecCount()).toBe(1);
+      expect(sweepSpecs(Date.now() + 14 * 60_000)).toBe(0);
+      expect(sweepSpecs(Date.now() + 16 * 60_000)).toBe(1);
+      expect(pendingSpecCount()).toBe(0);
+    } finally {
+      release(new Error('done'));
+      await sent;
+      Object.assign(canaryDeps, real);
+    }
+    expect(pendingSpecCount()).toBe(0); // terminal path also clears
   });
 
   test('the house node is never penalised or suspended', async () => {
     const n = await makeNode({ isHouse: true, gpuClass: 0 });
-    for (let i = 0; i < 4; i++) await fail(n.id);
+    for (let i = 0; i < 6; i++) await fail(n.id);
     const [row] = await t.db.select().from(nodes).where(eq(nodes.id, n.id));
     expect(row?.status).toBe('online');
     expect(row?.reputation).toBe(1000);

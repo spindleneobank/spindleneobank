@@ -6,7 +6,7 @@
  * buyer charge, no provider earning.
  */
 import { randomUUID } from 'node:crypto';
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 import { config } from '../../config';
 import { buyers, canaryResults, earningEvents, jobs, kv, nodes, receipts } from '../../db/schema';
 import { logger } from '../../lib/logger';
@@ -24,13 +24,11 @@ import { loadCatalog, nodeSettings } from '../nodes/service';
 import { onJobFinished } from '../receipts/service';
 import { openCase, sinceUnsuspend, suspendNode } from '../slashing/service';
 import {
-  CANARY_CHAT_PARAMS,
   CANARY_FIXTURE_VERSION,
-  CHAT_FIXTURES,
   type ChatExpect,
-  type ChatFixture,
   EMBEDDING_COSINE_MIN,
-  EMBEDDING_SENTENCES,
+  generateChatCanary,
+  generateEmbeddingInputs,
 } from './fixtures';
 import type { CanaryFinished } from './hooks';
 
@@ -46,6 +44,10 @@ export const canarySettings = {
   repMin: 0,
   repMax: 2000,
   suspendFails: 3,
+  /** A node is judged only on a sample: >= minSample canaries in the window and >= failShareBps failed. */
+  minSample: 5,
+  failShareBps: 5000,
+  specTtlMs: 15 * 60_000,
   failWindowMs: 24 * 3600_000,
   /** Share of canaries that are embeddings when the node serves an embeddings model with a reference. */
   embeddingShare: 0.25,
@@ -136,39 +138,31 @@ export function canaryProbability(jobsLastHour: number, rateBps = canarySettings
 // ---- pending specs ---------------------------------------------------------------------------------------
 
 type Spec =
-  | { kind: 'chat'; model: string; fixtureId: string; expect: ChatExpect }
-  | { kind: 'embeddings'; model: string };
-const specs = new Map<string, Spec>();
+  | { kind: 'chat'; model: string; template: string; expect: ChatExpect; attempt: 1 | 2 }
+  | { kind: 'embeddings'; model: string; refs: number[][]; attempt: 1 | 2 };
+const specs = new Map<string, { spec: Spec; at: number }>();
 
-// ---- embedding references --------------------------------------------------------------------------------
+/** Drops specs of canaries that never finished (worker restart, lost callback). */
+export function sweepSpecs(now = canaryDeps.now()): number {
+  let n = 0;
+  for (const [id, e] of specs) {
+    if (now - e.at > canarySettings.specTtlMs) {
+      specs.delete(id);
+      n++;
+    }
+  }
+  return n;
+}
+export const pendingSpecCount = (): number => specs.size;
+
+// ---- embedding references ----------------------------------------------------------------------------------
 
 interface EmbeddingRef {
-  model: string;
   digest: string;
-  fixtureVersion: number;
-  vectors: number[][];
+  vector: number[];
   computedAt: string;
 }
-const refKey = (model: string, digest?: string) => `canary:embref:${model}${digest ? `:${digest}` : ''}`;
-
-async function saveRef(ref: EmbeddingRef): Promise<void> {
-  for (const key of [refKey(ref.model), refKey(ref.model, ref.digest)]) {
-    await dbRef.db
-      .insert(kv)
-      .values({ key, value: ref })
-      .onConflictDoUpdate({ target: kv.key, set: { value: ref, updatedAt: new Date() } });
-  }
-}
-
-export async function loadRef(model: string, digest?: string): Promise<EmbeddingRef | null> {
-  for (const key of digest ? [refKey(model, digest), refKey(model)] : [refKey(model)]) {
-    const [row] = await dbRef.db.select().from(kv).where(eq(kv.key, key));
-    const v = row?.value as EmbeddingRef | undefined;
-    if (v?.fixtureVersion === CANARY_FIXTURE_VERSION && v.vectors?.length === EMBEDDING_SENTENCES.length)
-      return v;
-  }
-  return null;
-}
+const vecKey = (model: string, input: string) => `canary:embvec:${model}:${sha256Hex(input)}`;
 
 export const modelDigestOf = (done: JobDone): string => {
   try {
@@ -182,21 +176,19 @@ const embeddingsOf = (output: unknown): number[][] =>
   ((output as { data?: { embedding?: number[] }[] } | null)?.data ?? []).map((d) => d.embedding ?? []);
 
 /**
- * Computes reference vectors on the house node for every embeddings model whose reference is missing or
- * older than a day. Runs at worker start and daily; keyed by the house node's model digest.
+ * Reference vectors for exactly these inputs, computed per input on the house node and cached in `kv`
+ * for a day (keyed by model and input hash). Null when the house node cannot supply them.
  */
-export async function refreshEmbeddingReferences(force = false): Promise<number> {
-  let n = 0;
-  for (const model of (await loadCatalog()).filter(
-    (m) => m.kind === 'embeddings' && m.lanes.includes('open'),
-  )) {
-    const existing = await loadRef(model.id);
-    if (
-      !force &&
-      existing &&
-      canaryDeps.now() - new Date(existing.computedAt).getTime() < canarySettings.embeddingRefTtlMs
-    )
-      continue;
+export async function referencesFor(model: CatalogModel, inputs: string[]): Promise<number[][] | null> {
+  const keys = inputs.map((i) => vecKey(model.id, i));
+  const rows = await dbRef.db.select().from(kv).where(inArray(kv.key, keys));
+  const cached = new Map(rows.map((r) => [r.key, r.value as EmbeddingRef]));
+  const fresh = (v?: EmbeddingRef) =>
+    v && canaryDeps.now() - new Date(v.computedAt).getTime() < canarySettings.embeddingRefTtlMs
+      ? v
+      : undefined;
+  const missing = inputs.filter((i) => !fresh(cached.get(vecKey(model.id, i))));
+  if (missing.length > 0) {
     const house = (
       await canaryDeps.candidates({
         model: model.id,
@@ -206,34 +198,40 @@ export async function refreshEmbeddingReferences(force = false): Promise<number>
       })
     ).find((c) => c.isHouse);
     const engineModel = house ? model.engineIds[house.engine as 'ollama' | 'vllm'] : undefined;
-    if (!house || !engineModel) continue;
+    if (!house || !engineModel) return null;
     try {
-      const job: JobStartInput = {
-        jobId: randomUUID(),
-        kind: 'embeddings',
-        model: model.id,
-        engineModel,
-        lane: 'open',
-        request: { model: model.id, input: [...EMBEDDING_SENTENCES] },
-        maxTokens: 0,
-        deadlineMs: canaryDeps.now() + nodeSettings.jobTimeoutMs,
-      };
-      const done = await canaryDeps.dispatch(house.nodeId, job, () => {});
+      const done = await canaryDeps.dispatch(
+        house.nodeId,
+        {
+          jobId: randomUUID(),
+          kind: 'embeddings',
+          model: model.id,
+          engineModel,
+          lane: 'open',
+          request: { model: model.id, input: missing },
+          maxTokens: 0,
+          deadlineMs: canaryDeps.now() + nodeSettings.jobTimeoutMs,
+        },
+        () => {},
+      );
       const vectors = embeddingsOf(done.output);
-      if (vectors.length !== EMBEDDING_SENTENCES.length || vectors.some((v) => v.length === 0)) continue;
-      await saveRef({
-        model: model.id,
-        digest: modelDigestOf(done),
-        fixtureVersion: CANARY_FIXTURE_VERSION,
-        vectors,
-        computedAt: new Date(canaryDeps.now()).toISOString(),
-      });
-      n++;
+      if (vectors.length !== missing.length || vectors.some((v) => v.length === 0)) return null;
+      const digest = modelDigestOf(done);
+      const computedAt = new Date(canaryDeps.now()).toISOString();
+      for (const [i, input] of missing.entries()) {
+        const value: EmbeddingRef = { digest, vector: vectors[i] as number[], computedAt };
+        cached.set(vecKey(model.id, input), value);
+        await dbRef.db
+          .insert(kv)
+          .values({ key: vecKey(model.id, input), value })
+          .onConflictDoUpdate({ target: kv.key, set: { value, updatedAt: new Date() } });
+      }
     } catch (err) {
-      logger.warn({ err: String(err), model: model.id }, 'embedding reference refresh failed');
+      logger.warn({ err: String(err), model: model.id }, 'embedding reference computation failed');
+      return null;
     }
   }
-  return n;
+  return inputs.map((i) => (cached.get(vecKey(model.id, i)) as EmbeddingRef).vector);
 }
 
 // ---- dispatch ----------------------------------------------------------------------------------------------
@@ -246,18 +244,21 @@ async function canaryBuyerId(): Promise<string> {
   return row?.id ?? buyerIdForAddress(CANARY_BUYER_ADDRESS);
 }
 
-export function pickFixture(rand: () => number = canaryDeps.random): ChatFixture {
-  return CHAT_FIXTURES[Math.floor(rand() * CHAT_FIXTURES.length)] as ChatFixture;
-}
-
 export interface CanaryTarget {
   node: CandidateLite;
   model: CatalogModel;
 }
 
-/** Sends one canary and feeds the finished job to B7. Returns the job id, or null if it could not run. */
-export async function sendCanary(target: CanaryTarget): Promise<string | null> {
+/**
+ * Sends one canary and feeds the finished job to B7. Returns the job id, or null if it could not run.
+ * `attempt` 2 is the immediate retry after a failed first attempt (a different template / inputs).
+ */
+export async function sendCanary(
+  target: CanaryTarget,
+  opts: { attempt?: 1 | 2; avoidTemplate?: string } = {},
+): Promise<string | null> {
   const { node, model } = target;
+  const attempt = opts.attempt ?? 1;
   const engineModel = model.engineIds[node.engine as 'ollama' | 'vllm'];
   if (!engineModel) return null;
   const jobId = randomUUID();
@@ -267,24 +268,27 @@ export async function sendCanary(target: CanaryTarget): Promise<string | null> {
   let messages: { role: string; content: unknown }[] | undefined;
   let inputs: string[] | undefined;
   if (model.kind === 'embeddings') {
-    if (!(await loadRef(model.id))) return null;
-    inputs = [...EMBEDDING_SENTENCES];
+    inputs = generateEmbeddingInputs(canaryDeps.random);
+    const refs = await referencesFor(model, inputs);
+    if (!refs) return null;
     body = { model: model.id, input: inputs };
-    spec = { kind: 'embeddings', model: model.id };
+    spec = { kind: 'embeddings', model: model.id, refs, attempt };
   } else {
-    const f = pickFixture();
-    messages = [{ role: 'user', content: f.prompt }];
-    maxTokens = CANARY_CHAT_PARAMS.maxTokens;
-    // same field order and names the gateway forwards for a buyer request
+    let c = generateChatCanary(canaryDeps.random);
+    for (let i = 0; i < 10 && opts.avoidTemplate && c.id === opts.avoidTemplate; i++)
+      c = generateChatCanary(canaryDeps.random);
+    messages = c.messages;
+    maxTokens = c.maxTokens;
+    // the fields and order the gateway forwards for a buyer request; sampling knobs vary per canary
     body = {
       model: model.id,
       messages,
       stream: true,
       max_tokens: maxTokens,
-      temperature: CANARY_CHAT_PARAMS.temperature,
-      seed: CANARY_CHAT_PARAMS.seed,
+      ...(c.temperature !== undefined ? { temperature: c.temperature } : {}),
+      ...(c.seed !== undefined ? { seed: c.seed } : {}),
     };
-    spec = { kind: 'chat', model: model.id, fixtureId: f.id, expect: f.expect };
+    spec = { kind: 'chat', model: model.id, template: c.id, expect: c.expect, attempt };
   }
   const kind = model.kind as JobKind;
   await dbRef.db.insert(jobs).values({
@@ -298,15 +302,7 @@ export async function sendCanary(target: CanaryTarget): Promise<string | null> {
     isCanary: true,
     status: 'queued',
   });
-  specs.set(jobId, spec);
-  const fail = async (err: unknown) => {
-    specs.delete(jobId);
-    await updateJob(jobId, { status: 'failed', error: String(err).slice(0, 500), finishedAt: new Date() }, [
-      'queued',
-      'dispatched',
-      'running',
-    ]).catch(() => {});
-  };
+  specs.set(jobId, { spec, at: canaryDeps.now() });
   let text = '';
   try {
     await updateJob(jobId, { nodeId: node.nodeId, status: 'dispatched', dispatchedAt: new Date() });
@@ -361,8 +357,15 @@ export async function sendCanary(target: CanaryTarget): Promise<string | null> {
   } catch (err) {
     // node-side errors (busy, model not ready, lost, timeout) are inconclusive and never penalised
     logger.info({ jobId, nodeId: node.nodeId, err: String(err) }, 'canary did not complete');
-    await fail(err);
+    await updateJob(jobId, { status: 'failed', error: String(err).slice(0, 500), finishedAt: new Date() }, [
+      'queued',
+      'dispatched',
+      'running',
+    ]).catch(() => {});
     return null;
+  } finally {
+    // every terminal path, including onJobFinished returning early without calling the hook
+    specs.delete(jobId);
   }
 }
 
@@ -391,6 +394,7 @@ export async function canaryTargets(): Promise<Map<string, { node: CandidateLite
 
 /** One scheduler tick (every minute). Returns the ids of nodes that got a canary. */
 export async function scheduleCanaries(): Promise<string[]> {
+  sweepSpecs();
   const targets = await canaryTargets();
   if (targets.size === 0) return [];
   const now = canaryDeps.now();
@@ -430,8 +434,9 @@ export async function scheduleCanaries(): Promise<string[]> {
 
 /** Called by B7 (via the hook) once a canary job's receipt was checked. */
 export async function handleCanaryFinished(e: CanaryFinished): Promise<void> {
-  const spec = specs.get(e.jobId);
+  const entry = specs.get(e.jobId);
   specs.delete(e.jobId);
+  const spec = entry?.spec;
   let pass: boolean;
   let kind: string;
   let expected: unknown;
@@ -449,7 +454,7 @@ export async function handleCanaryFinished(e: CanaryFinished): Promise<void> {
     kind = 'chat';
     expected = {
       model: spec.model,
-      fixtureId: spec.fixtureId,
+      template: spec.template,
       fixtureVersion: CANARY_FIXTURE_VERSION,
       expect: spec.expect,
     };
@@ -458,24 +463,42 @@ export async function handleCanaryFinished(e: CanaryFinished): Promise<void> {
     observed = { text: text.slice(0, 200), receiptVerified: e.verified, receiptReason: e.reason };
   } else {
     kind = 'embeddings';
-    const [rc] = await dbRef.db.select().from(receipts).where(eq(receipts.jobId, e.jobId));
-    const digest = (rc?.payload as { modelDigest?: string } | undefined)?.modelDigest;
-    const ref = await loadRef(spec.model, digest);
     expected = {
       model: spec.model,
       fixtureVersion: CANARY_FIXTURE_VERSION,
       minCosine: EMBEDDING_COSINE_MIN,
-      refDigest: ref?.digest ?? null,
+      n: spec.refs.length,
     };
-    if (!ref) {
-      logger.warn({ jobId: e.jobId }, 'embedding canary has no reference; ignoring');
-      return;
-    }
-    const r = evaluateEmbeddings(ref.vectors, e.embeddings ?? []);
+    const r = evaluateEmbeddings(spec.refs, e.embeddings ?? []);
     pass = e.verified && r.pass;
-    observed = { ...r, digest, receiptVerified: e.verified, receiptReason: e.reason };
+    observed = { ...r, receiptVerified: e.verified, receiptReason: e.reason };
   }
-  await recordCanaryResult({ nodeId: e.nodeId, jobId: e.jobId, kind, expected, observed, pass });
+  // a first failure does not count: it is retried at once with a different template / inputs
+  const retry = !pass && spec !== undefined && spec.attempt === 1;
+  await recordCanaryResult({
+    nodeId: e.nodeId,
+    jobId: e.jobId,
+    kind,
+    expected,
+    observed,
+    pass,
+    final: !retry,
+  });
+  if (retry) await retryCanary(e.nodeId, spec);
+}
+
+async function retryCanary(nodeId: string, spec: Spec): Promise<void> {
+  try {
+    const [node] = await dbRef.db.select().from(nodes).where(eq(nodes.id, nodeId));
+    const model = (await loadCatalog()).find((m) => m.id === spec.model);
+    if (!node || !model || node.status === 'suspended' || node.isHouse) return;
+    await sendCanary(
+      { node: { nodeId, isHouse: false, engine: node.engine }, model },
+      { attempt: 2, avoidTemplate: spec.kind === 'chat' ? spec.template : undefined },
+    );
+  } catch (err) {
+    logger.warn({ err: String(err), nodeId }, 'canary retry failed to run');
+  }
 }
 
 export interface CanaryRecord {
@@ -485,12 +508,25 @@ export interface CanaryRecord {
   expected: unknown;
   observed: unknown;
   pass: boolean;
+  /** false for a failed first attempt that is being retried: stored, but it counts for nothing. */
+  final?: boolean;
 }
 
-/** Stores the result, moves reputation, withholds on failure and escalates after repeated failures. */
+/** Rows that count toward a node's record: everything except failed first attempts awaiting a retry. */
+const counted = sql`not (${canaryResults.pass} = false and coalesce(${canaryResults.observed}->>'attempt', '') = '1')`;
+
+/**
+ * Stores the result and moves reputation. A confirmed failure only becomes a failure *event* (reputation
+ * -100, epoch earnings withheld) once the node has >= `minSample` canaries in the window and >= half of
+ * them failed; with >= `suspendFails` failures it is also suspended and a slash case is opened.
+ */
 export async function recordCanaryResult(r: CanaryRecord): Promise<{ withheld: bigint; suspended: boolean }> {
+  const final = r.final ?? true;
   let withheld = 0n;
   let isHouse = false;
+  let failures = 0;
+  let event = false;
+  const since = await sinceUnsuspend(r.nodeId, new Date(canaryDeps.now() - canarySettings.failWindowMs));
   await dbRef.db.transaction(async (tx) => {
     const locked = await tx.execute(sql`select owner, is_house from nodes where id = ${r.nodeId} for update`);
     const row = locked[0] as { owner: string; is_house: boolean } | undefined;
@@ -502,57 +538,62 @@ export async function recordCanaryResult(r: CanaryRecord): Promise<{ withheld: b
       jobId: r.jobId,
       kind: r.kind,
       expected: r.expected,
-      observed: r.observed,
+      observed: final ? r.observed : { ...(r.observed as object), attempt: 1 },
       pass: r.pass,
     });
-    const delta = r.pass ? canarySettings.passDelta : canarySettings.failDelta;
+    if (!final) return;
+    if (r.pass) {
+      await tx
+        .update(nodes)
+        .set({
+          reputation: sql`greatest(${canarySettings.repMin}, least(${canarySettings.repMax}, ${nodes.reputation} + ${canarySettings.passDelta}))`,
+        })
+        .where(eq(nodes.id, r.nodeId));
+      return;
+    }
+    const [stats] = await tx
+      .select({
+        total: sql<number>`count(*)::int`,
+        fails: sql<number>`(count(*) filter (where ${canaryResults.pass} = false))::int`,
+      })
+      .from(canaryResults)
+      .where(and(eq(canaryResults.nodeId, r.nodeId), gte(canaryResults.createdAt, since), counted));
+    const total = stats?.total ?? 0;
+    failures = stats?.fails ?? 0;
+    event = total >= canarySettings.minSample && failures * 10_000 >= total * canarySettings.failShareBps;
+    if (!event) return;
     await tx
       .update(nodes)
       .set({
-        reputation: sql`greatest(${canarySettings.repMin}, least(${canarySettings.repMax}, ${nodes.reputation} + ${delta}))`,
+        reputation: sql`greatest(${canarySettings.repMin}, least(${canarySettings.repMax}, ${nodes.reputation} + ${canarySettings.failDelta}))`,
       })
       .where(eq(nodes.id, r.nodeId));
-    if (!r.pass) {
-      const [sum] = await tx
-        .select({ n: sql<string>`coalesce(sum(${earningEvents.usdgMicros}), 0)::text` })
-        .from(earningEvents)
-        .where(
-          and(
-            eq(earningEvents.nodeId, r.nodeId),
-            sql`${earningEvents.epoch} is null`,
-            sql`${earningEvents.kind} <> 'slash'`,
-          ),
-        );
-      withheld = withholdAmount(BigInt(sum?.n ?? '0'));
-      if (withheld < 0n) {
-        await tx.insert(earningEvents).values({
-          ts: new Date(),
-          nodeId: r.nodeId,
-          owner: row.owner,
-          jobId: r.jobId,
-          kind: 'canary_withhold',
-          usdgMicros: withheld,
-        });
-      }
+    const [sum] = await tx
+      .select({ n: sql<string>`coalesce(sum(${earningEvents.usdgMicros}), 0)::text` })
+      .from(earningEvents)
+      .where(
+        and(
+          eq(earningEvents.nodeId, r.nodeId),
+          sql`${earningEvents.epoch} is null`,
+          sql`${earningEvents.kind} <> 'slash'`,
+        ),
+      );
+    withheld = withholdAmount(BigInt(sum?.n ?? '0'));
+    if (withheld < 0n) {
+      await tx.insert(earningEvents).values({
+        ts: new Date(),
+        nodeId: r.nodeId,
+        owner: row.owner,
+        jobId: r.jobId,
+        kind: 'canary_withhold',
+        usdgMicros: withheld,
+      });
     }
   });
-  if (r.pass || isHouse) return { withheld, suspended: false };
-
-  const since = await sinceUnsuspend(r.nodeId, new Date(canaryDeps.now() - canarySettings.failWindowMs));
-  const [c] = await dbRef.db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(canaryResults)
-    .where(
-      and(
-        eq(canaryResults.nodeId, r.nodeId),
-        eq(canaryResults.pass, false),
-        gte(canaryResults.createdAt, since),
-      ),
-    );
   let suspended = false;
-  if ((c?.n ?? 0) >= canarySettings.suspendFails) {
+  if (event && failures >= canarySettings.suspendFails && !isHouse) {
     await openCase(r.nodeId, 'canary_fraud');
-    suspended = await suspendNode(r.nodeId, `${c?.n} failed canaries in 24h`, { auto: true });
+    suspended = await suspendNode(r.nodeId, `${failures} failed canaries in 24h`, { auto: true });
   }
   return { withheld, suspended };
 }
