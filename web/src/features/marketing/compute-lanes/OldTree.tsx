@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import { useBreakpoint } from '../../../components/marketing/motion';
 import { ComingDialog } from '../../../components/marketing/shell';
 import { SOCIALS } from '../../../components/marketing/shell/nav-data';
+import { runAppear, runBorderFade } from '../appear';
 import { useShaderHosts } from '../shaders';
 import { rootClass, trees, wrapClass } from './markup';
 import './old.css';
+import './extra.css';
 
 /**
  * Page body rebuilt from the old site's rendered DOM (Framer layer tree after hydration, one per breakpoint).
@@ -25,6 +27,14 @@ export function OldTree({ onMount }: { onMount?: (root: HTMLElement) => void | (
   const html = applyExceptions(trees[bp] ?? trees.all ?? '');
   const ref = useRef<HTMLDivElement>(null);
   const shaders = useShaderHosts(ref, bp);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const stops = [runAppear(el), runBorderFade(el)];
+    return () => {
+      for (const s of stops) s();
+    };
+  }, [bp]);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const [what, setWhat] = useState<(typeof SOCIALS)[number] | null>(null);
