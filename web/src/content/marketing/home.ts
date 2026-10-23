@@ -213,6 +213,18 @@ export const apiBlock = {
   title: 'Built for AI workloads with a familiar API',
   body: 'The API supports chat completions, embeddings and images. Select the open lane today; the sealed lane is in testing. Illustration below uses no live requests.',
   cta: { label: 'Use the API', to: '/developers' } satisfies Cta,
+  ways: {
+    eyebrow: 'One compatible API',
+    title: 'Three ways to put compute to work.',
+    items: [
+      { title: 'Chat completions', body: 'Generate responses from suitable AI models.' },
+      { title: 'Embeddings', body: 'Turn inputs into vectors for AI workloads.' },
+      { title: 'Image generation', body: 'Route image workloads to eligible GPUs.' },
+    ],
+    note: 'Choose the open lane today; the sealed lane is in testing. Each completed job emits a signed receipt.',
+  },
+  image: '/assets/media/stone-retro-computer-brand-v8.webp',
+  imageAlt: 'A stone retro computer overgrown with mushrooms in a dark garden',
 };
 
 export const specNotes = {

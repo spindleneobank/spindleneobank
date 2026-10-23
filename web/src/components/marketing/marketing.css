@@ -258,9 +258,9 @@
 
 /* closing band */
 .spm-closing {
-  background: var(--sp-night-2);
+  background: #0c0c10 url("/assets/pixel/constellation-field.svg") center / cover no-repeat;
   color: var(--sp-night-text);
-  padding: var(--sp-space-8) 0;
+  padding: 120px 0 140px;
   border-top: 1px solid var(--sp-night-line);
 }
 .spm-closing-grid {
@@ -270,8 +270,10 @@
   align-items: center;
 }
 .spm-closing h2 {
-  font-size: var(--sp-text-2xl);
-  color: var(--sp-peach);
+  font-size: 43px;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: #e9d6df;
 }
 .spm-closing p {
   color: var(--sp-night-text-2);
@@ -1226,10 +1228,132 @@
   color: var(--sp-accent-purple);
 }
 
-/* api console block on light page */
-.spm-api-wrap {
+/* home API section: light copy column, photo with a light console panel over it */
+.spm-api {
+  background: linear-gradient(135deg, #f6ebe4, #ece4ee);
+  color: var(--sp-ink);
+  padding: 0;
+  border-block: 1px solid var(--sp-line);
+}
+.spm-api-grid {
   display: grid;
-  gap: var(--sp-space-5);
+  grid-template-columns: 1fr 1fr;
+  padding-block: 0;
+}
+.spm-api-copy {
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  gap: var(--sp-space-4);
+  padding: clamp(40px, 6vw, 88px) clamp(0px, 3vw, 40px) clamp(40px, 6vw, 88px) 0;
+}
+.spm-api-copy h2 {
+  font-size: clamp(1.9rem, 3vw, 2.7rem);
+  letter-spacing: -0.025em;
+  color: var(--sp-ink-2);
+}
+.spm-api-copy .sp-lead {
+  color: var(--sp-ink-3);
+  max-width: 460px;
+  font-size: 14px;
+}
+.spm-api-ways {
+  margin-top: var(--sp-space-5);
+  max-width: 340px;
+}
+.spm-api-ways small {
+  font: 9px var(--sp-font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sp-ink-muted);
+}
+.spm-api-ways h3 {
+  margin: 6px 0 var(--sp-space-4);
+  font: 400 1.2rem var(--sp-font-digital);
+  color: var(--sp-ink-2);
+}
+.spm-api-ways ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.spm-api-ways li {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--sp-line);
+}
+.spm-api-ways li > span {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  background: #ebdce4;
+  font: 8px var(--sp-font-mono);
+  color: var(--sp-ink-3);
+}
+.spm-api-ways strong {
+  font: 500 12px var(--sp-font-ui);
+}
+.spm-api-ways p {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--sp-ink-3);
+}
+.spm-api-note {
+  margin-top: var(--sp-space-3);
+  font-size: 11px;
+  color: var(--sp-ink-muted);
+}
+.spm-api-photo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 500px;
+  overflow: hidden;
+  background: #1a1220;
+  margin-right: calc(-1 * clamp(16px, 4.2vw, 55px));
+}
+.spm-api-photo img {
+  position: absolute;
+  inset: 50% 0 auto;
+  transform: translateY(-63%);
+  clip-path: inset(0 0 26% 0);
+  width: 100%;
+  height: auto;
+  max-width: none;
+}
+.spm-api-photo .sp-api-console {
+  position: relative;
+  width: min(380px, 80%);
+  background: #e6dfdb;
+  border-color: #fff9;
+  color: var(--sp-ink-2);
+  box-shadow: 0 18px 48px #0e0c1255;
+}
+.spm-api-photo .sp-api-console header,
+.spm-api-photo .sp-api-output {
+  color: var(--sp-ink-muted);
+  border-color: #cdbfbc;
+}
+.spm-api-photo .sp-api-state strong {
+  color: var(--sp-ink);
+}
+.spm-api-photo .sp-api-state small {
+  color: var(--sp-ink-muted);
+}
+.spm-api-photo .sp-api-track i {
+  background: #cdbfbc;
+}
+@media (max-width: 800px) {
+  .spm-api-grid {
+    grid-template-columns: 1fr;
+  }
+  .spm-api-photo {
+    margin-inline: calc(-1 * clamp(16px, 4.2vw, 55px));
+    min-height: 380px;
+  }
 }
 
 /* dark page heroes */

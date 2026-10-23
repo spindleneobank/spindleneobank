@@ -168,12 +168,36 @@ function Home() {
         </ul>
       </Section>
 
-      <Section id="api" tone="night" eyebrow={apiBlock.eyebrow} title={apiBlock.title} lead={apiBlock.body}>
-        <div className="spm-api-wrap">
-          <ApiConsole />
-          <CtaRow ctas={[apiBlock.cta]} />
+      <section id="api" className="spm-api">
+        <div className="sp-container spm-api-grid">
+          <div className="spm-api-copy">
+            <Eyebrow tone="dark">{apiBlock.eyebrow}</Eyebrow>
+            <h2>{apiBlock.title}</h2>
+            <p className="sp-lead">{apiBlock.body}</p>
+            <div className="spm-api-ways">
+              <small>{apiBlock.ways.eyebrow}</small>
+              <h3>{apiBlock.ways.title}</h3>
+              <ol>
+                {apiBlock.ways.items.map((w, i) => (
+                  <li key={w.title}>
+                    <span>{String(i + 1).padStart(2, '0')}</span>
+                    <div>
+                      <strong>{w.title}</strong>
+                      <p>{w.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <p className="spm-api-note">{apiBlock.ways.note}</p>
+            </div>
+            <CtaRow ctas={[apiBlock.cta]} />
+          </div>
+          <div className="spm-api-photo">
+            <img src={apiBlock.image} alt={apiBlock.imageAlt} loading="lazy" />
+            <ApiConsole />
+          </div>
         </div>
-      </Section>
+      </section>
 
       <Section id="notes" tone="paper" eyebrow={specNotes.eyebrow} title={specNotes.title}>
         <ul className="spm-grid">
