@@ -13,7 +13,7 @@ export function useOrbit(root: RefObject<HTMLElement | null>) {
         badge: arm.firstElementChild as HTMLElement | null,
         angle: Number.parseFloat(/rotate\((-?[\d.]+)deg\)/.exec(arm.style.transform)?.[1] ?? '0'),
       }));
-      return { orbit, arms, on: false };
+      return { orbit, arms, on: true };
     });
     let raf = 0;
     let t0 = 0;
@@ -33,17 +33,10 @@ export function useOrbit(root: RefObject<HTMLElement | null>) {
     const kick = () => {
       if (!raf && !document.hidden) raf = requestAnimationFrame(frame);
     };
-    const io = new IntersectionObserver((es) => {
-      for (const e of es) {
-        const p = parts.find((x) => x.orbit === e.target);
-        if (p) p.on = e.isIntersecting;
-      }
-      kick();
-    });
-    for (const p of parts) io.observe(p.orbit);
+    // Like the original ticker, the ring keeps turning offscreen; only a hidden tab pauses it.
+    kick();
     document.addEventListener('visibilitychange', kick);
     return () => {
-      io.disconnect();
       document.removeEventListener('visibilitychange', kick);
       if (raf) cancelAnimationFrame(raf);
     };

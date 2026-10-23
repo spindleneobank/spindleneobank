@@ -39,7 +39,7 @@ const override: Override = (el, key, kids): ReactNode | undefined => {
   if (p && p['data-pp-chat'] && data.chat) return <ChatPanel key={key} states={data.chat.states} override={override} />;
   if (p && typeof p.className === 'string' && p.className.split(' ').includes('framer-1uny542'))
     return (
-      <Appear key={key} as={el[0]} spec={APPEAR} className={p.className} style={p.style as never}>
+      <Appear key={key} as={el[0] as 'div'} spec={APPEAR} className={p.className} style={p.style as never}>
         {kids}
       </Appear>
     );

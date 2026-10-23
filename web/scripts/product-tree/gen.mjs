@@ -68,6 +68,8 @@ function merge(ns) { // ns: {desktop,tablet,phone}
   if (eq(d, t) && eq(d, p)) return d;
   const allStr = [d, t, p].every((x) => typeof x === 'string');
   const allEl = [d, t, p].every((x) => typeof x !== 'string');
+  // <style> blocks (per-instance keyframe names differ per breakpoint): one block holding every variant's text
+  if (allEl && d.t === 'style' && t.t === 'style' && p.t === 'style') return { t: 'style', a: d.a, c: [...new Set([d, t, p].map((x) => x.c.join('')))] };
   if (allEl && d.t === t.t && d.t === p.t && d.c.length === t.c.length && d.c.length === p.c.length) {
     const sameAttrs = eq(d.a, t.a) && eq(d.a, p.a);
     const children = d.c.map((_, i) => merge({ desktop: d.c[i], tablet: t.c[i], phone: p.c[i] }));
