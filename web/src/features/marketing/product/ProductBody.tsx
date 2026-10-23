@@ -1,4 +1,4 @@
-import { type ReactNode, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useVisibleBox } from './useVisibleBox';
 import { Appear, LiquidMetal } from '../../../components/marketing/motion';
 import tree from '../../../content/marketing/product-tree.json';
@@ -104,6 +104,14 @@ export function ProductBody() {
   useHeroGraph(root);
   useWorkflowSignal(root);
   useSlideshow(root);
+  // Framer's appear also animates `transform` (none -> none, same spring timing) next to opacity
+  useEffect(() => {
+    const el = root.current;
+    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    for (const q of el.querySelectorAll<HTMLElement>('.framer-1uny542')) {
+      q.animate({ transform: ['none', 'none'] }, { delay: 200, duration: 600, easing: 'linear', fill: 'both' });
+    }
+  }, []);
   return (
     <div ref={root} className={`pp-scope ${data.root.cls.split(/\s+/).slice(0, 2).join(' ')}`} style={data.root.style}>
       {renderNode(withTemplates(data.tree, tpl), 'root', '', override)}

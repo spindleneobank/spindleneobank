@@ -66,7 +66,7 @@ export function ChatPanel({ states, override }: { states: PNode[]; override?: Pa
         const host = c.closest('p');
         const n = seen.get(host) ?? 0;
         seen.set(host, n + 1);
-        c.animate([{ opacity: 0.001 }, { opacity: 1 }], { duration: 10, delay: 300 + n * 50, easing: 'linear', fill: 'backwards' });
+        c.animate([{ opacity: 0.001 }, { opacity: 1 }], { duration: 10, delay: 300 + n * 50, easing: EASE, fill: 'backwards' });
       }
     }
     prev.current = now;
