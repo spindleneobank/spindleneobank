@@ -11,8 +11,24 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as marketingIndexRouteImport } from './routes/(marketing)/index'
+import { Route as marketing404RouteImport } from './routes/(marketing)/404'
+import { Route as marketingChangelogRouteImport } from './routes/(marketing)/changelog'
+import { Route as marketingCommunityRouteImport } from './routes/(marketing)/community'
+import { Route as marketingCookiePolicyRouteImport } from './routes/(marketing)/cookie-policy'
+import { Route as marketingPrivacyPolicyRouteImport } from './routes/(marketing)/privacy-policy'
+import { Route as marketingTermsConditionsRouteImport } from './routes/(marketing)/terms-conditions'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardTabRouteImport } from './routes/dashboard/$tab'
+import { Route as marketingAboutIndexRouteImport } from './routes/(marketing)/about/index'
+import { Route as marketingAboutRoleRouteImport } from './routes/(marketing)/about/$role'
+import { Route as marketingArchitectureIndexRouteImport } from './routes/(marketing)/architecture/index'
+import { Route as marketingArchitectureSlugRouteImport } from './routes/(marketing)/architecture/$slug'
+import { Route as marketingBlogsIndexRouteImport } from './routes/(marketing)/blogs/index'
+import { Route as marketingBlogsSlugRouteImport } from './routes/(marketing)/blogs/$slug'
+import { Route as marketingCaseStudyIndexRouteImport } from './routes/(marketing)/case-study/index'
+import { Route as marketingCaseStudySlugRouteImport } from './routes/(marketing)/case-study/$slug'
+import { Route as marketingIntegrationsIndexRouteImport } from './routes/(marketing)/integrations/index'
+import { Route as marketingIntegrationsSlugRouteImport } from './routes/(marketing)/integrations/$slug'
 
 const DashboardRouteRoute = DashboardRouteRouteImport.update({
   id: '/dashboard',
@@ -24,6 +40,37 @@ const marketingIndexRoute = marketingIndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const marketing404Route = marketing404RouteImport.update({
+  id: '/(marketing)/404',
+  path: '/404',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingChangelogRoute = marketingChangelogRouteImport.update({
+  id: '/(marketing)/changelog',
+  path: '/changelog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingCommunityRoute = marketingCommunityRouteImport.update({
+  id: '/(marketing)/community',
+  path: '/community',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingCookiePolicyRoute = marketingCookiePolicyRouteImport.update({
+  id: '/(marketing)/cookie-policy',
+  path: '/cookie-policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingPrivacyPolicyRoute = marketingPrivacyPolicyRouteImport.update({
+  id: '/(marketing)/privacy-policy',
+  path: '/privacy-policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingTermsConditionsRoute =
+  marketingTermsConditionsRouteImport.update({
+    id: '/(marketing)/terms-conditions',
+    path: '/terms-conditions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -34,41 +81,214 @@ const DashboardTabRoute = DashboardTabRouteImport.update({
   path: '/$tab',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
+const marketingAboutIndexRoute = marketingAboutIndexRouteImport.update({
+  id: '/(marketing)/about/',
+  path: '/about/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingAboutRoleRoute = marketingAboutRoleRouteImport.update({
+  id: '/(marketing)/about/$role',
+  path: '/about/$role',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingArchitectureIndexRoute =
+  marketingArchitectureIndexRouteImport.update({
+    id: '/(marketing)/architecture/',
+    path: '/architecture/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const marketingArchitectureSlugRoute =
+  marketingArchitectureSlugRouteImport.update({
+    id: '/(marketing)/architecture/$slug',
+    path: '/architecture/$slug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const marketingBlogsIndexRoute = marketingBlogsIndexRouteImport.update({
+  id: '/(marketing)/blogs/',
+  path: '/blogs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingBlogsSlugRoute = marketingBlogsSlugRouteImport.update({
+  id: '/(marketing)/blogs/$slug',
+  path: '/blogs/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingCaseStudyIndexRoute = marketingCaseStudyIndexRouteImport.update({
+  id: '/(marketing)/case-study/',
+  path: '/case-study/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingCaseStudySlugRoute = marketingCaseStudySlugRouteImport.update({
+  id: '/(marketing)/case-study/$slug',
+  path: '/case-study/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const marketingIntegrationsIndexRoute =
+  marketingIntegrationsIndexRouteImport.update({
+    id: '/(marketing)/integrations/',
+    path: '/integrations/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const marketingIntegrationsSlugRoute =
+  marketingIntegrationsSlugRouteImport.update({
+    id: '/(marketing)/integrations/$slug',
+    path: '/integrations/$slug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/404': typeof marketing404Route
+  '/changelog': typeof marketingChangelogRoute
+  '/community': typeof marketingCommunityRoute
+  '/cookie-policy': typeof marketingCookiePolicyRoute
+  '/privacy-policy': typeof marketingPrivacyPolicyRoute
+  '/terms-conditions': typeof marketingTermsConditionsRoute
   '/dashboard/$tab': typeof DashboardTabRoute
   '/': typeof marketingIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/about/$role': typeof marketingAboutRoleRoute
+  '/architecture/$slug': typeof marketingArchitectureSlugRoute
+  '/blogs/$slug': typeof marketingBlogsSlugRoute
+  '/case-study/$slug': typeof marketingCaseStudySlugRoute
+  '/integrations/$slug': typeof marketingIntegrationsSlugRoute
+  '/about/': typeof marketingAboutIndexRoute
+  '/architecture/': typeof marketingArchitectureIndexRoute
+  '/blogs/': typeof marketingBlogsIndexRoute
+  '/case-study/': typeof marketingCaseStudyIndexRoute
+  '/integrations/': typeof marketingIntegrationsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/404': typeof marketing404Route
+  '/changelog': typeof marketingChangelogRoute
+  '/community': typeof marketingCommunityRoute
+  '/cookie-policy': typeof marketingCookiePolicyRoute
+  '/privacy-policy': typeof marketingPrivacyPolicyRoute
+  '/terms-conditions': typeof marketingTermsConditionsRoute
   '/dashboard/$tab': typeof DashboardTabRoute
   '/': typeof marketingIndexRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/about/$role': typeof marketingAboutRoleRoute
+  '/architecture/$slug': typeof marketingArchitectureSlugRoute
+  '/blogs/$slug': typeof marketingBlogsSlugRoute
+  '/case-study/$slug': typeof marketingCaseStudySlugRoute
+  '/integrations/$slug': typeof marketingIntegrationsSlugRoute
+  '/about': typeof marketingAboutIndexRoute
+  '/architecture': typeof marketingArchitectureIndexRoute
+  '/blogs': typeof marketingBlogsIndexRoute
+  '/case-study': typeof marketingCaseStudyIndexRoute
+  '/integrations': typeof marketingIntegrationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/(marketing)/404': typeof marketing404Route
+  '/(marketing)/changelog': typeof marketingChangelogRoute
+  '/(marketing)/community': typeof marketingCommunityRoute
+  '/(marketing)/cookie-policy': typeof marketingCookiePolicyRoute
+  '/(marketing)/privacy-policy': typeof marketingPrivacyPolicyRoute
+  '/(marketing)/terms-conditions': typeof marketingTermsConditionsRoute
   '/dashboard/$tab': typeof DashboardTabRoute
   '/(marketing)/': typeof marketingIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/(marketing)/about/$role': typeof marketingAboutRoleRoute
+  '/(marketing)/architecture/$slug': typeof marketingArchitectureSlugRoute
+  '/(marketing)/blogs/$slug': typeof marketingBlogsSlugRoute
+  '/(marketing)/case-study/$slug': typeof marketingCaseStudySlugRoute
+  '/(marketing)/integrations/$slug': typeof marketingIntegrationsSlugRoute
+  '/(marketing)/about/': typeof marketingAboutIndexRoute
+  '/(marketing)/architecture/': typeof marketingArchitectureIndexRoute
+  '/(marketing)/blogs/': typeof marketingBlogsIndexRoute
+  '/(marketing)/case-study/': typeof marketingCaseStudyIndexRoute
+  '/(marketing)/integrations/': typeof marketingIntegrationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/dashboard' | '/dashboard/$tab' | '/' | '/dashboard/'
+  fullPaths:
+    | '/dashboard'
+    | '/404'
+    | '/changelog'
+    | '/community'
+    | '/cookie-policy'
+    | '/privacy-policy'
+    | '/terms-conditions'
+    | '/dashboard/$tab'
+    | '/'
+    | '/dashboard/'
+    | '/about/$role'
+    | '/architecture/$slug'
+    | '/blogs/$slug'
+    | '/case-study/$slug'
+    | '/integrations/$slug'
+    | '/about/'
+    | '/architecture/'
+    | '/blogs/'
+    | '/case-study/'
+    | '/integrations/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/dashboard/$tab' | '/' | '/dashboard'
+  to:
+    | '/404'
+    | '/changelog'
+    | '/community'
+    | '/cookie-policy'
+    | '/privacy-policy'
+    | '/terms-conditions'
+    | '/dashboard/$tab'
+    | '/'
+    | '/dashboard'
+    | '/about/$role'
+    | '/architecture/$slug'
+    | '/blogs/$slug'
+    | '/case-study/$slug'
+    | '/integrations/$slug'
+    | '/about'
+    | '/architecture'
+    | '/blogs'
+    | '/case-study'
+    | '/integrations'
   id:
     | '__root__'
     | '/dashboard'
+    | '/(marketing)/404'
+    | '/(marketing)/changelog'
+    | '/(marketing)/community'
+    | '/(marketing)/cookie-policy'
+    | '/(marketing)/privacy-policy'
+    | '/(marketing)/terms-conditions'
     | '/dashboard/$tab'
     | '/(marketing)/'
     | '/dashboard/'
+    | '/(marketing)/about/$role'
+    | '/(marketing)/architecture/$slug'
+    | '/(marketing)/blogs/$slug'
+    | '/(marketing)/case-study/$slug'
+    | '/(marketing)/integrations/$slug'
+    | '/(marketing)/about/'
+    | '/(marketing)/architecture/'
+    | '/(marketing)/blogs/'
+    | '/(marketing)/case-study/'
+    | '/(marketing)/integrations/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
+  marketing404Route: typeof marketing404Route
+  marketingChangelogRoute: typeof marketingChangelogRoute
+  marketingCommunityRoute: typeof marketingCommunityRoute
+  marketingCookiePolicyRoute: typeof marketingCookiePolicyRoute
+  marketingPrivacyPolicyRoute: typeof marketingPrivacyPolicyRoute
+  marketingTermsConditionsRoute: typeof marketingTermsConditionsRoute
   marketingIndexRoute: typeof marketingIndexRoute
+  marketingAboutRoleRoute: typeof marketingAboutRoleRoute
+  marketingArchitectureSlugRoute: typeof marketingArchitectureSlugRoute
+  marketingBlogsSlugRoute: typeof marketingBlogsSlugRoute
+  marketingCaseStudySlugRoute: typeof marketingCaseStudySlugRoute
+  marketingIntegrationsSlugRoute: typeof marketingIntegrationsSlugRoute
+  marketingAboutIndexRoute: typeof marketingAboutIndexRoute
+  marketingArchitectureIndexRoute: typeof marketingArchitectureIndexRoute
+  marketingBlogsIndexRoute: typeof marketingBlogsIndexRoute
+  marketingCaseStudyIndexRoute: typeof marketingCaseStudyIndexRoute
+  marketingIntegrationsIndexRoute: typeof marketingIntegrationsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -87,6 +307,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof marketingIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(marketing)/404': {
+      id: '/(marketing)/404'
+      path: '/404'
+      fullPath: '/404'
+      preLoaderRoute: typeof marketing404RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/changelog': {
+      id: '/(marketing)/changelog'
+      path: '/changelog'
+      fullPath: '/changelog'
+      preLoaderRoute: typeof marketingChangelogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/community': {
+      id: '/(marketing)/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof marketingCommunityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/cookie-policy': {
+      id: '/(marketing)/cookie-policy'
+      path: '/cookie-policy'
+      fullPath: '/cookie-policy'
+      preLoaderRoute: typeof marketingCookiePolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/privacy-policy': {
+      id: '/(marketing)/privacy-policy'
+      path: '/privacy-policy'
+      fullPath: '/privacy-policy'
+      preLoaderRoute: typeof marketingPrivacyPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/terms-conditions': {
+      id: '/(marketing)/terms-conditions'
+      path: '/terms-conditions'
+      fullPath: '/terms-conditions'
+      preLoaderRoute: typeof marketingTermsConditionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/': {
       id: '/dashboard/'
       path: '/'
@@ -100,6 +362,76 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/$tab'
       preLoaderRoute: typeof DashboardTabRouteImport
       parentRoute: typeof DashboardRouteRoute
+    }
+    '/(marketing)/about/': {
+      id: '/(marketing)/about/'
+      path: '/about'
+      fullPath: '/about/'
+      preLoaderRoute: typeof marketingAboutIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/about/$role': {
+      id: '/(marketing)/about/$role'
+      path: '/about/$role'
+      fullPath: '/about/$role'
+      preLoaderRoute: typeof marketingAboutRoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/architecture/': {
+      id: '/(marketing)/architecture/'
+      path: '/architecture'
+      fullPath: '/architecture/'
+      preLoaderRoute: typeof marketingArchitectureIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/architecture/$slug': {
+      id: '/(marketing)/architecture/$slug'
+      path: '/architecture/$slug'
+      fullPath: '/architecture/$slug'
+      preLoaderRoute: typeof marketingArchitectureSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/blogs/': {
+      id: '/(marketing)/blogs/'
+      path: '/blogs'
+      fullPath: '/blogs/'
+      preLoaderRoute: typeof marketingBlogsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/blogs/$slug': {
+      id: '/(marketing)/blogs/$slug'
+      path: '/blogs/$slug'
+      fullPath: '/blogs/$slug'
+      preLoaderRoute: typeof marketingBlogsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/case-study/': {
+      id: '/(marketing)/case-study/'
+      path: '/case-study'
+      fullPath: '/case-study/'
+      preLoaderRoute: typeof marketingCaseStudyIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/case-study/$slug': {
+      id: '/(marketing)/case-study/$slug'
+      path: '/case-study/$slug'
+      fullPath: '/case-study/$slug'
+      preLoaderRoute: typeof marketingCaseStudySlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/integrations/': {
+      id: '/(marketing)/integrations/'
+      path: '/integrations'
+      fullPath: '/integrations/'
+      preLoaderRoute: typeof marketingIntegrationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(marketing)/integrations/$slug': {
+      id: '/(marketing)/integrations/$slug'
+      path: '/integrations/$slug'
+      fullPath: '/integrations/$slug'
+      preLoaderRoute: typeof marketingIntegrationsSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -120,7 +452,23 @@ const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
+  marketing404Route: marketing404Route,
+  marketingChangelogRoute: marketingChangelogRoute,
+  marketingCommunityRoute: marketingCommunityRoute,
+  marketingCookiePolicyRoute: marketingCookiePolicyRoute,
+  marketingPrivacyPolicyRoute: marketingPrivacyPolicyRoute,
+  marketingTermsConditionsRoute: marketingTermsConditionsRoute,
   marketingIndexRoute: marketingIndexRoute,
+  marketingAboutRoleRoute: marketingAboutRoleRoute,
+  marketingArchitectureSlugRoute: marketingArchitectureSlugRoute,
+  marketingBlogsSlugRoute: marketingBlogsSlugRoute,
+  marketingCaseStudySlugRoute: marketingCaseStudySlugRoute,
+  marketingIntegrationsSlugRoute: marketingIntegrationsSlugRoute,
+  marketingAboutIndexRoute: marketingAboutIndexRoute,
+  marketingArchitectureIndexRoute: marketingArchitectureIndexRoute,
+  marketingBlogsIndexRoute: marketingBlogsIndexRoute,
+  marketingCaseStudyIndexRoute: marketingCaseStudyIndexRoute,
+  marketingIntegrationsIndexRoute: marketingIntegrationsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

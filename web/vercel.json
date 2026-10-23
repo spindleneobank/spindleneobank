@@ -9,7 +9,91 @@
   "redirects": [
     { "source": "/pricing", "destination": "/compute-lanes", "statusCode": 301 },
     { "source": "/contact", "destination": "/verification", "statusCode": 301 },
-    { "source": "/waitlist", "destination": "/community", "statusCode": 301 }
+    { "source": "/waitlist", "destination": "/community", "statusCode": 301 },
+    {
+      "source": "/blogs/how-to-design-scalable-multi-step-workflows-across-your-organization",
+      "destination": "/blogs/from-gpu-work-to-claims",
+      "statusCode": 301
+    },
+    {
+      "source": "/blogs/complex-workflows-need-structure-to-remain-fast",
+      "destination": "/blogs/hourly-receipt-roots",
+      "statusCode": 301
+    },
+    {
+      "source": "/blogs/connected-processes-become-difficult-without-clear-systems",
+      "destination": "/blogs/claim-routes",
+      "statusCode": 301
+    },
+    {
+      "source": "/blogs/smart-automation-keeps-every-process-simple-and-scalable",
+      "destination": "/blogs/sealed-lane",
+      "statusCode": 301
+    },
+    {
+      "source": "/blogs/growing-teams-need-workflows-built-for-flexibility",
+      "destination": "/blogs/scheduler-and-lanes",
+      "statusCode": 301
+    },
+    {
+      "source": "/blogs/better-systems-reduce-delays-across-daily-operations",
+      "destination": "/blogs/node-identity-and-reputation",
+      "statusCode": 301
+    },
+    {
+      "source": "/blogs/unified-workflows-help-teams-move-faster-together",
+      "destination": "/blogs/compatible-api",
+      "statusCode": 301
+    },
+    {
+      "source": "/case-study/globaltech-automates-it-helpdesk-operations-freeing-up-3-000-annual-hours",
+      "destination": "/case-study/provider-registration",
+      "statusCode": 301
+    },
+    {
+      "source": "/case-study/finedge-bank-cuts-fraud-detection-time-by-80-using-ai-automation",
+      "destination": "/case-study/operator-identity",
+      "statusCode": 301
+    },
+    {
+      "source": "/case-study/medicore-health-reduces-no-shows-by-60-using-smarter-scheduling",
+      "destination": "/case-study/sealed-request",
+      "statusCode": 301
+    },
+    {
+      "source": "/case-study/shopflow-scales-customer-support-10x-without-increasing-headcount-or-costs",
+      "destination": "/case-study/payout-routes",
+      "statusCode": 301
+    },
+    { "source": "/integrations/attio", "destination": "/architecture/node-registry", "statusCode": 301 },
+    { "source": "/integrations/hubspot", "destination": "/architecture/api-gateway", "statusCode": 301 },
+    { "source": "/integrations/airtable", "destination": "/architecture/receipt-ledger", "statusCode": 301 },
+    { "source": "/integrations/asana", "destination": "/architecture/scheduler", "statusCode": 301 },
+    {
+      "source": "/integrations/aws-inventory",
+      "destination": "/architecture/node-benchmark",
+      "statusCode": 301
+    },
+    { "source": "/integrations/clickup", "destination": "/architecture/epoch-builder", "statusCode": 301 },
+    { "source": "/integrations/github", "destination": "/architecture/source-code", "statusCode": 301 },
+    { "source": "/integrations/helpdesk", "destination": "/architecture/card-adapter", "statusCode": 301 },
+    {
+      "source": "/integrations/jira-align",
+      "destination": "/architecture/attest-verifier",
+      "statusCode": 301
+    },
+    { "source": "/integrations/linear", "destination": "/architecture/receipt-verifier", "statusCode": 301 },
+    { "source": "/integrations/notion", "destination": "/architecture/stock-list", "statusCode": 301 },
+    { "source": "/integrations/salesforce", "destination": "/architecture/claim-service", "statusCode": 301 },
+    { "source": "/integrations", "destination": "/architecture", "statusCode": 301 },
+    { "source": "/about/customer-engineer", "destination": "/about/payout-explorer", "statusCode": 301 },
+    { "source": "/about/data-platform-engineer", "destination": "/about/node-operator", "statusCode": 301 },
+    { "source": "/about/product-designer", "destination": "/about/gpu-provider", "statusCode": 301 },
+    {
+      "source": "/about/senior-full-stack-engineer",
+      "destination": "/about/api-developer",
+      "statusCode": 301
+    }
   ],
   "rewrites": [
     { "source": "/dashboard", "destination": "/_shell.html" },
