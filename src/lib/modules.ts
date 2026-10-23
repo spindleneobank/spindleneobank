@@ -1,4 +1,5 @@
 import type { Hono } from 'hono';
+import adminRoutes from '../modules/admin/routes';
 import auth from '../modules/auth/routes';
 import buyers from '../modules/buyers/routes';
 import cardWebhooks from '../modules/card-webhooks/routes';
@@ -7,6 +8,7 @@ import cardRoutes from '../modules/cards/routes';
 import chainJobs from '../modules/chain/jobs';
 import epochJobs from '../modules/epochs/jobs';
 import epochRoutes from '../modules/epochs/routes';
+import floorJobs from '../modules/floor/jobs';
 import gatewayJobs from '../modules/gateway/jobs';
 import gateway from '../modules/gateway/routes';
 import health from '../modules/health/routes';
@@ -39,6 +41,7 @@ export const routeModules: readonly RouteModule[] = [
   x402Routes,
   receipts,
   epochRoutes,
+  adminRoutes,
 ] as const;
 export const jobModules: readonly JobModule[] = [
   chainJobs,
@@ -50,4 +53,5 @@ export const jobModules: readonly JobModule[] = [
   ratesJobs,
   meteringJobs,
   epochJobs,
+  floorJobs,
 ] as const;
