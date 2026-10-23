@@ -44,3 +44,9 @@
     stroke-dashoffset: -12;
   }
 }
+
+/* The app's .sp-eyebrow adds a left bar; the old page's eyebrows have none. */
+.framer-VSipU .sp-eyebrow {
+  padding-left: 0;
+  border-left: 0;
+}
