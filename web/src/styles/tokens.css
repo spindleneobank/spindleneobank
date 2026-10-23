@@ -1,0 +1,91 @@
+/* Spindle design tokens, extracted from app/static/dist/*.css (brand-v2, spindle, paper-surfaces, dashboard-v4, bank)
+   and the rendered Framer DOM. Readable names replace the --sp-fg-token-<uuid> variables. */
+:root {
+  /* ink (text on paper) */
+  --sp-ink: #2b1d24;
+  --sp-ink-2: #44313b;
+  --sp-ink-3: #695061;
+  --sp-ink-muted: #8b7681;
+  --sp-ink-faint: #ad94a4;
+
+  /* paper (light surfaces) */
+  --sp-paper: #fffaf5;
+  --sp-paper-2: #f6eeeb;
+  --sp-paper-3: #eae0dc;
+  --sp-paper-warm: #f2e9e3;
+  --sp-line: #d5c5c7;
+  --sp-line-strong: #cbb9d3;
+  --sp-peach: #fbd9c8;
+  --sp-peach-2: #efdcce;
+
+  /* night (dark surfaces: header, sidebar, hero, footer) */
+  --sp-night: #0e0c12;
+  --sp-night-2: #100c18;
+  --sp-night-3: #120d19;
+  --sp-night-panel: #191321;
+  --sp-night-line: #382d47;
+  --sp-night-text: #eee5f1;
+  --sp-night-text-2: #d7cfdf;
+  --sp-night-muted: #ac9bc9;
+
+  /* accent ramp (the 6-stop preloader/gradient ramp) */
+  --sp-accent-purple: #62539b;
+  --sp-accent-plum: #8e5691;
+  --sp-accent-orchid: #b86a92;
+  --sp-accent-rose: #cc6c78;
+  --sp-accent-ember: #d37f59;
+  --sp-accent-amber: #ce9755;
+  --sp-accent: #df8b77; /* pixel-icon accent */
+  --sp-accent-soft: #e5b69c;
+  --sp-accent-lilac: #b28ca4;
+  --sp-accent-violet: #5f5391;
+
+  /* status */
+  --sp-ok: #4d7a5a;
+  --sp-warn: #b9833a;
+  --sp-danger: #b5475a;
+  --sp-info: #5f5391;
+
+  /* type */
+  --sp-font-body: "Spindle Sans", Inter, Arial, sans-serif;
+  --sp-font-ui: Inter, Arial, sans-serif;
+  --sp-font-digital: "Chakra Petch", Arial, sans-serif;
+  --sp-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --sp-font-pixel: "Pixelify Sans", monospace;
+  --sp-text-2xs: 0.625rem;
+  --sp-text-xs: 0.75rem;
+  --sp-text-sm: 0.875rem;
+  --sp-text-md: 1rem;
+  --sp-text-lg: 1.25rem;
+  --sp-text-xl: 1.75rem;
+  --sp-text-2xl: clamp(1.9rem, 3.4vw, 2.9rem);
+  --sp-text-hero: clamp(2.4rem, 5.6vw, 5rem);
+  --sp-tracking-tight: -0.025em;
+  --sp-tracking-label: 0.14em;
+
+  /* spacing (4px base) */
+  --sp-space-1: 4px;
+  --sp-space-2: 8px;
+  --sp-space-3: 12px;
+  --sp-space-4: 16px;
+  --sp-space-5: 24px;
+  --sp-space-6: 32px;
+  --sp-space-7: 48px;
+  --sp-space-8: 72px;
+  --sp-gutter: 16px;
+  --sp-max: 1240px;
+
+  /* radii: the system is mostly square with notched pixel corners */
+  --sp-radius-0: 0;
+  --sp-radius-1: 3px;
+  --sp-radius-2: 6px;
+  --sp-radius-3: 8px;
+
+  /* shadows */
+  --sp-shadow-card: 0 14px 16px #69505d32;
+  --sp-shadow-pop: 0 18px 48px #0e0c1255;
+  --sp-focus: 0 0 0 2px var(--sp-night-muted);
+
+  --sp-header-h: 64px;
+  --sp-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
