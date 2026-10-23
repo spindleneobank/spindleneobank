@@ -244,3 +244,12 @@
   background: rgb(255 255 255 / 0.08);
   color: inherit;
 }
+.cd-pay .sd-kv {
+  justify-self: stretch;
+  width: 100%;
+}
+.cd-form [role="status"] {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}

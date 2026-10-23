@@ -98,6 +98,9 @@ const SEEDED: Op[] = [
   mkOp('op_completed', 'topup', 'card_issued', 'completed', {
     relay: { status: 'success', depositTx: hex('a') },
   }),
+  mkOp('op_issue_completed', 'issue', 'card_issued', 'completed', {
+    relay: { status: 'success', depositTx: hex('c') },
+  }),
   mkOp('op_failed', 'issue', 'card_failed', 'failed', {
     error: 'izipay rejected the cardholder email (422). Nothing was charged.',
   }),

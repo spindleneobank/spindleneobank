@@ -269,16 +269,15 @@ export function RevealBody({
   const [data, setData] = useState<Revealed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [left, setLeft] = useState(REVEAL_MS / 1000);
-  const started = useRef(false);
+  // One request per mount even under StrictMode's double effect; each effect run attaches its own listener.
+  const request = useRef<Promise<Revealed> | null>(null);
   const close = useRef(onClose);
   close.current = onClose;
 
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
     let live = true;
-    auth
-      .withReauth(() => reveal(cardId))
+    request.current ??= auth.withReauth(() => reveal(cardId));
+    request.current
       .then((d) => {
         if (live) setData(d);
       })

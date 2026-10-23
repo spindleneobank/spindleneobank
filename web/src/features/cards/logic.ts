@@ -207,7 +207,7 @@ export function describeOp(
         phase: 'review',
         tone: 'warn',
         title: "We're checking this payment",
-        text: 'No action needed. If funds were sent they are safe, and we will resolve it with the provider.',
+        text: 'No action needed. We are confirming this with the card provider and this page will update.',
         live: false,
         canPay: false,
       };
