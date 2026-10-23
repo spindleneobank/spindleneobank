@@ -53,9 +53,9 @@ const streams =
   (parts: string[], usage = { promptTokens: 5, completionTokens: 2 }) =>
   (node: FakeNode, j: JobMsg) => {
     node.conn.send({ v: 1, type: 'job.accepted', jobId: j.jobId });
-    parts.forEach((p, i) =>
-      node.conn.send({ v: 1, type: 'job.chunk', jobId: j.jobId, seq: i, delta: { content: p } }),
-    );
+    for (const [i, p] of parts.entries()) {
+      node.conn.send({ v: 1, type: 'job.chunk', jobId: j.jobId, seq: i, delta: { content: p } });
+    }
     node.conn.send({
       v: 1,
       type: 'job.done',
