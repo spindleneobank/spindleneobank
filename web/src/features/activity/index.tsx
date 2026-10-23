@@ -34,7 +34,7 @@ function Detail({ jobId, onClose }: { jobId: string | null; onClose: () => void 
         ['Model', r.model],
         ['Units', `${r.usage.p} prompt + ${r.usage.c} completion tokens`],
         ['Provider share', r.earning ? <Money key="m" micros={r.earning.providerMicros} /> : 'none'],
-        ['Verification', r.verified ? 'Verified' : `Failed${r.reason ? `: ${r.reason}` : ''}`],
+        ['Verification', r.verified ? 'Verified' : r.reason ? `Failed: ${r.reason}` : 'Pending'],
         ['Epoch', r.epoch === null ? 'not in a root yet' : `#${r.epoch}`],
         ...(r.lane === 'sealed'
           ? ([['Attestation ref', r.attestationRef ?? 'none']] as [string, string][])

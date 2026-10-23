@@ -119,6 +119,7 @@
   font: 12px var(--sp-font-mono);
   padding: var(--sp-space-2);
   background: var(--sp-paper-3);
+  color: var(--sp-ink);
   margin-bottom: var(--sp-space-3);
 }
 .sd-cose {
@@ -196,7 +197,7 @@
 }
 .sd-chart svg {
   width: 100%;
-  height: 220px;
+  height: auto;
   display: block;
 }
 .sd-chart {
@@ -278,5 +279,17 @@
   .sd-actions-row .sp-cta {
     flex: 1 1 140px;
     justify-content: center;
+  }
+}
+@media (max-width: 520px) {
+  .sd-actions {
+    gap: 2px;
+  }
+  .sd-actions .sd-icon-btn {
+    width: 40px;
+  }
+  /* Settings is in the drawer nav on phones; frees room for wallet, sign out and menu. */
+  .sd-actions a.sd-icon-btn {
+    display: none;
   }
 }

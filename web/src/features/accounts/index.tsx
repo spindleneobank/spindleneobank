@@ -50,7 +50,6 @@ function SeriesChart({ buckets }: { buckets: Bucket[] }) {
         viewBox={`0 0 ${W} ${H}`}
         role="img"
         aria-label={`Earnings by day, total ${total.toString()} micro USDG`}
-        preserveAspectRatio="none"
       >
         <line x1={PAD.l} x2={W - PAD.r} y1={H - PAD.b} y2={H - PAD.b} stroke="var(--sp-line)" />
         {bars.map((x, i) => {
