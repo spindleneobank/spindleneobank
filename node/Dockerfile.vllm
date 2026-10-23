@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1.7
+# amd64 only. Build context: the app/ root.  Requires an NVIDIA GPU at runtime.
+
+FROM --platform=linux/amd64 oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS build
+WORKDIR /app
+COPY package.json bun.lock ./
+COPY node/package.json node/package.json
+COPY web/package.json web/package.json
+RUN bun install --frozen-lockfile
+COPY src/shared src/shared
+COPY node/src node/src
+COPY node/tsconfig.json node/tsconfig.json
+WORKDIR /app/node
+RUN bun build src/main.ts --compile --minify --target=bun-linux-x64 --outfile /out/spindle-node
+
+# vllm-openai v0.11.0
+FROM --platform=linux/amd64 vllm/vllm-openai:v0.11.0@sha256:014a95f21c9edf6abe0aea6b07353f96baa4ec291c427bb1176dc7c93a85845c
+COPY --from=build /out/spindle-node /usr/local/bin/spindle-node
+COPY node/docker/entrypoint.sh /usr/local/bin/spindle-entrypoint
+RUN chmod 0755 /usr/local/bin/spindle-node /usr/local/bin/spindle-entrypoint && mkdir -p /data/hf
+ENV SPINDLE_DATA_DIR=/data \
+    SPINDLE_ENGINE=vllm \
+    HF_HOME=/data/hf \
+    SPINDLE_VLLM_GPU_UTIL=0.90
+# Runs as root: vLLM's CUDA/HF cache layout is not designed for an unprivileged uid.
+VOLUME /data
+HEALTHCHECK --interval=30s --timeout=5s --start-period=600s --retries=3 \
+  CMD test -f /tmp/spindle-ready || exit 1
+ENTRYPOINT ["/usr/local/bin/spindle-entrypoint"]
