@@ -61,3 +61,17 @@
 .framer-VSipU .sp-api-output {
   border-top: 0;
 }
+
+/* Capability nav step marker (Framer variants Step 2-4 move the bar one link down); missing from the generated CSS. */
+.framer-FjB1q.framer-v-z3ja9q .framer-orfdfa {
+  height: 40px;
+  top: 42px;
+}
+.framer-FjB1q.framer-v-j4smim .framer-orfdfa {
+  height: 40px;
+  top: 84px;
+}
+.framer-FjB1q.framer-v-1mqsd2n .framer-orfdfa {
+  height: 40px;
+  top: 126px;
+}

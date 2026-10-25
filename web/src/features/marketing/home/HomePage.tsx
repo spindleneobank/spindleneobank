@@ -20,7 +20,9 @@ import {
   initQuoteAppear,
   initReceiptReveals,
   initTicker,
+  initTypewriter,
 } from './motion';
+import svgTemplates from './markup/svg-templates.html?raw';
 import { initShaders } from './shaders';
 import { initWorkflow } from './workflow';
 import './home.generated.css';
@@ -101,6 +103,7 @@ export function HomePage() {
         initChat(tree, CHAT[bp]),
         initReceiptReveals(tree),
         initTicker(tree),
+        initTypewriter(tree),
         initQuoteAppear(tree),
         initWorkflow(tree),
       );
@@ -124,6 +127,22 @@ export function HomePage() {
       data-hm-page="home"
       style={{ minHeight: '100vh', width: 'auto' }}
     >
+      <div
+        id="svg-templates"
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          overflow: 'hidden',
+          bottom: 0,
+          left: 0,
+          width: 0,
+          height: 0,
+          zIndex: 0,
+          contain: 'strict',
+        }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: static icon sprites copied from the old page
+        dangerouslySetInnerHTML={{ __html: svgTemplates }}
+      />
       {ORDER.filter((k) => !live || k === bp).map((k) => (
         <div
           key={k}

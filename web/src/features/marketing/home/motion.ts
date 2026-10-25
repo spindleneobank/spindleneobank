@@ -147,7 +147,30 @@ export function initCapabilityNav(tree: HTMLElement): () => void {
     Array.from(a.querySelectorAll<HTMLElement>('*')).map((k) => k.getAttribute('style') ?? '');
   const activeStyles = kidStyles(links[current] as HTMLElement);
   const inactiveStyles = kidStyles(links.find((a) => a.dataset.framerName !== 'Active') as HTMLElement);
+  // The step marker beside the links: Framer variants "Step 1..4" move the bar one link down (42px) with the same spring.
+  const marker = tree.querySelector<HTMLElement>('.framer-1n71hhg[data-framer-name^="Step "]');
+  const bar = marker?.querySelector<HTMLElement>('.framer-orfdfa') ?? null;
+  const STEP_CLASS = ['framer-v-1n71hhg', 'framer-v-z3ja9q', 'framer-v-j4smim', 'framer-v-1mqsd2n'];
+  const setMarker = (i: number, animate: boolean) => {
+    if (!marker || !bar) return;
+    const before = bar.getBoundingClientRect();
+    marker.dataset.framerName = `Step ${i + 1}`;
+    for (const c of STEP_CLASS) marker.classList.remove(c);
+    marker.classList.add(STEP_CLASS[i] as string);
+    if (!animate || reduced()) return;
+    const after = bar.getBoundingClientRect();
+    const dy = before.top - after.top;
+    if (!dy && before.height === after.height) return;
+    bar.animate(
+      [
+        { transform: `translateY(${dy}px) scaleY(${before.height / (after.height || 1)})`, transformOrigin: '50% 0' },
+        { transform: 'none', transformOrigin: '50% 0' },
+      ],
+      { duration: 400, easing: NAV_EASING },
+    );
+  };
   const set = (i: number, animate: boolean) => {
+    setMarker(i, animate);
     links.forEach((a, k) => {
       const on = k === i;
       const was = a.dataset.framerName === 'Active';
@@ -181,6 +204,7 @@ export function initCapabilityNav(tree: HTMLElement): () => void {
     if (!raf) raf = requestAnimationFrame(update);
   };
   addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
   return () => {
     removeEventListener('scroll', onScroll);
     cancelAnimationFrame(raf);
@@ -245,50 +269,79 @@ export function initReceiptReveals(tree: HTMLElement): () => void {
   return () => io.disconnect();
 }
 
-/** Framer Ticker (compute-stack icons): drifts left at ~54px/s (~41px/s on phone, measured on the old page), jumping back one set width when it runs out. */
+/**
+ * Compute-stack icon track: the old Framer Slideshow (auto-play, direction left, interval 1.4s, gap 20, itemAmount 1,
+ * playOffscreen, infinite). Every 1.4s it moves one item (icon + gap) with a spring (stiffness 200, damping 40, mass 1),
+ * wrapping one set width. The centre mark loops a 1.6s linear scale 1 -> 1.1 (Framer loop effect, restarts from 1).
+ */
 export function initTicker(tree: HTMLElement): () => void {
   const ul = Array.from(tree.querySelectorAll<HTMLElement>('ul')).find(
     (u) => u.children.length > 6 && u.style.transform.includes('translateX'),
   );
   if (!ul || reduced()) return () => {};
-  const imgs = Array.from(ul.children).map((li) => li.querySelector('img')?.getAttribute('src') ?? '');
-  const k = imgs.indexOf(imgs[0] ?? '', 1);
+  const disposers: Array<() => void> = [];
+  const pulse = tree.querySelector<HTMLElement>('.framer-p8xmwf');
+  if (pulse) {
+    const a = pulse.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.1)' }], {
+      duration: 1600,
+      iterations: Number.POSITIVE_INFINITY,
+      easing: 'linear',
+    });
+    disposers.push(() => a.cancel());
+  }
   // the <li>s are display: contents, so measure their first child
   const first = ((ul.children[0] as HTMLElement).firstElementChild ?? ul).getBoundingClientRect();
   const second = ((ul.children[1] as HTMLElement).firstElementChild ?? ul).getBoundingClientRect();
-  const setW = k > 0 ? k * Math.abs(second.x - first.x) : 0;
-  if (!setW) return () => {};
-  const speed = matchMedia('(max-width: 809.98px)').matches ? 41 : 54;
-  let x = Number(/translateX\((-?[\d.]+)/.exec(ul.style.transform)?.[1] ?? 0);
+  const step = Math.abs(second.x - first.x); // item width + gap
+  const setW = (ul.children.length / 4) * step; // the slideshow renders four copies of the slots
+  if (!step || !setW) return () => disposers.forEach((d) => d());
+  const INTERVAL = 1400;
+  const wrap = (v: number) => {
+    // framer wrap(-setW, -2 * setW, v)
+    const range = -setW;
+    return ((((v + setW) % range) + range) % range) - setW;
+  };
+  let target = -(ul.children.length / 4) * step; // initial: one full set in
+  let from = target;
+  ul.style.transform = `translateX(${target}px)`;
+  let t0 = 0;
   let raf = 0;
-  let last = 0;
-  let visible = false;
+  let timer = 0;
+  // overdamped spring, x'' = -k (x - target) - c x' with k = 200, c = 40 (m = 1), starting at rest
+  const K = 200;
+  const C = 40;
+  const w0 = Math.sqrt(K);
+  const z = C / (2 * w0);
+  const r1 = -z * w0 + w0 * Math.sqrt(z * z - 1);
+  const r2 = -z * w0 - w0 * Math.sqrt(z * z - 1);
+  const frac = (t: number) => 1 - (r2 * Math.exp(r1 * t) - r1 * Math.exp(r2 * t)) / (r2 - r1);
+  const vel = (t: number) => -(r2 * r1 * Math.exp(r1 * t) - r1 * r2 * Math.exp(r2 * t)) / (r2 - r1);
   const frame = (now: number) => {
     raf = 0;
-    if (!visible || document.hidden) return;
-    const dt = last ? Math.min((now - last) / 1000, 0.1) : 0;
-    last = now;
-    x -= speed * dt;
-    while (x < -2 * setW) x += setW;
-    ul.style.transform = `translateX(${x}px)`;
+    const t = (now - t0) / 1000;
+    const dist = target - from;
+    const done = Math.abs(dist * (1 - frac(t))) < 0.5 && Math.abs(dist * vel(t)) < 2;
+    const x = done ? target : from + dist * frac(t);
+    ul.style.transform = `translateX(${wrap(x)}px)`;
+    if (done) {
+      from = target;
+      return;
+    }
     raf = requestAnimationFrame(frame);
   };
-  const wake = () => {
-    if (!raf && visible && !document.hidden) {
-      last = 0;
-      raf = requestAnimationFrame(frame);
-    }
+  const advance = () => {
+    from = target;
+    // carry on from where the previous spring is (it has settled long before the next tick)
+    target -= step;
+    t0 = performance.now();
+    if (!raf) raf = requestAnimationFrame(frame);
+    timer = window.setTimeout(advance, INTERVAL);
   };
-  const io = new IntersectionObserver((e) => {
-    visible = e[0]?.isIntersecting === true;
-    if (visible) wake();
-  });
-  io.observe(ul.parentElement?.parentElement ?? ul); // the ul itself is translated out of its clip box
-  document.addEventListener('visibilitychange', wake);
+  timer = window.setTimeout(advance, INTERVAL);
   return () => {
-    io.disconnect();
+    clearTimeout(timer);
     cancelAnimationFrame(raf);
-    document.removeEventListener('visibilitychange', wake);
+    for (const d of disposers) d();
   };
 }
 
@@ -316,5 +369,81 @@ export function initQuoteAppear(tree: HTMLElement): () => void {
   return () => {
     io.disconnect();
     hold.cancel();
+  };
+}
+
+const TYPEWRITER_MESSAGES = [
+  'What happens after a job completes?',
+  'Which payout route fits me?',
+  'What does a signed receipt show?',
+];
+
+/**
+ * "Inspect receipt" card typewriter: port of the old Framer typewriter component. It cycles the three messages, typing at
+ * 55ms/char, holding 1200ms, deleting at 35ms/char, then the next one (loop); the cursor blinks every 500ms.
+ * It starts when the page mounts (the old component has no in-view gate).
+ */
+export function initTypewriter(tree: HTMLElement): () => void {
+  const host = tree.querySelector<HTMLElement>('.framer-1ged15i-container [role="text"]');
+  if (!host || reduced()) return () => {};
+  const spans = host.querySelectorAll<HTMLElement>(':scope > span');
+  const live = spans[1]?.firstElementChild as HTMLElement | null;
+  const cursor = spans[1]?.lastElementChild as HTMLElement | null;
+  const sr = spans[2];
+  if (!live || !cursor || !sr || live === cursor) return () => {};
+  const TYPE = 55;
+  const DELETE = 35;
+  const PAUSE = 1200;
+  const BLINK = 500;
+  let msg = 0;
+  let n = 0;
+  let mode: 'typing' | 'deleting' = 'typing';
+  let timer = 0;
+  const draw = () => {
+    const m = TYPEWRITER_MESSAGES[msg] as string;
+    live.textContent = m.slice(0, n);
+    sr.textContent = m;
+  };
+  const tick = () => {
+    const m = TYPEWRITER_MESSAGES[msg] as string;
+    if (mode === 'typing') {
+      if (n < m.length) {
+        timer = window.setTimeout(() => {
+          n += 1;
+          draw();
+          tick();
+        }, TYPE);
+      } else {
+        timer = window.setTimeout(() => {
+          mode = 'deleting';
+          tick();
+        }, PAUSE);
+      }
+    } else if (n > 0) {
+      timer = window.setTimeout(() => {
+        n -= 1;
+        draw();
+        tick();
+      }, DELETE);
+    } else {
+      msg = (msg + 1) % TYPEWRITER_MESSAGES.length;
+      mode = 'typing';
+      draw();
+      tick();
+    }
+  };
+  const first = host.querySelector<HTMLElement>(':scope > span')?.textContent ?? '';
+  msg = Math.max(0, TYPEWRITER_MESSAGES.indexOf(first));
+  draw();
+  live.textContent = '';
+  tick();
+  let on = true;
+  const blink = window.setInterval(() => {
+    on = !on;
+    cursor.style.opacity = on ? '1' : '0';
+  }, BLINK);
+  return () => {
+    clearTimeout(timer);
+    clearInterval(blink);
   };
 }
