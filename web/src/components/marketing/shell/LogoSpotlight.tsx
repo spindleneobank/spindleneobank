@@ -31,6 +31,7 @@ export function LogoSpotlight({
   const [reduced, setReduced] = useState(false);
   const [mask, setMask] = useState<string | null>(null);
   const inside = useRef(false);
+  const sweep = useRef(0); // ms into the current sweep period; restarts when the pointer leaves
 
   useEffect(() => {
     const a = matchMedia('(hover: none), (pointer: coarse)');
@@ -104,7 +105,6 @@ export function LogoSpotlight({
     if (!s || !loop) return;
     let raf = 0;
     let t0: number | null = null;
-    let acc = 0;
     s.style.setProperty('--active-x', `${-R}px`);
     s.style.setProperty('--active-y', `${Math.max(0, box.current.height * 0.5)}px`);
     const step = (now: number) => {
@@ -115,9 +115,9 @@ export function LogoSpotlight({
         raf = requestAnimationFrame(step);
         return;
       }
-      acc += dt;
+      sweep.current += dt;
       const { width, height } = box.current;
-      const d = acc % PERIOD_MS;
+      const d = sweep.current % PERIOD_MS;
       const x = d < SWEEP_MS ? -R + (width + R * 2) * (d / SWEEP_MS) : width + R;
       s.style.setProperty('--active-x', `${x}px`);
       s.style.setProperty('--active-y', `${Math.max(0, height * 0.5)}px`);
@@ -157,6 +157,7 @@ export function LogoSpotlight({
       onPointerLeave={() => {
         if (disabled) return;
         inside.current = false;
+        sweep.current = 0;
         if (loop) {
           spot.current?.style.setProperty('--active-x', `${-R}px`);
           spot.current?.style.setProperty('--active-y', `${Math.max(0, box.current.height * 0.5)}px`);

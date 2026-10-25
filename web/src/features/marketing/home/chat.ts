@@ -6,7 +6,7 @@ import { morph, snapshot } from './behaviors';
  * STEP_MS[i] is how long state i lasts (same machine and timings as the old product chat: typing 40 characters at 50ms
  * + 300ms, then 0.9, 1.2, 0.85, 0.83 and 1.24 s). Elements whose opacity/transform change between states animate like
  * Framer does (300ms cubic-bezier(.44,0,.56,1)); typed characters reveal at 10ms with a 50ms stagger.
- * The server renders the final state; the client replays from the first one (skipped for reduced motion).
+ * The server renders the final state; the client replays from the first one once the card is in view (skipped for reduced motion).
  */
 export type ChatState = { name: string; html: string };
 const STEP_MS = [2500, 900, 1215, 850, 830, 1240];
@@ -65,9 +65,19 @@ export function initChat(tree: HTMLElement, states: ChatState[]): () => void {
     }, STEP_MS[i] ?? 1000);
   };
   show(0, false);
-  typed();
-  step();
+  // Starts when the card scrolls into view (the sequence is the first thing a visitor sees in it), then runs once.
+  const io = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      typed();
+      step();
+    },
+    { threshold: 0.4 },
+  );
+  io.observe(root);
   return () => {
+    io.disconnect();
     clearTimeout(timer);
     for (const a of anims) a.cancel();
   };

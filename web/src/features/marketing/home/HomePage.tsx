@@ -1,6 +1,6 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
-import { type Breakpoint, useBreakpoint } from '../../../components/marketing/motion';
+import { type Breakpoint, initRollSpring, useBreakpoint } from '../../../components/marketing/motion';
 import { type GroupStates, initGroups, initVideos } from './behaviors';
 import { type ChatState, initChat } from './chat';
 import { mountDigitalPreview } from './digitalPreview';
@@ -10,6 +10,7 @@ import desktopStates from './markup/desktop.states.json';
 import phoneChat from './markup/phone.chat.json';
 import phoneHtml from './markup/phone.html?raw';
 import phoneStates from './markup/phone.states.json';
+import svgTemplates from './markup/svg-templates.html?raw';
 import tabletChat from './markup/tablet.chat.json';
 import tabletHtml from './markup/tablet.html?raw';
 import tabletStates from './markup/tablet.states.json';
@@ -20,6 +21,7 @@ import {
   initQuoteAppear,
   initReceiptReveals,
   initTicker,
+  initTypewriter,
 } from './motion';
 import { initShaders } from './shaders';
 import { initWorkflow } from './workflow';
@@ -101,6 +103,12 @@ export function HomePage() {
         initChat(tree, CHAT[bp]),
         initReceiptReveals(tree),
         initTicker(tree),
+        initTypewriter(tree),
+        initRollSpring(
+          tree,
+          'a.framer-KkR0Q, a.framer-10qih',
+          '.framer-6p9xj1, .framer-1v6u3k2, .framer-1cffl3t, .framer-1l1d2m',
+        ),
         initQuoteAppear(tree),
         initWorkflow(tree),
       );
@@ -124,6 +132,22 @@ export function HomePage() {
       data-hm-page="home"
       style={{ minHeight: '100vh', width: 'auto' }}
     >
+      <div
+        id="svg-templates"
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          overflow: 'hidden',
+          bottom: 0,
+          left: 0,
+          width: 0,
+          height: 0,
+          zIndex: 0,
+          contain: 'strict',
+        }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: static icon sprites copied from the old page
+        dangerouslySetInnerHTML={{ __html: svgTemplates }}
+      />
       {ORDER.filter((k) => !live || k === bp).map((k) => (
         <div
           key={k}

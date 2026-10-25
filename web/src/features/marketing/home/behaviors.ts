@@ -3,6 +3,8 @@
  * Tab/accordion states are recorded snapshots of the old DOM; `morph` patches the live DOM in place so inline-style
  * transitions (the tab indicator, accordion icon) still animate.
  */
+import { springEasing } from '../../../components/marketing/motion/framer';
+
 export type GroupStates = Record<string, Array<{ key: string; html: string }>>;
 
 export function morph(live: Element, next: Element) {
@@ -29,6 +31,13 @@ export function morph(live: Element, next: Element) {
   });
 }
 
+/**
+ * Framer spring {bounce 0, duration 0.6} as measured on the old "Explore the paths" cards: critically damped, w = 15 rad/s
+ * (width of the opened card follows 1 - (1 + 15t) e^(-15t); t90 = 260ms, t99 = 450ms as recorded), sampled as linear().
+ */
+const PATHS_MS = 600;
+const PATHS_EASING = springEasing(15, PATHS_MS);
+
 export function snapshot(html: string): Element {
   const t = document.createElement('template');
   t.innerHTML = html;
@@ -44,7 +53,52 @@ export function initGroups(tree: HTMLElement, states: GroupStates): () => void {
       const s = list.find((x) => x.key === key);
       if (s) morph(root, snapshot(s.html));
     };
-    if (id.startsWith('tabs')) {
+    if (id === 'paths') {
+      // Hovering a card makes it the open one (and it stays open): 'Step 1' (first card) .. 'Step 3'. The cards resize
+      // along the main axis (width on desktop, height when stacked) with the 0.6s spring, inner fades use it too.
+      let cur = '0';
+      const onOver = (e: Event) => {
+        const card = Array.from(root.children).find((c) => c.contains(e.target as Node));
+        if (!card) return;
+        const key = String(Array.from(root.children).indexOf(card));
+        if (key === cur) return;
+        cur = key;
+        const kids = Array.from(root.children) as HTMLElement[];
+        const vertical = kids[0]
+          ? kids[0].getBoundingClientRect().width >= root.getBoundingClientRect().width - 1
+          : false;
+        const before = kids.map((k) => k.getBoundingClientRect());
+        const fades = new Map<HTMLElement, string>();
+        for (const el of root.querySelectorAll<HTMLElement>('[style*="opacity"]'))
+          fades.set(el, el.style.opacity);
+        apply(key);
+        const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduce) return;
+        const kids2 = Array.from(root.children) as HTMLElement[];
+        kids2.forEach((k, i) => {
+          const from = before[i];
+          const to = k.getBoundingClientRect();
+          if (!from) return;
+          const prop = vertical ? 'height' : 'width';
+          const a = vertical ? from.height : from.width;
+          const b = vertical ? to.height : to.width;
+          if (Math.abs(a - b) < 0.5) return;
+          k.animate(
+            { [prop]: [`${a}px`, `${b}px`], flex: ['none', 'none'] },
+            { duration: PATHS_MS, easing: PATHS_EASING },
+          );
+        });
+        for (const [el, o] of fades) {
+          if (!el.isConnected || el.style.opacity === o) continue;
+          el.animate([{ opacity: o || 1 }, { opacity: el.style.opacity || 1 }], {
+            duration: PATHS_MS,
+            easing: PATHS_EASING,
+          });
+        }
+      };
+      root.addEventListener('mouseover', onOver);
+      off.push(() => root.removeEventListener('mouseover', onOver));
+    } else if (id.startsWith('tabs')) {
       const onClick = (e: Event) => {
         const tab = (e.target as Element).closest('[role=tab]');
         if (!tab || !root.contains(tab)) return;
@@ -60,8 +114,20 @@ export function initGroups(tree: HTMLElement, states: GroupStates): () => void {
         const i = items().indexOf(it);
         // snapshots: 'init' = item 0 open; '0' = all closed; 'i' = item i open.
         const open = items().findIndex((x) => x.getAttribute('aria-expanded') === 'true');
+        const before = items().map((x) => x.getBoundingClientRect().height);
         if (open === i) apply('0');
         else apply(i === 0 ? 'init' : String(i));
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        // Old Framer accordion: each item's height tweens 0.3s cubic-bezier(.44, 0, .56, 1) (the item clips its content).
+        items().forEach((x, n) => {
+          const from = before[n];
+          const to = x.getBoundingClientRect().height;
+          if (from === undefined || Math.abs(from - to) < 0.5) return;
+          x.animate(
+            { height: [`${from}px`, `${to}px`] },
+            { duration: 300, easing: 'cubic-bezier(0.44, 0, 0.56, 1)' },
+          );
+        });
       };
       const onKey = (e: KeyboardEvent) => {
         if (e.key === 'Enter' || e.key === ' ') {
