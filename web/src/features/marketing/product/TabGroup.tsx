@@ -75,6 +75,7 @@ export function TabGroup({
 
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: the tabs are the old Framer tap targets (no key handling in the original)
+    // biome-ignore lint/a11y/noStaticElementInteractions: display:contents wrapper delegating to the cloned tab nodes
     <div
       ref={box}
       style={{ display: 'contents' }}
@@ -82,6 +83,7 @@ export function TabGroup({
       // The old tabs also open on hover (Framer onMouseEnter variant): measured on /product, hovering an inactive tab
       // makes it the active one and the former one stays collapsed after the pointer leaves.
       onMouseOver={(e) => activate(e.target as Element, true)}
+      onFocus={(e) => activate(e.target as Element, true)}
     >
       {renderNode(states[i] as PNode, 't', 'tabs', override)}
     </div>
