@@ -247,11 +247,14 @@ export function initReceiptReveals(tree: HTMLElement): () => void {
     [ancestorWith(root, 'Merkle proof'), { opacity: 0, transform: 'translateX(-12px)' }, 461, 460],
   ];
   const cfg = new Map<Element, [Keyframe, number, number]>();
+  // Like the old page the cards wait hidden until their section scrolls in (no flash of the final state before the reveal).
+  const holds = new Map<Element, Animation>();
   const io = new IntersectionObserver(
     (entries) => {
       for (const e of entries) {
         if (!e.isIntersecting) continue;
         io.unobserve(e.target);
+        holds.get(e.target)?.cancel();
         const c = cfg.get(e.target);
         if (c)
           (e.target as HTMLElement).animate([c[0], { opacity: 1, transform: 'none' }], {
@@ -267,9 +270,13 @@ export function initReceiptReveals(tree: HTMLElement): () => void {
   for (const [el, from, ms, delay] of items) {
     if (!el) continue;
     cfg.set(el, [from, ms, delay]);
+    holds.set(el, el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 1e7, fill: 'both' }));
     io.observe(el);
   }
-  return () => io.disconnect();
+  return () => {
+    io.disconnect();
+    for (const h of holds.values()) h.cancel();
+  };
 }
 
 /**
