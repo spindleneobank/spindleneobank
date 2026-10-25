@@ -64,10 +64,13 @@ export function initGroups(tree: HTMLElement, states: GroupStates): () => void {
         if (key === cur) return;
         cur = key;
         const kids = Array.from(root.children) as HTMLElement[];
-        const vertical = kids[0] ? kids[0].getBoundingClientRect().width >= root.getBoundingClientRect().width - 1 : false;
+        const vertical = kids[0]
+          ? kids[0].getBoundingClientRect().width >= root.getBoundingClientRect().width - 1
+          : false;
         const before = kids.map((k) => k.getBoundingClientRect());
-        const fades = new Map<Element, string>();
-        for (const el of root.querySelectorAll<HTMLElement>('[style*="opacity"]')) fades.set(el, el.style.opacity);
+        const fades = new Map<HTMLElement, string>();
+        for (const el of root.querySelectorAll<HTMLElement>('[style*="opacity"]'))
+          fades.set(el, el.style.opacity);
         apply(key);
         const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (reduce) return;
@@ -80,7 +83,10 @@ export function initGroups(tree: HTMLElement, states: GroupStates): () => void {
           const a = vertical ? from.height : from.width;
           const b = vertical ? to.height : to.width;
           if (Math.abs(a - b) < 0.5) return;
-          k.animate({ [prop]: [`${a}px`, `${b}px`], flex: ['none', 'none'] }, { duration: PATHS_MS, easing: PATHS_EASING });
+          k.animate(
+            { [prop]: [`${a}px`, `${b}px`], flex: ['none', 'none'] },
+            { duration: PATHS_MS, easing: PATHS_EASING },
+          );
         });
         for (const [el, o] of fades) {
           if (!el.isConnected || el.style.opacity === o) continue;
@@ -117,7 +123,10 @@ export function initGroups(tree: HTMLElement, states: GroupStates): () => void {
           const from = before[n];
           const to = x.getBoundingClientRect().height;
           if (from === undefined || Math.abs(from - to) < 0.5) return;
-          x.animate({ height: [`${from}px`, `${to}px`] }, { duration: 300, easing: 'cubic-bezier(0.44, 0, 0.56, 1)' });
+          x.animate(
+            { height: [`${from}px`, `${to}px`] },
+            { duration: 300, easing: 'cubic-bezier(0.44, 0, 0.56, 1)' },
+          );
         });
       };
       const onKey = (e: KeyboardEvent) => {

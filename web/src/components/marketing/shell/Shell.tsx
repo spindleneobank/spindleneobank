@@ -16,7 +16,11 @@ function PageLines() {
     return () => ro.disconnect();
   }, []);
   return (
-    <div className="sx-lines" aria-hidden="true" style={{ ['--sx-h' as string]: `${h}px`, ['--sx-dur' as string]: `${(h + 56) / 66}s` }}>
+    <div
+      className="sx-lines"
+      aria-hidden="true"
+      style={{ ['--sx-h' as string]: `${h}px`, ['--sx-dur' as string]: `${(h + 56) / 66}s` }}
+    >
       <div className="sx-lines-in">
         <div className="sx-line sx-line-l">
           <i />

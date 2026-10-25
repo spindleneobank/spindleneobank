@@ -77,20 +77,125 @@
 }
 
 /* Explore-the-paths cards (Framer component egeFU): base + Step 2/3 variants, copied from the old page. */
-.framer-egeFU.framer-1o7zffh,.framer-egeFU .framer-1o7zffh{display:block}
-.framer-egeFU.framer-29z3ga{flex-flow:row;place-content:center;align-items:center;gap:8px;width:1076px;height:464px;padding:0;display:flex;position:relative;overflow:visible}
-.framer-egeFU .framer-aitp2v-container{flex:none;width:65%;height:100%;position:relative}
-.framer-egeFU .framer-dwvy2q-container,.framer-egeFU .framer-1g1so52-container{flex:1 0 0;width:1px;height:100%;position:relative}
-.framer-egeFU.framer-v-d9jdo .framer-aitp2v-container,.framer-egeFU.framer-v-ep7jlw .framer-aitp2v-container,.framer-egeFU.framer-v-blgpgn .framer-aitp2v-container,.framer-egeFU.framer-v-1jp0l7x .framer-aitp2v-container{flex:1 0 0;width:1px}
-.framer-egeFU.framer-v-d9jdo .framer-dwvy2q-container,.framer-egeFU.framer-v-ep7jlw .framer-1g1so52-container,.framer-egeFU.framer-v-blgpgn .framer-dwvy2q-container,.framer-egeFU.framer-v-1jp0l7x .framer-1g1so52-container{flex:none;width:65%}
-.framer-egeFU.framer-v-j8rluw.framer-29z3ga,.framer-egeFU.framer-v-18a868y.framer-29z3ga,.framer-egeFU.framer-v-12z2dh3.framer-29z3ga,.framer-egeFU.framer-v-1j6ltr8.framer-29z3ga,.framer-egeFU.framer-v-16paw8z.framer-29z3ga,.framer-egeFU.framer-v-bth39p.framer-29z3ga{flex-direction:column;height:680px}
-.framer-egeFU.framer-v-j8rluw .framer-aitp2v-container,.framer-egeFU.framer-v-1j6ltr8 .framer-aitp2v-container{width:100%;height:65%}
-.framer-egeFU.framer-v-j8rluw .framer-dwvy2q-container,.framer-egeFU.framer-v-j8rluw .framer-1g1so52-container,.framer-egeFU.framer-v-18a868y .framer-1g1so52-container,.framer-egeFU.framer-v-12z2dh3 .framer-dwvy2q-container,.framer-egeFU.framer-v-vdljp7 .framer-dwvy2q-container,.framer-egeFU.framer-v-vdljp7 .framer-1g1so52-container,.framer-egeFU.framer-v-f6lx9q .framer-1g1so52-container,.framer-egeFU.framer-v-1rkh2dk .framer-dwvy2q-container,.framer-egeFU.framer-v-1j6ltr8 .framer-dwvy2q-container,.framer-egeFU.framer-v-1j6ltr8 .framer-1g1so52-container,.framer-egeFU.framer-v-16paw8z .framer-1g1so52-container,.framer-egeFU.framer-v-bth39p .framer-dwvy2q-container,.framer-egeFU.framer-v-1lhf0s0 .framer-dwvy2q-container,.framer-egeFU.framer-v-1lhf0s0 .framer-1g1so52-container,.framer-egeFU.framer-v-1deawmr .framer-1g1so52-container,.framer-egeFU.framer-v-16bij1r .framer-dwvy2q-container{width:100%;height:1px}
-.framer-egeFU.framer-v-18a868y .framer-aitp2v-container,.framer-egeFU.framer-v-12z2dh3 .framer-aitp2v-container,.framer-egeFU.framer-v-f6lx9q .framer-aitp2v-container,.framer-egeFU.framer-v-1rkh2dk .framer-aitp2v-container,.framer-egeFU.framer-v-16paw8z .framer-aitp2v-container,.framer-egeFU.framer-v-bth39p .framer-aitp2v-container,.framer-egeFU.framer-v-1deawmr .framer-aitp2v-container,.framer-egeFU.framer-v-16bij1r .framer-aitp2v-container{flex:1 0 0;width:100%;height:1px}
-.framer-egeFU.framer-v-18a868y .framer-dwvy2q-container,.framer-egeFU.framer-v-12z2dh3 .framer-1g1so52-container,.framer-egeFU.framer-v-16paw8z .framer-dwvy2q-container,.framer-egeFU.framer-v-bth39p .framer-1g1so52-container{flex:none;width:100%;height:65%}
-.framer-egeFU.framer-v-vdljp7.framer-29z3ga,.framer-egeFU.framer-v-f6lx9q.framer-29z3ga,.framer-egeFU.framer-v-1rkh2dk.framer-29z3ga,.framer-egeFU.framer-v-1lhf0s0.framer-29z3ga,.framer-egeFU.framer-v-1deawmr.framer-29z3ga,.framer-egeFU.framer-v-16bij1r.framer-29z3ga{flex-direction:column;width:350px;height:600px}
-.framer-egeFU.framer-v-vdljp7 .framer-aitp2v-container,.framer-egeFU.framer-v-1lhf0s0 .framer-aitp2v-container{width:100%;height:75%}
-.framer-egeFU.framer-v-f6lx9q .framer-dwvy2q-container,.framer-egeFU.framer-v-1rkh2dk .framer-1g1so52-container,.framer-egeFU.framer-v-1deawmr .framer-dwvy2q-container,.framer-egeFU.framer-v-16bij1r .framer-1g1so52-container{flex:none;width:100%;height:75%}
+.framer-egeFU.framer-1o7zffh,
+.framer-egeFU .framer-1o7zffh {
+  display: block;
+}
+.framer-egeFU.framer-29z3ga {
+  flex-flow: row;
+  place-content: center;
+  align-items: center;
+  gap: 8px;
+  width: 1076px;
+  height: 464px;
+  padding: 0;
+  display: flex;
+  position: relative;
+  overflow: visible;
+}
+.framer-egeFU .framer-aitp2v-container {
+  flex: none;
+  width: 65%;
+  height: 100%;
+  position: relative;
+}
+.framer-egeFU .framer-dwvy2q-container,
+.framer-egeFU .framer-1g1so52-container {
+  flex: 1 0 0;
+  width: 1px;
+  height: 100%;
+  position: relative;
+}
+.framer-egeFU.framer-v-d9jdo .framer-aitp2v-container,
+.framer-egeFU.framer-v-ep7jlw .framer-aitp2v-container,
+.framer-egeFU.framer-v-blgpgn .framer-aitp2v-container,
+.framer-egeFU.framer-v-1jp0l7x .framer-aitp2v-container {
+  flex: 1 0 0;
+  width: 1px;
+}
+.framer-egeFU.framer-v-d9jdo .framer-dwvy2q-container,
+.framer-egeFU.framer-v-ep7jlw .framer-1g1so52-container,
+.framer-egeFU.framer-v-blgpgn .framer-dwvy2q-container,
+.framer-egeFU.framer-v-1jp0l7x .framer-1g1so52-container {
+  flex: none;
+  width: 65%;
+}
+.framer-egeFU.framer-v-j8rluw.framer-29z3ga,
+.framer-egeFU.framer-v-18a868y.framer-29z3ga,
+.framer-egeFU.framer-v-12z2dh3.framer-29z3ga,
+.framer-egeFU.framer-v-1j6ltr8.framer-29z3ga,
+.framer-egeFU.framer-v-16paw8z.framer-29z3ga,
+.framer-egeFU.framer-v-bth39p.framer-29z3ga {
+  flex-direction: column;
+  height: 680px;
+}
+.framer-egeFU.framer-v-j8rluw .framer-aitp2v-container,
+.framer-egeFU.framer-v-1j6ltr8 .framer-aitp2v-container {
+  width: 100%;
+  height: 65%;
+}
+.framer-egeFU.framer-v-j8rluw .framer-dwvy2q-container,
+.framer-egeFU.framer-v-j8rluw .framer-1g1so52-container,
+.framer-egeFU.framer-v-18a868y .framer-1g1so52-container,
+.framer-egeFU.framer-v-12z2dh3 .framer-dwvy2q-container,
+.framer-egeFU.framer-v-vdljp7 .framer-dwvy2q-container,
+.framer-egeFU.framer-v-vdljp7 .framer-1g1so52-container,
+.framer-egeFU.framer-v-f6lx9q .framer-1g1so52-container,
+.framer-egeFU.framer-v-1rkh2dk .framer-dwvy2q-container,
+.framer-egeFU.framer-v-1j6ltr8 .framer-dwvy2q-container,
+.framer-egeFU.framer-v-1j6ltr8 .framer-1g1so52-container,
+.framer-egeFU.framer-v-16paw8z .framer-1g1so52-container,
+.framer-egeFU.framer-v-bth39p .framer-dwvy2q-container,
+.framer-egeFU.framer-v-1lhf0s0 .framer-dwvy2q-container,
+.framer-egeFU.framer-v-1lhf0s0 .framer-1g1so52-container,
+.framer-egeFU.framer-v-1deawmr .framer-1g1so52-container,
+.framer-egeFU.framer-v-16bij1r .framer-dwvy2q-container {
+  width: 100%;
+  height: 1px;
+}
+.framer-egeFU.framer-v-18a868y .framer-aitp2v-container,
+.framer-egeFU.framer-v-12z2dh3 .framer-aitp2v-container,
+.framer-egeFU.framer-v-f6lx9q .framer-aitp2v-container,
+.framer-egeFU.framer-v-1rkh2dk .framer-aitp2v-container,
+.framer-egeFU.framer-v-16paw8z .framer-aitp2v-container,
+.framer-egeFU.framer-v-bth39p .framer-aitp2v-container,
+.framer-egeFU.framer-v-1deawmr .framer-aitp2v-container,
+.framer-egeFU.framer-v-16bij1r .framer-aitp2v-container {
+  flex: 1 0 0;
+  width: 100%;
+  height: 1px;
+}
+.framer-egeFU.framer-v-18a868y .framer-dwvy2q-container,
+.framer-egeFU.framer-v-12z2dh3 .framer-1g1so52-container,
+.framer-egeFU.framer-v-16paw8z .framer-dwvy2q-container,
+.framer-egeFU.framer-v-bth39p .framer-1g1so52-container {
+  flex: none;
+  width: 100%;
+  height: 65%;
+}
+.framer-egeFU.framer-v-vdljp7.framer-29z3ga,
+.framer-egeFU.framer-v-f6lx9q.framer-29z3ga,
+.framer-egeFU.framer-v-1rkh2dk.framer-29z3ga,
+.framer-egeFU.framer-v-1lhf0s0.framer-29z3ga,
+.framer-egeFU.framer-v-1deawmr.framer-29z3ga,
+.framer-egeFU.framer-v-16bij1r.framer-29z3ga {
+  flex-direction: column;
+  width: 350px;
+  height: 600px;
+}
+.framer-egeFU.framer-v-vdljp7 .framer-aitp2v-container,
+.framer-egeFU.framer-v-1lhf0s0 .framer-aitp2v-container {
+  width: 100%;
+  height: 75%;
+}
+.framer-egeFU.framer-v-f6lx9q .framer-dwvy2q-container,
+.framer-egeFU.framer-v-1rkh2dk .framer-1g1so52-container,
+.framer-egeFU.framer-v-1deawmr .framer-dwvy2q-container,
+.framer-egeFU.framer-v-16bij1r .framer-1g1so52-container {
+  flex: none;
+  width: 100%;
+  height: 75%;
+}
 
 /* Hero buttons (Framer text roll): the old site toggles a .hover class; same rules on :hover. */
 .framer-10qih.framer-v-eqg2l9:hover .framer-1cffl3t,

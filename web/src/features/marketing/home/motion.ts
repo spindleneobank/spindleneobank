@@ -163,7 +163,10 @@ export function initCapabilityNav(tree: HTMLElement): () => void {
     if (!dy && before.height === after.height) return;
     bar.animate(
       [
-        { transform: `translateY(${dy}px) scaleY(${before.height / (after.height || 1)})`, transformOrigin: '50% 0' },
+        {
+          transform: `translateY(${dy}px) scaleY(${before.height / (after.height || 1)})`,
+          transformOrigin: '50% 0',
+        },
         { transform: 'none', transformOrigin: '50% 0' },
       ],
       { duration: 400, easing: NAV_EASING },

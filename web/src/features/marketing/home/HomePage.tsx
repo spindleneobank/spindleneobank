@@ -10,6 +10,7 @@ import desktopStates from './markup/desktop.states.json';
 import phoneChat from './markup/phone.chat.json';
 import phoneHtml from './markup/phone.html?raw';
 import phoneStates from './markup/phone.states.json';
+import svgTemplates from './markup/svg-templates.html?raw';
 import tabletChat from './markup/tablet.chat.json';
 import tabletHtml from './markup/tablet.html?raw';
 import tabletStates from './markup/tablet.states.json';
@@ -22,7 +23,6 @@ import {
   initTicker,
   initTypewriter,
 } from './motion';
-import svgTemplates from './markup/svg-templates.html?raw';
 import { initShaders } from './shaders';
 import { initWorkflow } from './workflow';
 import './home.generated.css';
