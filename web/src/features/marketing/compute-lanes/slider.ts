@@ -4,8 +4,8 @@ import { applyExceptions } from './exceptions';
 import { STEPS } from './sliderData';
 
 /**
- * Old "Explore the paths" stepper (Framer component with Active/Inactive cards): clicking an inactive card makes it the
- * active one. Desktop cards share a row (active 803px, others 208px), tablet/phone stack them (active 442/450px, others
+ * Old "Explore the paths" stepper (Framer component with Active/Inactive cards): clicking or hovering an inactive card
+ * makes it the active one. Desktop cards share a row (active 803px, others 208px), tablet/phone stack them (active 442/450px, others
  * 111/67px). The box size eases with the recorded spring (bounce 0, duration .6, sampled every 10 ms) and the small
  * label icon of the two cards cross-fades .4 <-> 1 over 600 ms.
  */
@@ -25,7 +25,12 @@ const STEP_ROOT = '.framer-egeFU';
 
 export function runSlider(root: HTMLElement, bp: Breakpoint) {
   const steps = STEPS[bp];
-  const onClick = (e: Event) => {
+  // The old cards also open on hover (Framer onMouseEnter variant, measured on /product and /compute-lanes). While the
+  // spring runs the boxes move under a resting pointer, so hover is ignored until it has settled; clicks always work.
+  let lockUntil = 0;
+  const onActivate = (e: Event) => {
+    const hover = e.type === 'mouseover';
+    if (hover && performance.now() < lockUntil) return;
     const card = (e.target as HTMLElement).closest<HTMLElement>(CARD);
     if (!card || !root.contains(card) || !/Inactive/.test(card.dataset.framerName ?? '')) return;
     const stepRoot = card.closest<HTMLElement>(STEP_ROOT);
@@ -37,6 +42,7 @@ export function runSlider(root: HTMLElement, bp: Breakpoint) {
     );
     const html = steps[next];
     if (!html) return;
+    lockUntil = performance.now() + 700;
     const vertical = bp !== 'desktop';
     const before = cards.map((c) => (c.parentElement as HTMLElement).getBoundingClientRect());
     const tpl = document.createElement('template');
@@ -69,6 +75,10 @@ export function runSlider(root: HTMLElement, bp: Breakpoint) {
       }
     });
   };
-  root.addEventListener('click', onClick);
-  return () => root.removeEventListener('click', onClick);
+  root.addEventListener('click', onActivate);
+  root.addEventListener('mouseover', onActivate);
+  return () => {
+    root.removeEventListener('click', onActivate);
+    root.removeEventListener('mouseover', onActivate);
+  };
 }
