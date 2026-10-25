@@ -214,8 +214,6 @@ export function initCapabilityNav(tree: HTMLElement): () => void {
   };
 }
 
-const EASE = 'cubic-bezier(0.44, 0, 0.56, 1)';
-
 function textP(root: ParentNode, text: string): HTMLElement | null {
   for (const p of root.querySelectorAll<HTMLElement>('p')) if (p.textContent?.trim() === text) return p;
   return null;
@@ -304,7 +302,10 @@ export function initTicker(tree: HTMLElement): () => void {
   const second = ((ul.children[1] as HTMLElement).firstElementChild ?? ul).getBoundingClientRect();
   const step = Math.abs(second.x - first.x); // item width + gap
   const setW = (ul.children.length / 4) * step; // the slideshow renders four copies of the slots
-  if (!step || !setW) return () => disposers.forEach((d) => d());
+  if (!step || !setW)
+    return () => {
+      for (const d of disposers) d();
+    };
   const INTERVAL = 1400;
   const wrap = (v: number) => {
     // framer wrap(-setW, -2 * setW, v)
