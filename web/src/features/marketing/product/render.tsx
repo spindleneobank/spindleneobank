@@ -29,7 +29,8 @@ export function renderNode(n: PNode, key: string | number, path: string, ov?: Ov
   if (typeof n === 'string') return n;
   if (Array.isArray(n)) {
     const [tag, p, ...rest] = n;
-    const kids = rest.map((c, i) => renderNode(c, i, `${path}/${i}`, ov));
+    // <style> children must be one string: React splits an array of strings into separate text nodes on the client
+    const kids = tag === 'style' ? [rest.join('')] : rest.map((c, i) => renderNode(c, i, `${path}/${i}`, ov));
     const o = ov?.(n as never, String(key), kids, path);
     if (o !== undefined) return o;
     return createElement(tag, { ...(p || {}), key }, ...kids);

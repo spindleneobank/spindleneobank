@@ -72,6 +72,8 @@ export function ChatPanel({
   const prev = useRef(new Map<Element, Snap>());
   const before = useRef<Boxes | null>(null);
   const motion = useRef<boolean | null>(null);
+  // owner-requested deviation from the old site: hold state 1 until 40% of the card is in view, then run the old timings
+  const [go, setGo] = useState(false);
   // mount time: every switch is scheduled against it, so a slow commit or a janky frame does not push the later steps
   const mountAt = useRef(0);
   const loops = useRef(new WeakMap<Element, Animation>());
@@ -82,25 +84,38 @@ export function ChatPanel({
       setI(last);
       return;
     }
-    mountAt.current = performance.now();
+    const kids = [...(box.current?.children ?? [])];
+    const target = kids.find((k) => k.getClientRects().length) ?? kids[0];
+    if (!target) return;
+    const io = new IntersectionObserver(
+      (es) => {
+        if (!es.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        mountAt.current = performance.now();
+        setGo(true);
+      },
+      { threshold: 0.4 },
+    );
+    io.observe(target);
+    return () => io.disconnect();
   }, [last]);
 
   useEffect(() => {
-    if (!motion.current || i >= last) return;
+    if (!go || i >= last) return;
     const wait = Math.max(0, mountAt.current + (AT[i] ?? 0) - performance.now());
     const t = setTimeout(() => {
       if (box.current) before.current = boxes(box.current);
       setI(i + 1);
     }, wait);
     return () => clearTimeout(t);
-  }, [i, last]);
+  }, [i, last, go]);
 
   useLayoutEffect(() => {
     const root = box.current;
     if (!root) return;
     if (motion.current === null) motion.current = !matchMedia('(prefers-reduced-motion: reduce)').matches;
     const live = motion.current;
-    root.dataset.live = '1';
+    if (go || !live) root.dataset.live = '1';
 
     // ---- reads: row positions after the swap, snapshots of inline styles, visible typed characters
     // Rows are matched by name (the swap may replace their nodes): they slide by the distance their top moved and fade
@@ -121,7 +136,7 @@ export function ChatPanel({
       before.current = null;
     }
     const allChars = new Set(root.querySelectorAll<HTMLElement>(CHARS));
-    const chars = live ? [...allChars].filter((c) => c.getClientRects().length) : [];
+    const chars = live && go ? [...allChars].filter((c) => c.getClientRects().length) : [];
     const seen = new Map<Element | null, number>();
     const charIdx = chars.map((c) => {
       const host = c.closest('p');
@@ -202,7 +217,7 @@ export function ChatPanel({
           ),
         );
       }
-  }, [i]);
+  }, [i, go]);
 
   useEffect(
     () => () => {
