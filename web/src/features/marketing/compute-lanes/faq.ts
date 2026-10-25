@@ -4,7 +4,7 @@ import { FAQ_ANSWERS } from './faqData';
 /**
  * Old FAQ accordion (Framer "Question" component, variants Opened/Closed): one item open at a time, click or
  * Enter/Space on the row toggles, the vertical bar of the plus icon is removed while open, and the item height
- * eases over 0.4s (cubic-bezier .44,0,.56,1, the Framer default tween).
+ * eases over 0.3s (cubic-bezier .44,0,.56,1; measured on the old page: 210 -> 74 px in ~300 ms, P10b).
  */
 const OPEN = 'framer-v-v32ldq';
 const CLOSED = 'framer-v-1k5bvof';
@@ -48,12 +48,12 @@ export function runFaq(root: HTMLElement) {
     for (const { el, from } of changed) {
       const to = el.getBoundingClientRect().height;
       if (Math.abs(to - from) < 1) continue;
-      el.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: 400, easing: EASE });
+      el.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: 300, easing: EASE });
       const prev = el.style.overflow;
       el.style.overflow = 'hidden';
       setTimeout(() => {
         el.style.overflow = prev;
-      }, 400);
+      }, 300);
     }
   };
 

@@ -81,3 +81,57 @@
   width:100%;
   height:75%
 }
+
+/* Typed question / follow-up of the "Inspect receipt" chat: the old rule lists them next to the placeholder
+   (`.framer-ami7h .framer-121bl77, .framer-pmpnp2, .framer-1qiaq1x`); the generator only kept the first selector, so the
+   rich-text container stayed `position: absolute` and the typed text overlapped the icon and the loading indicator. */
+.pp-scope .framer-ami7h .framer-pmpnp2,
+.pp-scope .framer-ami7h .framer-1qiaq1x {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  flex: 1 0 0px;
+  width: 1px;
+  height: auto;
+  position: relative;
+}
+
+/* The old server HTML has the typed characters at opacity .001 until the page script types them; ChatPanel sets
+   data-live on its wrapper once it runs (also for reduced motion, which then shows the text at once). */
+[data-pp-chat-box]:not([data-live]) .framer-pmpnp2 span > span {
+  opacity: 0.001 !important;
+}
+
+/* The old rule that gives the thread rows their natural height in every chat state. The generator only kept the part
+   for the state present in the first snapshot, so the other states had collapsed (1px) rows and the thread never grew. */
+.pp-scope .framer-ami7h.framer-v-dhc0vb .framer-vqsz62,
+.pp-scope .framer-ami7h.framer-v-dhc0vb .framer-gz6uae,
+.pp-scope .framer-ami7h.framer-v-pfyb46 .framer-vqsz62,
+.pp-scope .framer-ami7h.framer-v-pfyb46 .framer-aziftk,
+.pp-scope .framer-ami7h.framer-v-zzwta4 .framer-vqsz62,
+.pp-scope .framer-ami7h.framer-v-zzwta4 .framer-aziftk,
+.pp-scope .framer-ami7h.framer-v-zzwta4 .framer-1y19kyo,
+.pp-scope .framer-ami7h.framer-v-zzwta4 .framer-gz6uae,
+.pp-scope .framer-ami7h.framer-v-7rx3u2 .framer-vqsz62,
+.pp-scope .framer-ami7h.framer-v-7rx3u2 .framer-aziftk,
+.pp-scope .framer-ami7h.framer-v-1ded662 .framer-vqsz62,
+.pp-scope .framer-ami7h.framer-v-4ofvun .framer-vqsz62,
+.pp-scope .framer-ami7h.framer-v-4ofvun .framer-aziftk,
+.pp-scope .framer-ami7h.framer-v-4ofvun .framer-1y19kyo {
+  height: min-content;
+  padding: 8px 0px 0px;
+}
+
+/* "View all flows" (tertiary "White" button): the old Framer hover variant fades the pill background 0 -> .08 alpha in
+   ~300 ms (measured 0.04 at +88 ms, 0.07 at +207 ms, 0.08 at +300 ms) and back the same way. */
+.pp-scope .framer-yifr6 {
+  transition: background-color 0.42s cubic-bezier(0.16, 0.8, 0.3, 1);
+}
+.pp-scope .framer-yifr6:hover {
+  background-color: rgba(12, 12, 16, 0.08) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-scope .framer-yifr6 {
+    transition: none;
+  }
+}

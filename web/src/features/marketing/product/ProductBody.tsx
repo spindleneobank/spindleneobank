@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Appear, LiquidMetal } from '../../../components/marketing/motion';
 import tree from '../../../content/marketing/product-tree.json';
 import { ChatPanel } from './ChatPanel';
@@ -11,7 +11,6 @@ import { useMotionVisible } from './useMotionVisible';
 import { useOrbit } from './useOrbit';
 import { useReceiptEnter } from './useReceiptEnter';
 import { useSlideshow } from './useSlideshow';
-import { useStatusDot } from './useStatusDot';
 import { useVisibleBox } from './useVisibleBox';
 import { useWorkflowSignal } from './useWorkflowSignal';
 import './product.css';
@@ -87,6 +86,7 @@ const makeOverride =
         // biome-ignore lint/a11y/useKeyWithClickEvents: the question header is the old Framer tap target; its inner button is focusable
         <div
           key={key}
+          data-pp-faq-item={i}
           style={{ display: 'contents' }}
           onClick={(e) => {
             if ((e.target as Element).closest('[data-framer-name="Question"]')) toggleFaq(i);
@@ -145,20 +145,54 @@ function withTemplates(t: PNode, tpl: string): PNode {
   return [...t, box] as PNode;
 }
 
+const FAQ_EASE = 'cubic-bezier(0.44, 0, 0.56, 1)';
+
+/** Heights of the laid-out FAQ item boxes (`item:child`); empty with reduced motion so the accordion just snaps. */
+function faqHeights(root: HTMLElement | null): Map<string, number> {
+  const m = new Map<string, number>();
+  if (!root || matchMedia('(prefers-reduced-motion: reduce)').matches) return m;
+  for (const w of root.querySelectorAll<HTMLElement>('[data-pp-faq-item]'))
+    [...w.children].forEach((k, c) => {
+      const h = k.getBoundingClientRect().height;
+      if (h > 0) m.set(`${w.dataset.ppFaqItem}:${c}`, h);
+    });
+  return m;
+}
+
 const chatOverride: Override = makeOverride(-1, () => {});
 
 export function ProductBody() {
   const [faqOpen, setFaqOpen] = useState(data.faq?.initial ?? -1);
-  const override = makeOverride(faqOpen, (i) => setFaqOpen((c) => (c === i ? -1 : i)));
-  const tpl = Object.values(data.templates).join('');
   const root = useRef<HTMLDivElement>(null);
+  const faqBefore = useRef<Map<string, number> | null>(null);
+  const toggleFaq = (i: number) => {
+    // item heights before the swap; the layout effect below tweens every item from there to its new height
+    faqBefore.current = faqHeights(root.current);
+    setFaqOpen((c) => (c === i ? -1 : i));
+  };
+  const override = makeOverride(faqOpen, toggleFaq);
+  const tpl = Object.values(data.templates).join('');
+  // Old Framer FAQ: the item height tweens 0.3 s cubic-bezier(.44, 0, .56, 1) (measured: 210 -> 74 px and 74 -> 186 px
+  // run together, the closing item's answer is removed at once and the opening item's is clipped by the growing box).
+  useLayoutEffect(() => {
+    const before = faqBefore.current;
+    faqBefore.current = null;
+    if (!before) return;
+    const now = faqHeights(root.current);
+    for (const [k, to] of now) {
+      const from = before.get(k);
+      const [i, c] = k.split(':').map(Number);
+      const el = root.current?.querySelector(`[data-pp-faq-item="${i}"]`)?.children[c as number] as HTMLElement | undefined;
+      if (el && from && Math.abs(from - to) > 1)
+        el.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: 300, easing: FAQ_EASE });
+    }
+  }, [faqOpen]);
   useMotionVisible(root);
   useOrbit(root);
   useHeroGraph(root);
   useWorkflowSignal(root);
   useSlideshow(root);
   useReceiptEnter(root);
-  useStatusDot(root);
   // Framer's appear also animates `transform` (none -> none, same spring timing) next to opacity
   useEffect(() => {
     const el = root.current;
