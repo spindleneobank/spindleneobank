@@ -109,8 +109,17 @@ export function initGroups(tree: HTMLElement, states: GroupStates): () => void {
         const i = items().indexOf(it);
         // snapshots: 'init' = item 0 open; '0' = all closed; 'i' = item i open.
         const open = items().findIndex((x) => x.getAttribute('aria-expanded') === 'true');
+        const before = items().map((x) => x.getBoundingClientRect().height);
         if (open === i) apply('0');
         else apply(i === 0 ? 'init' : String(i));
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        // Old Framer accordion: each item's height tweens 0.3s cubic-bezier(.44, 0, .56, 1) (the item clips its content).
+        items().forEach((x, n) => {
+          const from = before[n];
+          const to = x.getBoundingClientRect().height;
+          if (from === undefined || Math.abs(from - to) < 0.5) return;
+          x.animate({ height: [`${from}px`, `${to}px`] }, { duration: 300, easing: 'cubic-bezier(0.44, 0, 0.56, 1)' });
+        });
       };
       const onKey = (e: KeyboardEvent) => {
         if (e.key === 'Enter' || e.key === ' ') {
