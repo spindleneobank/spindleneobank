@@ -91,3 +91,29 @@
 .framer-egeFU.framer-v-vdljp7.framer-29z3ga,.framer-egeFU.framer-v-f6lx9q.framer-29z3ga,.framer-egeFU.framer-v-1rkh2dk.framer-29z3ga,.framer-egeFU.framer-v-1lhf0s0.framer-29z3ga,.framer-egeFU.framer-v-1deawmr.framer-29z3ga,.framer-egeFU.framer-v-16bij1r.framer-29z3ga{flex-direction:column;width:350px;height:600px}
 .framer-egeFU.framer-v-vdljp7 .framer-aitp2v-container,.framer-egeFU.framer-v-1lhf0s0 .framer-aitp2v-container{width:100%;height:75%}
 .framer-egeFU.framer-v-f6lx9q .framer-dwvy2q-container,.framer-egeFU.framer-v-1rkh2dk .framer-1g1so52-container,.framer-egeFU.framer-v-1deawmr .framer-dwvy2q-container,.framer-egeFU.framer-v-16bij1r .framer-1g1so52-container{flex:none;width:100%;height:75%}
+
+/* Hero buttons (Framer text roll): the old site toggles a .hover class; same rules on :hover. */
+.framer-10qih.framer-v-eqg2l9:hover .framer-1cffl3t,
+.framer-10qih.framer-v-1oav0:hover .framer-1cffl3t {
+  z-index: 1;
+  position: absolute;
+  top: -18px;
+  left: 0;
+}
+.framer-10qih.framer-v-eqg2l9:hover .framer-1l1d2m,
+.framer-10qih.framer-v-1oav0:hover .framer-1l1d2m {
+  bottom: unset;
+  left: unset;
+  position: relative;
+}
+.framer-KkR0Q.framer-v-12appga:hover .framer-6p9xj1 {
+  z-index: 1;
+  position: absolute;
+  top: -18px;
+  left: 0;
+}
+.framer-KkR0Q.framer-v-12appga:hover .framer-1v6u3k2 {
+  bottom: unset;
+  left: unset;
+  position: relative;
+}

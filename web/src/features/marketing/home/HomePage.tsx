@@ -1,6 +1,6 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
-import { type Breakpoint, useBreakpoint } from '../../../components/marketing/motion';
+import { type Breakpoint, initRollSpring, useBreakpoint } from '../../../components/marketing/motion';
 import { type GroupStates, initGroups, initVideos } from './behaviors';
 import { type ChatState, initChat } from './chat';
 import { mountDigitalPreview } from './digitalPreview';
@@ -104,6 +104,11 @@ export function HomePage() {
         initReceiptReveals(tree),
         initTicker(tree),
         initTypewriter(tree),
+        initRollSpring(
+          tree,
+          'a.framer-KkR0Q, a.framer-10qih',
+          '.framer-6p9xj1, .framer-1v6u3k2, .framer-1cffl3t, .framer-1l1d2m',
+        ),
         initQuoteAppear(tree),
         initWorkflow(tree),
       );

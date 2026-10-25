@@ -1,5 +1,6 @@
 import Lenis from 'lenis';
 import { type ReactNode, useEffect, useState } from 'react';
+import { initRollSpring } from '../motion/roll';
 import { Footer } from './Footer';
 import { Header } from './Header';
 import './shell.css';
@@ -54,6 +55,7 @@ function useSmoothScroll() {
  */
 export function MarketingShell({ children }: { children: ReactNode }) {
   useSmoothScroll();
+  useEffect(() => initRollSpring(document, '.sx-btn, .sx-sbtn', '.sx-roll p'), []);
   return (
     <div className="sx-shell" style={{ position: 'relative', minHeight: '100vh' }}>
       <Header />

@@ -3,6 +3,8 @@
  * Tab/accordion states are recorded snapshots of the old DOM; `morph` patches the live DOM in place so inline-style
  * transitions (the tab indicator, accordion icon) still animate.
  */
+import { springEasing } from '../../../components/marketing/motion/framer';
+
 export type GroupStates = Record<string, Array<{ key: string; html: string }>>;
 
 export function morph(live: Element, next: Element) {
@@ -34,10 +36,7 @@ export function morph(live: Element, next: Element) {
  * (width of the opened card follows 1 - (1 + 15t) e^(-15t); t90 = 260ms, t99 = 450ms as recorded), sampled as linear().
  */
 const PATHS_MS = 600;
-const PATHS_EASING = `linear(${Array.from({ length: 31 }, (_, i) => {
-  const t = (i / 30) * (PATHS_MS / 1000);
-  return (1 - (1 + 15 * t) * Math.exp(-15 * t)).toFixed(4);
-}).join(', ')}, 1)`;
+const PATHS_EASING = springEasing(15, PATHS_MS);
 
 export function snapshot(html: string): Element {
   const t = document.createElement('template');

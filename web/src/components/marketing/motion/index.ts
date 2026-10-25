@@ -3,3 +3,4 @@ export * from './framer';
 export * from './LiquidMetal';
 export * from './SplitReveal';
 export * from './useBreakpoint';
+export * from './roll';
