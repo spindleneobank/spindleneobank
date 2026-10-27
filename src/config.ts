@@ -89,7 +89,12 @@ const envSchema = z.object({
   TOKENIZER_CACHE_DIR: z.string().default('data/tokenizers'),
   ADMIN_ADDRESSES: addressList,
   JOB_TIMEOUT_MS: positiveInt(120000),
-  NODE_IMAGE: z.string().default('spindle/node'),
+  /** Node image for the install command; `{engine}` is replaced by ollama|vllm. Dev: the locally built `spindle-node:{engine}-local`. */
+  NODE_IMAGE: z.string().default('spindle/spindle-node:{engine}'),
+  /** Add `--gpus all` to the install command. Off for CPU-only dev hosts. */
+  NODE_DOCKER_GPUS: boolean(true),
+  /** Optional comma-separated model list passed as SPINDLE_MODELS in the install command (dev: the smallest model). */
+  NODE_MODELS: z.string().optional(),
   MIN_AGENT_VERSION: z.string().default('0.1.0'),
   CANARY_RATE_BPS: nonnegativeInt(200),
   SEALED_LANE_ENABLED: boolean(false),

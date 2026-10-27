@@ -7,6 +7,7 @@ import { closeRedis } from '../../lib/redis';
 import { dbRef, settings } from '../auth/constants';
 import { createTestSession } from '../auth/testing';
 import { nodeHub } from './hub';
+import { enrollCommands } from './routes';
 import { nodeSettings, setStakingParamsForTest } from './service';
 import { type FakeNode, fakeNode, startTestServer } from './testing';
 
@@ -91,6 +92,31 @@ describe('nodes routes', () => {
   test('requires a session', async () => {
     expect((await req('/v1/app/nodes')).status).toBe(401);
     expect((await req('/v1/app/staking/params')).status).toBe(401);
+  });
+
+  test('install command: engine image tag, optional --gpus and SPINDLE_MODELS', () => {
+    const saved = { ...nodeSettings };
+    try {
+      Object.assign(nodeSettings, {
+        nodeImage: 'spindle/spindle-node:{engine}',
+        nodeGpus: true,
+        nodeModels: undefined,
+      });
+      const hub = enrollCommands('tok', 'vllm', 'linux').docker;
+      expect(hub).toContain('--gpus all ');
+      expect(hub).toEndWith('spindle/spindle-node:vllm');
+      expect(hub).not.toContain('SPINDLE_MODELS');
+      Object.assign(nodeSettings, {
+        nodeImage: 'spindle-node:{engine}-local',
+        nodeGpus: false,
+        nodeModels: 'qwen2.5:0.5b',
+      });
+      const local = enrollCommands('tok', 'ollama', 'linux').docker;
+      expect(local).not.toContain('--gpus');
+      expect(local).toEndWith('-e SPINDLE_MODELS=qwen2.5:0.5b spindle-node:ollama-local');
+    } finally {
+      Object.assign(nodeSettings, saved);
+    }
   });
 
   test('enroll returns single-use token and commands; node appears in list', async () => {

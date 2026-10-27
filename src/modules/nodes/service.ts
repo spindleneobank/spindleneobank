@@ -28,6 +28,8 @@ export const nodeSettings = {
   appUrl: config.PUBLIC_APP_URL.replace(/\/$/, ''),
   apiUrl: config.PUBLIC_API_URL.replace(/\/$/, ''),
   nodeImage: config.NODE_IMAGE,
+  nodeGpus: config.NODE_DOCKER_GPUS,
+  nodeModels: config.NODE_MODELS,
   minAgentVersion: config.MIN_AGENT_VERSION,
   jobTimeoutMs: config.JOB_TIMEOUT_MS,
   maxPerIp: 3,

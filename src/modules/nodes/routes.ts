@@ -55,11 +55,13 @@ function wsBase(): string {
 }
 
 export function enrollCommands(token: string, engine: string, os: string) {
-  const image = nodeSettings.nodeImage;
+  const image = nodeSettings.nodeImage.replaceAll('{engine}', engine);
   const api = wsBase();
+  const gpus = nodeSettings.nodeGpus ? '--gpus all ' : '';
+  const models = nodeSettings.nodeModels ? `-e SPINDLE_MODELS=${nodeSettings.nodeModels} ` : '';
   const docker =
-    `docker run -d --name spindle-node --restart unless-stopped --gpus all -v spindle-node:/data ` +
-    `-e SPINDLE_API_URL=${api} -e SPINDLE_TOKEN=${token} -e SPINDLE_ENGINE=${engine} ${image}`;
+    `docker run -d --name spindle-node --restart unless-stopped ${gpus}-v spindle-node:/data ` +
+    `-e SPINDLE_API_URL=${api} -e SPINDLE_TOKEN=${token} -e SPINDLE_ENGINE=${engine} ${models}${image}`;
   const installer =
     os === 'windows'
       ? `& ([scriptblock]::Create((irm ${nodeSettings.appUrl}/install.ps1))) -Token ${token}`
