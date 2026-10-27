@@ -2,18 +2,29 @@ import { defineChain } from 'viem';
 
 export const RHC_CHAIN_ID = 4663;
 
-export const rhc = defineChain({
-  id: RHC_CHAIN_ID,
-  name: 'Robinhood Chain',
-  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-  rpcUrls: { default: { http: ['https://rpc.mainnet.chain.robinhood.com'] } },
-  blockExplorers: {
-    default: { name: 'Robinhood Chain Explorer', url: 'https://explorer.mainnet.chain.robinhood.com' },
-  },
-  contracts: {
-    multicall3: { address: '0xcA11bde05977b3631167028862bE2a173976CA11' },
-  },
-});
+/** Chain id of the local anvil fork. MetaMask treats it as a local network and always uses the custom RPC. */
+export const LOCAL_FORK_CHAIN_ID = 31337;
+
+export const chainName = (id: number) =>
+  id === LOCAL_FORK_CHAIN_ID ? 'Robinhood Chain (local fork)' : 'Robinhood Chain';
+
+/** The Robinhood Chain definition under the given chain id (the app chain: 4663 in prod, 31337 on the dev fork). */
+export const chainFor = (id: number) =>
+  defineChain({
+    id,
+    name: chainName(id),
+    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    rpcUrls: { default: { http: ['https://rpc.mainnet.chain.robinhood.com'] } },
+    blockExplorers: {
+      default: { name: 'Robinhood Chain Explorer', url: 'https://explorer.mainnet.chain.robinhood.com' },
+    },
+    contracts: {
+      multicall3: { address: '0xcA11bde05977b3631167028862bE2a173976CA11' },
+    },
+  });
+
+/** The real Robinhood Chain (4663). */
+export const rhc = chainFor(RHC_CHAIN_ID);
 
 /** Canonical on-chain addresses on Robinhood Chain (4663). Existence verified via eth_getCode 2026-10-23. */
 export const KNOWN = {

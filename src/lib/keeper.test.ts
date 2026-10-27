@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { rhc } from '@spindle/shared/chain';
+import { chainFor } from '@spindle/shared/chain';
 import { Redis } from 'ioredis';
 import { createPublicClient, createWalletClient, http, parseTransaction } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
@@ -12,13 +12,15 @@ const REDIS = process.env.TEST_REDIS_URL ?? 'redis://127.0.0.1:7279/14'; // own 
 const account = privateKeyToAccount(generatePrivateKey());
 const SINK = '0x000000000000000000000000000000000000dEaD';
 
-const anvilUp = await fetch(ANVIL, {
+const anvilChainId = await fetch(ANVIL, {
   method: 'POST',
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] }),
 })
-  .then((r) => r.ok)
-  .catch(() => false);
+  .then(async (r) => (r.ok ? Number(((await r.json()) as { result: string }).result) : 0))
+  .catch(() => 0);
+const anvilUp = anvilChainId > 0;
+const rhc = chainFor(anvilChainId || 31337);
 const redis = new Redis(REDIS, { maxRetriesPerRequest: 1, lazyConnect: true });
 const redisUp = await redis
   .connect()

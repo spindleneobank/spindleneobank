@@ -25,7 +25,10 @@ export const cardSettings = {
   relayApiKey: secrets.RELAY_API_KEY,
   relayStubAddress: config.RELAY_STUB_ADDRESS as string | undefined,
   usdgAddress: (config.USDG_ADDRESS ?? '0x5fc5360d0400a0fd4f2af552add042d716f1d168') as string,
-  originChainId: config.CHAIN_ID,
+  /** Real chain id for Relay quotes; independent of CHAIN_ID (31337 on the dev fork). */
+  originChainId: config.RELAY_ORIGIN_CHAIN_ID,
+  /** The chain the app (and user wallet) is on; stub-mode transactions target it. */
+  appChainId: config.CHAIN_ID,
   // Velocity limits (card-flows.md)
   maxOpsPerDay: 3,
   maxCentsPerDay: 200_000n,

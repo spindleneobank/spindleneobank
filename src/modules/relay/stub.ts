@@ -28,7 +28,7 @@ export function stubAddress(): `0x${string}` {
 export function rewriteForStub(quote: RelayQuote): ServedStep[] {
   const stub = stubAddress();
   const amountIn = BigInt(quote.details.currencyIn.amount);
-  const chainId = quote.steps[0]?.items[0]?.data.chainId ?? cardSettings.originChainId;
+  const chainId = cardSettings.appChainId;
   const token = (
     (quote.details.currencyIn.currency as { address?: string } | undefined)?.address ??
     cardSettings.usdgAddress

@@ -7,7 +7,7 @@ import { x402Payments } from '../../db/schema';
 import { AppError } from '../../lib/errors';
 import { getRedis } from '../../lib/redis';
 import { publicClient } from '../../lib/viem';
-import { decodeHeader, spindlePaymentTypedData, X402PaymentHeader } from '../../shared/x402';
+import { decodeHeader, networkFor, spindlePaymentTypedData, X402PaymentHeader } from '../../shared/x402';
 import { dbRef } from '../auth/constants';
 import { challengeKey, type StoredChallenge, x402Addresses } from './challenge';
 
@@ -215,6 +215,7 @@ export async function verifyExactPayment(
   } catch {
     throw new AppError('VALIDATION', 'Malformed X-PAYMENT header.', 400);
   }
+  if (parsed.network !== networkFor(config.CHAIN_ID)) throw refuse('Payment is for a different network.');
   const p = parsed.payload;
   const paymentId = p.paymentId.toLowerCase() as Hex;
   if (p.witness.paymentId.toLowerCase() !== paymentId) throw refuse('Payment id mismatch.');

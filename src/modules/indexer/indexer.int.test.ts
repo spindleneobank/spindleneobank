@@ -10,6 +10,7 @@ import { account } from '../../../dev/lib/accounts';
 import { ANVIL_URL, chain, rpc } from '../../../dev/lib/chain';
 import type { TestDb } from '../../../test/db-setup';
 import { FORK_SKIP_MESSAGE, forkHealthy } from '../../../test/fork';
+import { config } from '../../config';
 import { buyerBalances, buyers, nodes, users } from '../../db/schema';
 import { requireAddress } from '../../lib/contracts';
 import { readCursor } from './cursor';
@@ -130,7 +131,7 @@ describe.skipIf(!healthy)('indexer on anvil', () => {
     const sig = await nodeKey.signTypedData(
       nodeBindingTypedData({
         registry,
-        chainId: 4663,
+        chainId: config.CHAIN_ID,
         owner: getAddress(owner.address),
         nodeKey: nodeKey.address,
         gpuClass: 1,

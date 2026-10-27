@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { KNOWN, rhc } from '@spindle/shared/chain';
+import { chainFor, KNOWN } from '@spindle/shared/chain';
 import { type Address, createTestClient, createWalletClient, http, parseEther, publicActions } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { FORK_SKIP_MESSAGE, forkHealthy } from '../../../test/fork';
@@ -7,6 +7,8 @@ import { config } from '../../config';
 import { erc20Abi, peripheryAbi, stockAddresses, swapRouter02Abi } from './abi';
 import { chainQuoteDeps, quote } from './quote';
 import { verifyStockToken } from './verify';
+
+const appChain = chainFor(config.CHAIN_ID);
 
 const healthy = await forkHealthy();
 if (!healthy) console.warn(`[skip] ${import.meta.file}: ${FORK_SKIP_MESSAGE}`);
@@ -16,9 +18,11 @@ const rpcUrl = config.RPC_URLS[0] ?? 'http://127.0.0.1:7245';
 const NVDA = KNOWN.NVDA.toLowerCase() as Address;
 const a = stockAddresses();
 
-const test_ = createTestClient({ chain: rhc, mode: 'anvil', transport: http(rpcUrl) }).extend(publicActions);
+const test_ = createTestClient({ chain: appChain, mode: 'anvil', transport: http(rpcUrl) }).extend(
+  publicActions,
+);
 const account = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
-const wallet = createWalletClient({ account, chain: rhc, transport: http(rpcUrl) });
+const wallet = createWalletClient({ account, chain: appChain, transport: http(rpcUrl) });
 
 describe.skipIf(!healthy)('stocks on the RHC fork', () => {
   test('periphery addresses have code and point at the pinned factory', async () => {
@@ -58,7 +62,7 @@ describe.skipIf(!healthy)('stocks on the RHC fork', () => {
     await test_.impersonateAccount({ address: v.poolAddress as Address });
     const pool = createWalletClient({
       account: v.poolAddress as Address,
-      chain: rhc,
+      chain: appChain,
       transport: http(rpcUrl),
     });
     const fundHash = await pool.writeContract({

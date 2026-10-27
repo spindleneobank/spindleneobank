@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { rhc } from '@spindle/shared/chain';
 import type { Redis } from 'ioredis';
 import {
   type Account,
@@ -18,7 +17,7 @@ import { AppError } from './errors';
 import { logger } from './logger';
 import { getRedis } from './redis';
 import { rpc } from './rpcPool';
-import { publicClient } from './viem';
+import { appChain, publicClient } from './viem';
 
 export const KEEPER_LOCK_KEY = 'keeper:tx-lock';
 const LOCK_TTL_MS = 30_000;
@@ -92,7 +91,7 @@ export type KeeperDeps = {
 function defaultWallet(acct: Account) {
   return createWalletClient({
     account: acct,
-    chain: rhc,
+    chain: appChain,
     transport: custom({
       request: ({ method, params }) => rpc(method, (params as unknown[] | undefined) ?? []),
     }),
@@ -135,7 +134,6 @@ export function createKeeper(deps: KeeperDeps) {
       const wallet = deps.wallet(acct);
       const serialized = await wallet.signTransaction({
         account: acct,
-        chain: rhc,
         type: 'legacy',
         to: input.to,
         data: input.data,

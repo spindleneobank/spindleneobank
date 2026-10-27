@@ -93,6 +93,6 @@ describe('x402', () => {
       },
     };
     expect(X402PaymentHeader.safeParse(h).success).toBe(true);
-    expect(X402PaymentHeader.safeParse({ ...h, network: 'eip155:1' }).success).toBe(false);
+    expect(X402PaymentHeader.safeParse({ ...h, network: 'solana:1' }).success).toBe(false);
   });
 });
