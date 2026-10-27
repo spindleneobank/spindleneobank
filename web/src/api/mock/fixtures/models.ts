@@ -8,6 +8,7 @@ const MODELS = [
     lanes: ['open'],
     kind: 'chat',
     available: true,
+    context_length: 8192,
     pricing: { unitKind: 'tokens_1m', buyerMicrosPerUnit: '400000' },
   },
   {
@@ -17,6 +18,7 @@ const MODELS = [
     lanes: ['open', 'sealed'],
     kind: 'chat',
     available: true,
+    context_length: 8192,
     pricing: { unitKind: 'tokens_1m', buyerMicrosPerUnit: '1800000' },
   },
   {
@@ -26,6 +28,7 @@ const MODELS = [
     lanes: ['open'],
     kind: 'chat',
     available: false,
+    context_length: 0,
     pricing: { unitKind: 'tokens_1m', buyerMicrosPerUnit: '3200000' },
   },
   {
@@ -35,6 +38,7 @@ const MODELS = [
     lanes: ['open'],
     kind: 'embeddings',
     available: true,
+    context_length: 8192,
     pricing: { unitKind: 'tokens_1m', buyerMicrosPerUnit: '20000' },
   },
 ];

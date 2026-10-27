@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/errors';
+import { fitHistory } from './fit';
 import {
   type ChatMsg,
   type Conversation,
@@ -16,11 +17,18 @@ export type ChatErrorKind =
   | 'insufficient_balance'
   | 'session_exhausted'
   | 'disabled'
+  | 'context_length'
   | 'other';
 
 export function classifyError(e: unknown): { kind: ChatErrorKind; message: string } {
   if (e instanceof ApiError) {
     switch (e.code) {
+      case 'context_length_exceeded':
+        return {
+          kind: 'context_length',
+          message:
+            'This message is longer than the model can read at once. Shorten it, or start a new chat. You were not charged.',
+        };
       case 'NO_CAPACITY':
         return { kind: 'no_capacity', message: 'No node is serving this model right now.' };
       case 'INSUFFICIENT_BALANCE':
@@ -50,6 +58,8 @@ export function useChat(address: string | undefined) {
   const [list, setList] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** older messages left out of the last request to fit the model's window */
+  const [omitted, setOmitted] = useState(0);
   const [lastError, setLastError] = useState<{ kind: ChatErrorKind; message: string } | null>(null);
   const active = useRef<AbortController | null>(null);
   const runId = useRef(0);
@@ -62,6 +72,7 @@ export function useChat(address: string | undefined) {
     active.current = null;
     setBusy(false);
     setLastError(null);
+    setOmitted(0);
     if (!address) {
       setList([]);
       setActiveId(null);
@@ -108,6 +119,8 @@ export function useChat(address: string | undefined) {
       opts: {
         model: string;
         lane: 'open' | 'sealed';
+        /** context window of the model (tokens) from /v1/models; older turns are dropped to fit it */
+        contextLength?: number;
         mode: PayMode;
         sessionToken?: string;
         onSettled?: () => void;
@@ -136,6 +149,11 @@ export function useChat(address: string | undefined) {
         }),
         false,
       );
+      const fitted = fitHistory(
+        history.map((m) => ({ role: m.role, content: m.content })),
+        opts.contextLength,
+      );
+      setOmitted(fitted.omitted);
       const gen = runId.current;
       const ac = new AbortController();
       active.current = ac;
@@ -154,7 +172,8 @@ export function useChat(address: string | undefined) {
           lane: opts.lane,
           mode: opts.mode,
           sessionToken: opts.sessionToken,
-          messages: history.map((m) => ({ role: m.role, content: m.content })),
+          messages: fitted.messages,
+          maxTokens: fitted.maxTokens,
           signal: ac.signal,
           onDelta: (c) => {
             if (current()) patch({ content: c }, false);
@@ -206,11 +225,15 @@ export function useChat(address: string | undefined) {
     activeId,
     busy,
     lastError,
+    omitted,
     clearError: () => setLastError(null),
     send,
     stop: () => active.current?.abort(),
     select: (id: string) => {
-      if (!busy) setActiveId(id);
+      if (!busy) {
+        setActiveId(id);
+        setOmitted(0);
+      }
     },
     newChat: () => {
       if (busy) return;

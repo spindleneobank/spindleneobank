@@ -296,3 +296,8 @@
     display: none;
   }
 }
+
+.chat-trim {
+  margin: 0 0 8px;
+  padding: 0 var(--sp-3, 12px);
+}
