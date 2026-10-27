@@ -132,6 +132,7 @@ const fakeEngine = (): Engine => ({
   chat: async () => ({}),
   embeddings: async () => ({}),
   version: async () => '1',
+  contextLength: async () => 4096,
 });
 
 describe('sealed job through the JobRunner', () => {

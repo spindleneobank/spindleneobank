@@ -43,5 +43,9 @@ export const notFound = (c: Context<Env>) =>
 export function openaiError(c: Context, err: unknown) {
   const { status, body } = toHttp(err);
   const type = status >= 500 ? 'server_error' : status === 429 ? 'rate_limit_error' : 'invalid_request_error';
-  return c.json({ error: { message: body.error.message, type, code: body.error.code } }, status as 400);
+  const d = body.error.details as { openaiCode?: string } | undefined;
+  return c.json(
+    { error: { message: body.error.message, type, code: d?.openaiCode ?? body.error.code } },
+    status as 400,
+  );
 }

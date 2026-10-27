@@ -101,6 +101,7 @@ async function agent(lazy: boolean) {
           chat: async () => ({}),
           embeddings: async () => ({}),
           version: async () => '0',
+          contextLength: async () => 4096,
         },
         key: {
           privateKey: node.privateKey,

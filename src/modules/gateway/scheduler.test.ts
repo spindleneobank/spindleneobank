@@ -36,6 +36,7 @@ function world(specs: Spec[], extra: Partial<SchedulerDeps> = {}): Partial<Sched
     inflight: 0,
     capacity: 1,
     lastSeen: NOW,
+    contextTokens: 4096,
   });
   const row = (s: Spec) =>
     ({

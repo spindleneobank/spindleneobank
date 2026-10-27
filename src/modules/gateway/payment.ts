@@ -5,7 +5,7 @@ import { hit } from '../../lib/ratelimit';
 import type { JobKind, Lane, PayMode } from '../../shared/enums';
 import { csrf, sessionLoader } from '../auth/middleware';
 import { verifyApiKey } from '../buyers/apikeys';
-import { buyerIdForAddress, release, reserve, settleCharge } from '../buyers/service';
+import { buyerIdForAddress, refundCharge, release, reserve, settleCharge } from '../buyers/service';
 
 export const API_RATE_LIMIT = { points: 60, windowSec: 60 } as const;
 
@@ -69,6 +69,11 @@ export interface PaymentProvider {
   responseHeaders?(auth: Authorization, chargedMicros: bigint): Record<string, string>;
   /** Drop the reservation without charging. */
   release(auth: Authorization): Promise<void>;
+  /**
+   * Undo a charge that `finalize` already applied (the job's receipt then failed verification). Must be
+   * safe to call once per job; the gateway guarantees at most one call.
+   */
+  reverse?(auth: Authorization, chargedMicros: bigint): Promise<void>;
 }
 
 const providers = new Map<string, PaymentProvider>();
@@ -152,6 +157,11 @@ export class BalanceProvider implements PaymentProvider {
 
   release(auth: Authorization): Promise<void> {
     return release(auth.buyerId, auth.reservedMicros);
+  }
+
+  /** Credit the charge back: `balance += charged` and a `refund` ledger row for the job. */
+  reverse(auth: Authorization, chargedMicros: bigint): Promise<void> {
+    return refundCharge(auth.buyerId, chargedMicros, auth.jobId);
   }
 }
 

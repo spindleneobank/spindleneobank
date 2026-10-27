@@ -31,7 +31,7 @@ import {
   resolveModel,
 } from './service';
 import { chunk, errorFrame, finalChunk, roleChunk, SSE_DONE, SSE_HEADERS, sseData } from './sse';
-import { inputsUpperBound, promptUpperBound } from './tokenizer';
+import { estimateChatPrompt, inputsUpperBound, promptUpperBound } from './tokenizer';
 
 const receiptUrl = (jobId: string) => `/v1/receipts/${jobId}`;
 
@@ -159,6 +159,9 @@ async function buildChat(c: Context<Env>): Promise<GatewayRequest> {
   const model = await resolveModel(body.model, 'chat', lane);
   const maxTokens = body.max_tokens ?? MAX_TOKENS_DEFAULT;
   const promptBound = promptUpperBound(model.id, body.messages);
+  const recount = estimateChatPrompt(model.id, body.messages as never);
+  // an estimated recount (no tokenizer) gets 10% slack so a node never truncates on our undercount
+  const promptTokens = recount.estimated ? Math.ceil(recount.tokens * 1.1) : recount.tokens;
   const node: Record<string, unknown> = {
     model: model.id,
     messages: body.messages,
@@ -176,6 +179,7 @@ async function buildChat(c: Context<Env>): Promise<GatewayRequest> {
     body: node,
     stream: body.stream === true,
     maxTokens,
+    contextNeeded: promptTokens + maxTokens,
     estimate: { kind: 'chat', promptTokens: promptBound, maxTokens },
     messages: body.messages,
   };
@@ -450,13 +454,14 @@ export default function gatewayRoutes(app: Hono<Env>): void {
       const rows = await listModels();
       return c.json({
         object: 'list',
-        data: rows.map(({ model, available, buyerMicrosPerUnit }) => ({
+        data: rows.map(({ model, available, buyerMicrosPerUnit, contextLength }) => ({
           id: model.id,
           object: 'model',
           owned_by: 'spindle',
           lanes: model.lanes,
           kind: model.kind,
           available,
+          context_length: contextLength,
           pricing: { unitKind: model.unitKind, buyerMicrosPerUnit: buyerMicrosPerUnit.toString() },
         })),
       });

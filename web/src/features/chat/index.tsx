@@ -141,6 +141,7 @@ export default function ChatTab() {
     void chat.send(t, {
       model,
       lane,
+      contextLength: selected?.context_length,
       mode,
       sessionToken: x402.session?.token,
       onSettled: () => x402.refreshMeter(),
@@ -448,6 +449,15 @@ export default function ChatTab() {
               )}
               <div ref={end} className="chat-end" />
             </div>
+
+            {chat.omitted > 0 ? (
+              <p className="chat-note chat-trim" role="status">
+                {chat.omitted === 1 ? '1 older message was' : `${chat.omitted} older messages were`} left out
+                of the last request to fit the model&apos;s{' '}
+                {selected?.context_length ? `${selected.context_length.toLocaleString()}-token ` : ''}
+                context window.
+              </p>
+            ) : null}
 
             {chat.lastError && chat.lastError.kind !== 'other' ? (
               <div className="chat-error" role="alert">

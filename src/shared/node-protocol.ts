@@ -6,6 +6,9 @@ import { Engine, JobKind, Lane } from './enums';
 
 export const PROTOCOL_VERSION = 1 as const;
 
+/** Context a node is assumed to serve when it does not report one (Ollama's default `num_ctx`). */
+export const DEFAULT_CONTEXT_TOKENS = 4096;
+
 export const CLOSE_CODES = {
   PROTOCOL_ERROR: 4000,
   UPGRADE_REQUIRED: 4001,
@@ -182,6 +185,11 @@ export const HelloBody = z.object({
   models: z.array(ModelDigest),
   capabilities: z.array(NodeCapability),
   capacity: z.number().int().positive(),
+  /**
+   * Context window (tokens) this node serves per engine model id (`models[].id`). Absent on agents that
+   * predate FX3: the hub then assumes DEFAULT_CONTEXT_TOKENS (Ollama's own default).
+   */
+  contexts: z.record(z.string(), z.number().int().positive()).optional(),
   enrollToken: z.string().optional(),
   attestation: AttestationBundle.optional(),
 });
@@ -225,6 +233,8 @@ export const ModelsReadyMsg = z.object({
   v,
   type: z.literal('models.ready'),
   models: z.array(z.object({ id: z.string(), digest: z.string() })),
+  /** Served context (tokens) per catalog model id (FX3). Optional: older agents omit it. */
+  contexts: z.record(z.string(), z.number().int().positive()).optional(),
 });
 
 export const JobAcceptedMsg = z.object({ v, type: z.literal('job.accepted'), jobId: z.string() });

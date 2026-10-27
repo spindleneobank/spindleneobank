@@ -25,7 +25,13 @@ import { createTestSession } from '../auth/testing';
 import { buyerIdForAddress, reserve } from '../buyers/service';
 import { canaryHooks } from '../canary/hooks';
 import { utcDay } from '../gateway/pricing';
-import { type GatewayRequest, insertJob, resetJobFinishedHandler } from '../gateway/service';
+import {
+  type GatewayRequest,
+  insertJob,
+  resetJobFinishedHandler,
+  reverseCharge,
+  settleJob,
+} from '../gateway/service';
 import receiptRoutes from './routes';
 import { billedUsage, onJobFinished, receiptSettings } from './service';
 
@@ -49,7 +55,7 @@ afterAll(async () => {
   await closeRedis();
 });
 afterEach(() => {
-  receiptSettings.chargeOnFailure = true;
+  receiptSettings.chargeOnFailure = false;
   canaryHooks.onCanaryFinished = async () => {};
 });
 beforeEach(async () => {
@@ -234,7 +240,7 @@ describe('onJobFinished: verified', () => {
 });
 
 describe('onJobFinished: failures', () => {
-  test('tampered receipt: gateway-recounted charge, no earnings, reputation -25', async () => {
+  test('tampered receipt: buyer is not charged, no earnings, reputation -25', async () => {
     const id = await newJob();
     const p = payload(id, { usage: { p: 7, c: 9999 }, inputDigest: 'f'.repeat(64) });
     await onJobFinished(id, done(id, p), view());
@@ -242,15 +248,56 @@ describe('onJobFinished: failures', () => {
     expect(r).toMatchObject({ verified: false, reason: 'INPUT_DIGEST' });
     expect(await t.db.select().from(earningEvents)).toHaveLength(0);
     expect((await t.db.select().from(jobs))[0]).toMatchObject({
-      buyerUsdgMicros: 107n,
+      buyerUsdgMicros: 0n,
       providerUsdgMicros: 0n,
     });
-    expect(await balance()).toEqual({ balance: 1_000_000n - 107n, reserved: 0n });
+    expect(await balance()).toEqual({ balance: 1_000_000n, reserved: 0n });
+    expect(await charges()).toHaveLength(0);
     expect(await rep()).toBe(975);
   });
 
-  test('chargeOnFailure=false releases without charging', async () => {
-    receiptSettings.chargeOnFailure = false;
+  test('TOKEN_MISMATCH (node saw a truncated prompt): provider earns 0 and the buyer pays nothing', async () => {
+    const id = await newJob();
+    // gateway counts 4465 prompt tokens, the node signed 4085
+    const p = payload(id, { usage: { p: 4085, c: 100 } });
+    await onJobFinished(id, done(id, p), view({ recount: { promptTokens: 4465, completionTokens: 100 } }));
+    expect((await t.db.select().from(receipts))[0]).toMatchObject({
+      verified: false,
+      reason: 'TOKEN_MISMATCH',
+    });
+    expect(await t.db.select().from(earningEvents)).toHaveLength(0);
+    expect(await balance()).toEqual({ balance: 1_000_000n, reserved: 0n });
+    expect((await t.db.select().from(jobs))[0]).toMatchObject({
+      buyerUsdgMicros: 0n,
+      providerUsdgMicros: 0n,
+    });
+  });
+
+  test('a charge already applied (reconciler settled it) is reversed with a refund ledger row, once', async () => {
+    const id = await newJob();
+    expect(await settleJob(id, 500n)).toBe(500n);
+    expect(await balance()).toEqual({ balance: 1_000_000n - 500n, reserved: 0n });
+    const p = payload(id, { usage: { p: 4085, c: 100 } });
+    const v = view({ recount: { promptTokens: 4465, completionTokens: 100 } });
+    await onJobFinished(id, done(id, p), v);
+    expect(await balance()).toEqual({ balance: 1_000_000n, reserved: 0n });
+    const ledger = await t.db.select().from(buyerLedger).where(eq(buyerLedger.jobId, id));
+    expect(ledger.map((l) => [l.kind, l.usdgMicros])).toEqual([
+      ['charge', -500n],
+      ['refund', 500n],
+    ]);
+    expect(await reverseCharge(id)).toBe(0n); // nothing left to reverse
+    expect(await balance()).toEqual({ balance: 1_000_000n, reserved: 0n });
+  });
+
+  test('chargeOnFailure=true restores the old behaviour (bills the gateway recount)', async () => {
+    receiptSettings.chargeOnFailure = true;
+    const id = await newJob();
+    await onJobFinished(id, done(id, payload(id, { model: 'other' })), view());
+    expect(await balance()).toEqual({ balance: 1_000_000n - 107n, reserved: 0n });
+  });
+
+  test('failed receipt releases without charging', async () => {
     const id = await newJob();
     await onJobFinished(id, done(id, payload(id, { model: 'other' })), view());
     expect((await t.db.select().from(receipts))[0]?.reason).toBe('FIELD_MISMATCH');

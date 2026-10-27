@@ -28,6 +28,8 @@ export const ModelListItem = z.object({
   lanes: z.array(z.enum(Lane)),
   kind: z.enum(JobKind),
   available: z.boolean(),
+  /** Largest context window (tokens) served by an online node for this model; absent in older replies. */
+  context_length: z.number().int().nonnegative().optional(),
   pricing: z.object({ unitKind: z.enum(UnitKind), buyerMicrosPerUnit: MicrosString }),
 });
 export const GetModelsRes = z.object({ object: z.literal('list'), data: z.array(ModelListItem) });

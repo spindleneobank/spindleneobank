@@ -8,6 +8,7 @@ describe('classifyError', () => {
     ['INSUFFICIENT_BALANCE', 402, 'insufficient_balance'],
     ['SESSION_EXHAUSTED', 402, 'session_exhausted'],
     ['X402_DISABLED', 402, 'disabled'],
+    ['context_length_exceeded', 400, 'context_length'],
     ['INTERNAL', 500, 'other'],
   ])('%s -> %s', (code, status, kind) => {
     expect(classifyError(new ApiError(code, 'm', status)).kind).toBe(kind);

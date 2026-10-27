@@ -22,6 +22,7 @@ function engine(seen: Record<string, unknown>[] = [], fail = false): Engine {
     chat: async () => ({}),
     embeddings: async () => ({}),
     version: async () => '0',
+    contextLength: async () => 4096,
   };
 }
 

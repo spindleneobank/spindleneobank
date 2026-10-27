@@ -62,6 +62,7 @@ const candidate = (): Candidate =>
     inflight: 0,
     capacity: 1,
     lastSeen: Date.now(),
+    contextTokens: 4096,
     tier: 'unstaked',
     score: 1,
     nodeLane: 'sealed',

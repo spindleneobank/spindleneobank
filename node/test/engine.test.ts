@@ -16,25 +16,61 @@ test('parseSseLine handles content, reasoning, usage, DONE', () => {
   expect(parseSseLine('garbage')).toBeNull();
 });
 
-test('ollama engine streams SSE and lists models', async () => {
-  srv = Bun.serve({
+function ollamaServer(onChat: (body: Record<string, unknown>) => void, showCtx: number | null = 32768) {
+  return Bun.serve({
     port: 0,
-    fetch(req) {
+    async fetch(req) {
       const u = new URL(req.url);
       if (u.pathname === '/api/tags')
         return Response.json({ models: [{ name: 'q:1', digest: 'sha256:x', size: 2097152 }] });
-      if (u.pathname === '/v1/chat/completions')
+      if (u.pathname === '/api/show')
+        return Response.json(showCtx ? { model_info: { 'qwen2.context_length': showCtx } } : {});
+      if (u.pathname === '/api/chat') {
+        onChat((await req.json()) as Record<string, unknown>);
         return new Response(
-          'data: {"choices":[{"delta":{"content":"a"}}]}\n\ndata: {"choices":[{"delta":{"content":"b"}}],"usage":null}\n\ndata: [DONE]\n\n',
+          '{"message":{"content":"a"},"done":false}\n{"message":{"content":"b"},"done":false}\n{"message":{"content":""},"done":true,"done_reason":"stop","prompt_eval_count":11,"eval_count":2}\n',
         );
+      }
       return new Response('no', { status: 404 });
     },
   });
+}
+
+test('ollama engine streams native chat with usage and lists models', async () => {
+  srv = ollamaServer(() => {});
   const e = new OllamaEngine(`http://127.0.0.1:${srv.port}`);
   expect(await e.listModels()).toEqual([{ id: 'q:1', digest: 'sha256:x', sizeMb: 2 }]);
   let out = '';
-  for await (const d of e.chatStream({ model: 'q:1', messages: [] })) out += d.content ?? '';
+  let usage: unknown;
+  for await (const d of e.chatStream({ model: 'q:1', messages: [] })) {
+    out += d.content ?? '';
+    if (d.usage) usage = d.usage;
+  }
   expect(out).toBe('ab');
+  expect(usage).toEqual({ promptTokens: 11, completionTokens: 2 });
+});
+
+test('ollama engine sends options.num_ctx (model window capped by SPINDLE_NUM_CTX) on every chat', async () => {
+  const seen: Record<string, unknown>[] = [];
+  srv = ollamaServer((b) => seen.push(b));
+  const e = new OllamaEngine(`http://127.0.0.1:${srv.port}`, 8192);
+  expect(await e.contextLength('q:1')).toBe(8192);
+  for await (const _ of e.chatStream({
+    model: 'q:1',
+    max_tokens: 50,
+    temperature: 0.2,
+    stop: 'x',
+    messages: [{ role: 'user', content: 'hi' }],
+  })) {
+  }
+  expect(seen[0]?.options).toEqual({ num_ctx: 8192, num_predict: 50, temperature: 0.2, stop: ['x'] });
+  const e2 = new OllamaEngine(`http://127.0.0.1:${srv.port}`, 65536);
+  expect(await e2.contextLength('q:1')).toBe(32768);
+});
+
+test('ollama engine falls back to 4096 when /api/show has no context length', async () => {
+  srv = ollamaServer(() => {}, null);
+  expect(await new OllamaEngine(`http://127.0.0.1:${srv.port}`, 8192).contextLength('q:1')).toBe(4096);
 });
 
 test('config refuses dev flags on a public host', () => {

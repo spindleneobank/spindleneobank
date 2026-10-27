@@ -18,6 +18,8 @@ export class ModelSync {
   private active = 0;
   /** catalog id -> digest */
   readonly ready = new Map<string, string>();
+  /** catalog id -> served context window (tokens) */
+  readonly contexts = new Map<string, number>();
 
   constructor(private readonly o: ModelSyncOptions) {}
 
@@ -52,6 +54,7 @@ export class ModelSync {
           send({ v: 1, type: 'models.progress', id: m.id, pct: Math.max(0, Math.min(100, pct)) });
         });
         this.ready.set(m.id, digest);
+        this.contexts.set(m.id, await engine.contextLength(m.engineModel).catch(() => 4096));
         log.info(`model ready: ${m.id} (${m.engineModel})`);
       } catch (e) {
         log.error(`failed to ensure model ${m.id} (${m.engineModel}): ${(e as Error).message}`);
@@ -61,6 +64,7 @@ export class ModelSync {
       v: 1,
       type: 'models.ready',
       models: [...this.ready].map(([id, digest]) => ({ id, digest })),
+      contexts: Object.fromEntries(this.contexts),
     });
   }
 }

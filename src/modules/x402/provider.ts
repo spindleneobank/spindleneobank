@@ -11,7 +11,7 @@ import { getRedis } from '../../lib/redis';
 import { HEADER_SESSION } from '../../shared/api/x402';
 import { encodeHeader, X402PaymentResponse } from '../../shared/x402';
 import { dbRef } from '../auth/constants';
-import { buyerIdForAddress } from '../buyers/service';
+import { buyerIdForAddress, refundCharge } from '../buyers/service';
 import {
   API_RATE_LIMIT,
   type Authorization,
@@ -189,6 +189,32 @@ export class X402Provider implements PaymentProvider {
       .returning({ id: x402Payments.id });
     if (upd.length > 0) await noteClosing();
     return charge;
+  }
+
+  /**
+   * A charge `finalize` applied is undone (receipt failed). Session: `used` goes back down while the
+   * session has not settled on-chain; exact: the payment is voided while it has not settled. Once the
+   * payment is `settling`/`settled` on-chain the money has moved, so the payer gets a `refund` credit entry
+   * on their prepaid balance instead.
+   */
+  async reverse(auth: Authorization, chargedMicros: bigint): Promise<void> {
+    const ref = auth.ref as Ref;
+    const id = auth.x402PaymentId as string;
+    const [row] = await dbRef.db.select().from(x402Payments).where(eq(x402Payments.id, id));
+    if (!row) return;
+    const unsettled = row.status === 'open' || row.status === 'closing';
+    if (unsettled && ref.scheme === 'session') {
+      await settleSessionUse(id, 0n, -chargedMicros);
+      return;
+    }
+    if (unsettled) {
+      await dbRef.db
+        .update(x402Payments)
+        .set({ usedMicros: 0n, status: 'expired', closedAt: new Date() })
+        .where(and(eq(x402Payments.id, id), eq(x402Payments.status, row.status)));
+      return;
+    }
+    await refundCharge(auth.buyerId, chargedMicros, auth.jobId);
   }
 
   /**

@@ -62,6 +62,8 @@ export interface StreamArgs {
   lane: 'open' | 'sealed';
   mode: PayMode;
   sessionToken?: string;
+  /** completion budget; the gateway checks prompt + max_tokens against the node's context window */
+  maxTokens?: number;
   signal: AbortSignal;
   onDelta: (content: string, reasoning: string) => void;
 }
@@ -80,7 +82,12 @@ export async function streamChat(a: StreamArgs): Promise<ChatResult> {
     headers['x-spindle-pay'] = 'balance';
     headers['x-spindle'] = '1';
   }
-  const body = { model: a.model, messages: a.messages, stream: true };
+  const body = {
+    model: a.model,
+    messages: a.messages,
+    stream: true,
+    ...(a.maxTokens ? { max_tokens: a.maxTokens } : {}),
+  };
   const res = env.mock
     ? await mockChatCompletion(body, headers, a.signal)
     : await fetch(`${env.apiUrl}/v1/chat/completions`, {

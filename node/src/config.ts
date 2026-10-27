@@ -18,6 +18,8 @@ const EnvSchema = z.object({
   SPINDLE_ENGINE_URL: z.string().url().optional(),
   SPINDLE_VLLM_MODEL: z.string().optional(),
   SPINDLE_MODELS: z.string().optional(),
+  /** Upper bound on the context window an Ollama node serves (RAM grows with it). */
+  SPINDLE_NUM_CTX: z.coerce.number().int().min(512).default(8192),
   SPINDLE_NAME: z.string().optional(),
   SPINDLE_DEV_LAZY: bool,
   SPINDLE_DEV_FAKE_GPU: z
@@ -35,6 +37,7 @@ export interface Config {
   engineUrl: string;
   vllmModel?: string;
   models?: string[];
+  numCtx: number;
   name?: string;
   devLazy: boolean;
   devFakeGpu?: { name: string; vramMb: number };
@@ -87,6 +90,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     models: e.SPINDLE_MODELS?.split(',')
       .map((s) => s.trim())
       .filter(Boolean),
+    numCtx: e.SPINDLE_NUM_CTX,
     name: e.SPINDLE_NAME,
     devLazy: e.SPINDLE_DEV_LAZY,
     devFakeGpu,

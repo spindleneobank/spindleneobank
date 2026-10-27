@@ -97,6 +97,8 @@ async function main(): Promise<void> {
       log.warn(`cannot list engine models: ${(e as Error).message}`);
     }
     if (config.models) models = models.filter((m) => config.models?.includes(m.id));
+    const contexts: Record<string, number> = {};
+    for (const m of models) contexts[m.id] = await engine.contextLength(m.id).catch(() => 4096);
     const hello: HelloBody = {
       v: 1,
       type: 'hello',
@@ -111,6 +113,7 @@ async function main(): Promise<void> {
       models,
       capabilities: engine.images ? ['chat', 'embeddings', 'images'] : ['chat', 'embeddings'],
       capacity: 1,
+      ...(Object.keys(contexts).length ? { contexts } : {}),
     };
     if (config.token) hello.enrollToken = config.token;
     if (sealed) hello.attestation = await sealed.attestForHello();

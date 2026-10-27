@@ -35,4 +35,6 @@ export interface Engine {
   embeddings(req: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown>>;
   images?(req: Record<string, unknown>, signal?: AbortSignal): Promise<{ data: Uint8Array[] }>;
   version(): Promise<string>;
+  /** Context window (tokens) this engine serves for `model`; the hub routes long prompts by it. */
+  contextLength(model: string): Promise<number>;
 }
