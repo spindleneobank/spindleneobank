@@ -1,3 +1,4 @@
+import { env } from '../../../env';
 import { ApiError } from '../../errors';
 import type { MockFixtures } from '../mock';
 import { readMockSession } from './auth';
@@ -342,7 +343,7 @@ export const cardFixtures: MockFixtures = {
       to: `0x${c.repeat(40)}`,
       data: `0x${'ab'.repeat(36)}`,
       value: '0',
-      chainId: 4663,
+      chainId: env.chainId,
     });
     return {
       relayOrderId: `rel_${op.id}`,

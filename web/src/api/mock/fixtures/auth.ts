@@ -1,9 +1,10 @@
 import { parseSiweMessage } from 'viem/siwe';
+import { env } from '../../../env';
 import { ApiError } from '../../errors';
 import type { MockFixtures } from '../mock';
 
 const KEY = 'spindle-mock-session';
-const CHAIN_ID = 4663;
+const CHAIN_ID = env.chainId;
 
 export interface MockSession {
   address: string;

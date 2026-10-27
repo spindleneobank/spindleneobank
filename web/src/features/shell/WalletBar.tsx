@@ -3,7 +3,7 @@ import { CTA } from '../../components/CTA';
 import { useToast } from '../../components/Toast';
 import { chain } from '../../config';
 
-/** Wrong-chain banner: wallet actions stay blocked until the wallet is on Robinhood Chain (4663). */
+/** Wrong-chain banner: wallet actions stay blocked until the wallet is on Robinhood Chain (the configured chain). */
 export function useWrongChain() {
   const { isConnected, chainId } = useAccount();
   return isConnected && chainId !== undefined && chainId !== chain.id;
@@ -23,17 +23,17 @@ export function WrongChainBanner() {
         disabled={isPending}
         onClick={() =>
           void switchChainAsync({ chainId: chain.id }).catch(() =>
-            toast('Could not switch network. Switch to Robinhood Chain in your wallet.', 'error'),
+            toast(`Could not switch network. Switch to ${chain.name} in your wallet.`, 'error'),
           )
         }
       >
-        Switch to Robinhood Chain
+        Switch to {chain.name}
       </CTA>
     </div>
   );
 }
 
-/** Chain status for the crumb bar: ok on 4663, warning otherwise. */
+/** Chain status for the crumb bar: ok on the app chain, warning otherwise. */
 export function ChainStatus() {
   const wrong = useWrongChain();
   return (
