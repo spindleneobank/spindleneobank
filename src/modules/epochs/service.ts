@@ -3,11 +3,12 @@ import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { desc, eq, lt } from 'drizzle-orm';
 import { config } from '../../config';
-import { epochs } from '../../db/schema';
+import { epochs, kv } from '../../db/schema';
 import { AppError } from '../../lib/errors';
 import type { EpochStatus } from '../../shared/enums';
 import { dbRef } from '../auth/constants';
 import { CLAIM_DELAY_MS } from '../metering/service';
+import { ALERT_KEY } from './poster';
 
 export { CLAIM_DELAY_MS };
 
@@ -81,6 +82,14 @@ export async function epochTreePath(epoch: bigint): Promise<string> {
 }
 
 /** Epochs newest first. Cursor is the last epoch number of the previous page. */
+/** Maps the poster's precheck reason to the public "waiting for" code. */
+export function waitingFor(reason: string | undefined): 'settlement' | 'keeper_gas' | 'epoch_cap' | 'other' {
+  if (reason?.startsWith('insolvent')) return 'settlement';
+  if (reason?.startsWith('keeper ETH')) return 'keeper_gas';
+  if (reason?.startsWith('maxEpochIncrease')) return 'epoch_cap';
+  return 'other';
+}
+
 export async function listEpochs(q: { cursor?: string; limit: number }) {
   const rows = await dbRef.db
     .select()
@@ -90,6 +99,8 @@ export async function listEpochs(q: { cursor?: string; limit: number }) {
     .limit(q.limit + 1);
   const page = rows.slice(0, q.limit);
   const last = page[page.length - 1];
+  const [alert] = await dbRef.db.select().from(kv).where(eq(kv.key, ALERT_KEY));
+  const held = alert?.value as { epoch?: string; reason?: string } | undefined;
   return {
     items: page.map((r) => ({
       epoch: Number(r.epoch),
@@ -97,6 +108,10 @@ export async function listEpochs(q: { cursor?: string; limit: number }) {
       totalEarned: r.totalEarnedUsdgMicros.toString(),
       owners: r.owners,
       status: r.status as EpochStatus,
+      waitingFor:
+        r.status === 'failed' && !r.txHash
+          ? waitingFor(held?.epoch === r.epoch.toString() ? held.reason : undefined)
+          : null,
       postedAt: r.postedAt ? r.postedAt.toISOString() : null,
       txHash: r.txHash,
       claimableAt: r.postedAt ? new Date(r.postedAt.getTime() + CLAIM_DELAY_MS).toISOString() : null,

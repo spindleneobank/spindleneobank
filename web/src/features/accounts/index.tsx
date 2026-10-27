@@ -180,6 +180,20 @@ function Series() {
   );
 }
 
+const WAITING: Record<string, string> = {
+  settlement: 'Waiting for settlement',
+  keeper_gas: 'Waiting for keeper gas',
+  epoch_cap: 'Waiting: above the per-epoch cap',
+  other: 'Waiting to post',
+};
+
+/** Not-yet-posted epochs: a held-back root (status failed, no tx) is retried every minute, so say what it waits for. */
+function epochState(e: { status: string; txHash: string | null; waitingFor?: string | null }): string {
+  if (e.status === 'failed' && !e.txHash) return WAITING[e.waitingFor ?? 'other'] ?? 'Waiting to post';
+  if (e.status === 'built' || e.status === 'posting') return 'Posting…';
+  return e.status;
+}
+
 function Epochs() {
   const epochs = useEpochs();
   const claims = useClaims();
@@ -200,7 +214,11 @@ function Epochs() {
               cols={[
                 { key: 'e', header: 'Epoch', render: (e) => `#${e.epoch}` },
                 { key: 'r', header: 'Root', render: (e) => <code>{shortHash(e.root)}</code> },
-                { key: 'p', header: 'Posted', render: (e) => (e.postedAt ? fmtTime(e.postedAt) : e.status) },
+                {
+                  key: 'p',
+                  header: 'Posted',
+                  render: (e) => (e.postedAt ? fmtTime(e.postedAt) : epochState(e)),
+                },
                 {
                   key: 'tx',
                   header: 'Transaction',

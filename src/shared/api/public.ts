@@ -49,6 +49,8 @@ export const EpochListItem = z.object({
   totalEarned: MicrosString,
   owners: z.number().int(),
   status: z.enum(EpochStatus),
+  /** Why a not-yet-broadcast root is held back (status `failed`, no tx); the poster retries every minute. */
+  waitingFor: z.enum(['settlement', 'keeper_gas', 'epoch_cap', 'other']).nullable().optional(),
   postedAt: IsoTime.nullable(),
   txHash: TxHash.nullable(),
   claimableAt: IsoTime.nullable(),

@@ -26,7 +26,7 @@ import {
   postPending,
 } from './poster';
 import epochRoutes from './routes';
-import { epochSettings } from './service';
+import { epochSettings, listEpochs, waitingFor } from './service';
 
 let t: TestDb;
 const addr = () => privateKeyToAccount(generatePrivateKey()).address.toLowerCase() as Hex;
@@ -267,6 +267,18 @@ describe('poster', () => {
       expect((await t.db.select().from(auditLog)).length).toBe(1);
     });
   }
+
+  test('a held-back root lists what it waits for', async () => {
+    await built();
+    const { deps } = mkDeps(mkChain({ poolBalance: async () => 0n }).chain);
+    expect((await postEpoch(100n, deps)).kind).toBe('failed');
+    const [item] = (await listEpochs({ limit: 10 })).items;
+    expect(item?.status).toBe('failed');
+    expect(item?.waitingFor).toBe('settlement');
+    expect(waitingFor('keeper ETH below critical')).toBe('keeper_gas');
+    expect(waitingFor('maxEpochIncrease exceeded; post in steps')).toBe('epoch_cap');
+    expect(waitingFor(undefined)).toBe('other');
+  });
 
   test('total below the previous on-chain root fails', async () => {
     await built(1000n);
