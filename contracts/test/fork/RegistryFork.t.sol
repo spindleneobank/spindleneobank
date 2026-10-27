@@ -25,7 +25,7 @@ contract RegistryForkTest is Test {
         assertEq(block.chainid, 4663);
         SpindleRegistry reg = new SpindleRegistry(IDENTITY);
         MockERC20 spdl = new MockERC20("Spindle", "SPDL", 18);
-        SpindleStaking st = new SpindleStaking(spdl, reg, address(0x51), address(0x52), 1e18, 2e18, 3e18, 4e18);
+        SpindleStaking st = new SpindleStaking(spdl, reg, address(0x51), address(0x52), 5e17, 1e18, 2e18, 3e18, 4e18);
 
         address owner = makeAddr("owner");
         uint256 pk = uint256(keccak256("fork-node-key"));

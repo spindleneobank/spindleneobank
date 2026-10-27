@@ -101,7 +101,7 @@ contract StakingInvariantTest is StdInvariant, Test {
         spdl = new MockERC20("Spindle", "SPDL", 18);
         SpindleRegistry reg = new SpindleRegistry(address(new MockIdentity()));
         address slasher = makeAddr("slasher");
-        st = new SpindleStaking(spdl, reg, slasher, makeAddr("sink"), 1e18, 2e18, 3e18, 4e18);
+        st = new SpindleStaking(spdl, reg, slasher, makeAddr("sink"), 5e17, 1e18, 2e18, 3e18, 4e18);
         h = new StakingHandler(reg, st, spdl, slasher);
         targetContract(address(h));
     }

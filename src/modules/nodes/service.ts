@@ -172,7 +172,7 @@ export async function stakingParams(force = false): Promise<StakingParams> {
     // Redis unavailable: fall through to the chain
   }
   const staking = requireAddress('staking');
-  const classes = [1, 2, 3, 4] as const;
+  const classes = [0, 1, 2, 3, 4] as const;
   const [token, delay, ...mins] = await Promise.all([
     publicClient.readContract({ address: staking, abi: spindleStakingAbi, functionName: 'spdl' }),
     publicClient.readContract({ address: staking, abi: spindleStakingAbi, functionName: 'UNSTAKE_DELAY' }),
@@ -185,7 +185,7 @@ export async function stakingParams(force = false): Promise<StakingParams> {
       }),
     ),
   ]);
-  const minStakeByClass: Record<string, string> = { '0': '0' };
+  const minStakeByClass: Record<string, string> = {};
   classes.forEach((c, i) => {
     minStakeByClass[String(c)] = String(mins[i]);
   });

@@ -13,7 +13,7 @@ import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {RelayStubDepository} from "../src/dev/RelayStubDepository.sol";
 
 /// @notice Deploys Registry -> Staking -> Claims -> Vault. Env: USDG, PERMIT2, SPDL, ERC8004_IDENTITY,
-/// TREASURY, KEEPER, GUARDIAN, SLASHER, SLASH_RECIPIENT, MIN_STAKE_1..4, MAX_EPOCH_INCREASE, CLAIM_DELAY,
+/// TREASURY, KEEPER, GUARDIAN, SLASHER, SLASH_RECIPIENT, MIN_STAKE_0..4, MAX_EPOCH_INCREASE, CLAIM_DELAY,
 /// optional DEPLOY_DEV_STUBS (MockERC20 SPDL if unset + RelayStubDepository), FORK, ALLOW_MAINNET, COMMIT.
 contract Deploy is Script {
     struct Params {
@@ -55,7 +55,8 @@ contract Deploy is Script {
         p.slashRecipient = vm.envOr("SLASH_RECIPIENT", p.treasury);
         p.maxEpochIncrease = vm.envOr("MAX_EPOCH_INCREASE", uint256(5_000e6));
         p.claimDelay = uint64(vm.envOr("CLAIM_DELAY", uint256(3600)));
-        uint256[4] memory mins = [
+        uint256[5] memory mins = [
+            vm.envOr("MIN_STAKE_0", uint256(100e18)),
             vm.envOr("MIN_STAKE_1", uint256(1_000e18)),
             vm.envOr("MIN_STAKE_2", uint256(5_000e18)),
             vm.envOr("MIN_STAKE_3", uint256(25_000e18)),
@@ -79,7 +80,8 @@ contract Deploy is Script {
                 mins[0],
                 mins[1],
                 mins[2],
-                mins[3]
+                mins[3],
+                mins[4]
             )
         );
         claims = address(new SpindleClaims(IERC20(p.usdg), p.keeper, p.guardian, p.maxEpochIncrease, p.claimDelay));
@@ -89,7 +91,7 @@ contract Deploy is Script {
         _write(p, mins, deployBlock, isFork);
     }
 
-    function _write(Params memory p, uint256[4] memory mins, uint256 deployBlock, bool isFork) private {
+    function _write(Params memory p, uint256[5] memory mins, uint256 deployBlock, bool isFork) private {
         string memory a = "addresses";
         vm.serializeAddress(a, "usdg", p.usdg);
         vm.serializeAddress(a, "permit2", p.permit2);
@@ -109,10 +111,11 @@ contract Deploy is Script {
         vm.serializeAddress(g, "slashRecipient", p.slashRecipient);
         vm.serializeUint(g, "maxEpochIncrease", p.maxEpochIncrease);
         vm.serializeUint(g, "claimDelay", p.claimDelay);
-        vm.serializeUint(g, "minStake1", mins[0]);
-        vm.serializeUint(g, "minStake2", mins[1]);
-        vm.serializeUint(g, "minStake3", mins[2]);
-        string memory argsJson = vm.serializeUint(g, "minStake4", mins[3]);
+        vm.serializeUint(g, "minStake0", mins[0]);
+        vm.serializeUint(g, "minStake1", mins[1]);
+        vm.serializeUint(g, "minStake2", mins[2]);
+        vm.serializeUint(g, "minStake3", mins[3]);
+        string memory argsJson = vm.serializeUint(g, "minStake4", mins[4]);
 
         string memory root = "deployment";
         vm.serializeUint(root, "chainId", block.chainid);

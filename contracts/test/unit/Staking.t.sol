@@ -22,7 +22,7 @@ contract StakingTest is Test {
     function setUp() public {
         spdl = new MockERC20("Spindle", "SPDL", 18);
         reg = new SpindleRegistry(address(new MockIdentity()));
-        st = new SpindleStaking(spdl, reg, slasher, sink, 1000e18, 2500e18, 10_000e18, 25_000e18);
+        st = new SpindleStaking(spdl, reg, slasher, sink, 100e18, 1000e18, 2500e18, 10_000e18, 25_000e18);
         nid = _register(alice, 2);
         spdl.mint(alice, 1_000_000e18);
         vm.prank(alice);
@@ -187,11 +187,12 @@ contract StakingTest is Test {
     }
 
     function test_meetsMinimum_perClass() public {
-        assertEq(st.minStake(0), 0);
+        assertEq(st.minStake(0), 100e18);
         assertEq(st.minStake(1), 1000e18);
         assertEq(st.minStake(2), 2500e18);
         assertEq(st.minStake(3), 10_000e18);
         assertEq(st.minStake(4), 25_000e18);
+        assertEq(st.minStake(5), type(uint256).max); // out of range never qualifies
         assertFalse(st.meetsMinimum(nid));
         vm.startPrank(alice);
         st.stake(nid, 2500e18);
@@ -199,6 +200,11 @@ contract StakingTest is Test {
         st.beginUnstake(nid, 1);
         assertFalse(st.meetsMinimum(nid)); // only active counts
         vm.stopPrank();
+    }
+
+    function test_constructor_rejectsZeroMinimum() public {
+        vm.expectRevert(ISpindleStaking.ZeroAmount.selector);
+        new SpindleStaking(spdl, reg, slasher, sink, 0, 1000e18, 2500e18, 10_000e18, 25_000e18);
     }
 
     function testFuzz_stakeUnstake(uint96 amount) public {

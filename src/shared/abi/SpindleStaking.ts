@@ -24,6 +24,11 @@ export const spindleStakingAbi = [
         internalType: 'address',
       },
       {
+        name: 'minStake0',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
         name: 'minStake1',
         type: 'uint256',
         internalType: 'uint256',

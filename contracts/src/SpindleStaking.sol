@@ -19,6 +19,7 @@ contract SpindleStaking is ISpindleStaking, ReentrancyGuardTransient {
     ISpindleRegistry public immutable registry;
     address public immutable slasher;
     address public immutable slashRecipient;
+    uint256 private immutable _min0;
     uint256 private immutable _min1;
     uint256 private immutable _min2;
     uint256 private immutable _min3;
@@ -37,6 +38,7 @@ contract SpindleStaking is ISpindleStaking, ReentrancyGuardTransient {
         ISpindleRegistry registry_,
         address slasher_,
         address slashRecipient_,
+        uint256 minStake0,
         uint256 minStake1,
         uint256 minStake2,
         uint256 minStake3,
@@ -46,6 +48,9 @@ contract SpindleStaking is ISpindleStaking, ReentrancyGuardTransient {
         registry = registry_;
         slasher = slasher_;
         slashRecipient = slashRecipient_;
+        // a zero minimum would put unstaked nodes in the priority tier
+        if (minStake0 == 0 || minStake1 == 0 || minStake2 == 0 || minStake3 == 0 || minStake4 == 0) revert ZeroAmount();
+        _min0 = minStake0;
         _min1 = minStake1;
         _min2 = minStake2;
         _min3 = minStake3;
@@ -122,14 +127,15 @@ contract SpindleStaking is ISpindleStaking, ReentrancyGuardTransient {
         return (s.active, s.pending, s.unlockAt);
     }
 
-    /// @notice Priority-tier stake minimum for a GPU class (0 for class 0 or out of range).
+    /// @notice Priority-tier stake minimum for a GPU class (unreachable for an out-of-range class).
     /// @param gpuClass class 0..4
     function minStake(uint8 gpuClass) public view returns (uint256) {
+        if (gpuClass == 0) return _min0;
         if (gpuClass == 1) return _min1;
         if (gpuClass == 2) return _min2;
         if (gpuClass == 3) return _min3;
         if (gpuClass == 4) return _min4;
-        return 0;
+        return type(uint256).max;
     }
 
     /// @notice True when active stake >= the node's class minimum (the "staked" tier).

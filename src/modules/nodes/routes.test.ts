@@ -31,7 +31,7 @@ beforeAll(async () => {
   nodeSettings.apiUrl = 'https://api.example';
   setStakingParamsForTest({
     token: '0x00000000000000000000000000000000000000c3',
-    minStakeByClass: { '0': '0', '1': '100', '2': '200' },
+    minStakeByClass: { '0': '50', '1': '100', '2': '200' },
     unstakeDelay: 604800,
   });
   await nodeHub.start({ redis: false });
