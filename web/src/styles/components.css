@@ -890,3 +890,10 @@
 .sp-placeholder h1 {
   font-size: var(--sp-text-hero);
 }
+/* tiny amounts (0.0₅3): the subscript counts the zeros after "0.0" */
+.sp-money-tiny sub {
+  font-size: 0.7em;
+  line-height: 0;
+  vertical-align: -0.25em;
+  margin: 0 0.05em;
+}
