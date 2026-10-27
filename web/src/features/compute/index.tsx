@@ -10,6 +10,7 @@ import { NodeDialog } from './NodeDialog';
 import { NodeTable } from './NodeTable';
 import { PairBox, PairDialog } from './Pair';
 import { useNodes } from './queries';
+import { StakeTiers } from './StakeTiers';
 
 /** `?pair=ABCD-EFGH` (from the node's printed link) opens the approve dialog once. */
 function initialPairCode(): string | null {
@@ -89,11 +90,7 @@ export default function ComputeTab() {
           </EmptyState>
         ) : null}
         {list.length > 0 ? <NodeTable nodes={list} onOpen={setOpenId} /> : null}
-        <p className="cp-note" role="note">
-          Staking SPDL is optional. Staked nodes (at or above their class minimum) are the priority tier;
-          registered nodes without stake serve jobs when no staked node is free. The share and claim timing
-          are the same.
-        </p>
+        {nodes.data ? <StakeTiers nodes={list} /> : null}
       </section>
 
       <PairDialog

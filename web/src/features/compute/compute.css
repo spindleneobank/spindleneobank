@@ -452,3 +452,123 @@
     justify-content: flex-start;
   }
 }
+
+/* Stake tiers (per-class priority minimum + the user's nodes' progress) */
+.cp-tiers {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  min-width: 0;
+}
+.cp-tiers-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+.cp-tiers-head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #55424f;
+}
+.cp-tier-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.cp-tier-table th,
+.cp-tier-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--cp-line);
+}
+.cp-tier-table thead th {
+  font-family: var(--sp-font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sp-ink-muted);
+  background: var(--sp-paper-2);
+}
+.cp-tier-table tbody th {
+  font-weight: 400;
+  color: var(--sp-ink-2);
+  white-space: nowrap;
+}
+.cp-tier-table tbody td:nth-child(2) {
+  white-space: nowrap;
+  color: var(--sp-ink);
+}
+.cp-tier-table tr[data-mine] {
+  background: #fdf3ee;
+}
+.cp-tier-nodes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.cp-tier-node {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.cp-tier-node-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+}
+.cp-tier-node-name {
+  color: var(--sp-ink);
+  overflow-wrap: anywhere;
+}
+.cp-tier-node-amt {
+  color: var(--sp-ink-3);
+  white-space: nowrap;
+}
+.cp-tier-bar {
+  height: 6px;
+  background: var(--sp-paper-3);
+  overflow: hidden;
+}
+.cp-tier-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--sp-accent-soft);
+  transition: width 0.4s cubic-bezier(0.44, 0, 0.56, 1);
+}
+.cp-tier-bar > span[data-done] {
+  background: var(--sp-accent-ember);
+}
+@media (max-width: 809.98px) {
+  .cp-tier-table thead {
+    display: none;
+  }
+  .cp-tier-table,
+  .cp-tier-table tbody,
+  .cp-tier-table tr,
+  .cp-tier-table th,
+  .cp-tier-table td {
+    display: block;
+    width: 100%;
+  }
+  .cp-tier-table tr {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--cp-line);
+  }
+  .cp-tier-table th,
+  .cp-tier-table td {
+    padding: 2px 4px;
+    border-bottom: 0;
+  }
+  .cp-tier-table tbody td:nth-child(2)::before {
+    content: "Priority minimum: ";
+    color: var(--sp-ink-muted);
+  }
+}
