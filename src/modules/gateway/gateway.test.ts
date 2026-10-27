@@ -259,6 +259,58 @@ describe('admission order', () => {
   });
 });
 
+describe('context window (FX3)', () => {
+  // no tokenizer in tests: chars/3 estimate, so 18_000 chars is about 6_000 prompt tokens
+  const long = (chars: number) => ({
+    ...chatBody,
+    messages: [{ role: 'user' as const, content: 'word '.repeat(Math.ceil(chars / 5)) }],
+  });
+
+  test('prompt + max_tokens over every node window -> 400 context_length_exceeded, nothing reserved or charged', async () => {
+    await spawnNode({ onJob: streams(['x']), context: 4096 });
+    const res = await post('/v1/chat/completions', long(18_000));
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string; type: string; message: string } };
+    expect(body.error.code).toBe('context_length_exceeded');
+    expect(body.error.type).toBe('invalid_request_error');
+    expect(body.error.message).toContain('maximum context length is 4096 tokens');
+    expect(await balance()).toEqual({ balance: 1_000_000n, reserved: 0n });
+    expect(await t.db.select().from(jobs)).toHaveLength(0);
+    expect(await t.db.select().from(buyerLedger).where(eq(buyerLedger.kind, 'charge'))).toHaveLength(0);
+  });
+
+  test('old agents (no contexts in hello) are assumed to serve 4096', async () => {
+    await spawnNode({ onJob: streams(['x']) });
+    expect((await post('/v1/chat/completions', long(18_000))).status).toBe(400);
+    expect((await post('/v1/chat/completions', chatBody)).status).toBe(200);
+  });
+
+  test('a long prompt is routed to the node whose window fits it', async () => {
+    const small = await spawnNode({ onJob: streams(['small']), context: 4096 }, { staked: true });
+    const big = await spawnNode({ onJob: streams(['big']), context: 16384 });
+    const res = await post('/v1/chat/completions', long(18_000));
+    expect(res.status).toBe(200);
+    await waitFor(settled);
+    expect((await lastJob())?.nodeId).toBe(big.id);
+    expect((await lastJob())?.nodeId).not.toBe(small.id);
+  });
+
+  test('x402 bare request gets the context error, not a payment challenge', async () => {
+    await spawnNode({ onJob: streams(['x']), context: 4096 });
+    const res = await post('/v1/chat/completions', long(18_000), {}, null);
+    expect([400, 401]).toContain(res.status);
+  });
+
+  test('GET /v1/models exposes the largest served context among online nodes', async () => {
+    await spawnNode({ onJob: streams(['x']), context: 4096 });
+    await spawnNode({ onJob: streams(['x']), context: 16384 });
+    const res = (await (await fetch(`${base}/v1/models`)).json()) as {
+      data: { id: string; context_length: number }[];
+    };
+    expect(res.data.find((d) => d.id === 'qwen2.5:7b')?.context_length).toBe(16384);
+  });
+});
+
 describe('chat', () => {
   test('streams through the openai SDK and settles the exact charge', async () => {
     await spawnNode({ onJob: streams(['he', 'llo']) });

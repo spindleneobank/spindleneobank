@@ -10,6 +10,8 @@ export interface ScheduleRequest {
   kind: JobKind;
   /** Catalog minimum VRAM for the model; nodes with a known, smaller VRAM are excluded. */
   minVramMb?: number;
+  /** Prompt + completion tokens the request needs; nodes serving a smaller context are excluded (FX3). */
+  minContext?: number;
   /** Node ids that already failed this request. */
   exclude?: ReadonlySet<string>;
 }
@@ -100,7 +102,8 @@ export async function rank(
   const raw: NodeCandidate[] = [];
   for (const lane of lanes) {
     for (const c of deps.candidates({ model: req.model, lane, kind: req.kind })) {
-      if (!req.exclude?.has(c.nodeId) && c.registered) raw.push(c);
+      if (!req.exclude?.has(c.nodeId) && c.registered && c.contextTokens >= (req.minContext ?? 0))
+        raw.push(c);
     }
   }
   if (raw.length === 0) return [];

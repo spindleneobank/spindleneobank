@@ -37,9 +37,31 @@ export interface GatewayRequest {
   /** job.start.maxTokens (chat max_tokens, else 0) */
   maxTokens: number;
   estimate: MaxChargeEstimate;
+  /**
+   * Chat: gateway-recounted prompt tokens + max_tokens. Only nodes serving at least this context are
+   * routed to, so an engine never silently truncates the prompt (FX3).
+   */
+  contextNeeded?: number;
   /** chat messages / embeddings input kept for recounts */
   messages?: { role: string; content: unknown }[];
   inputs?: string[];
+}
+
+/** OpenAI-compatible 400 `context_length_exceeded` (no reservation or payment challenge precedes it). */
+export function contextLengthError(
+  model: string,
+  maxContext: number,
+  promptTokens: number,
+  maxTokens: number,
+): AppError {
+  return new AppError(
+    'VALIDATION',
+    `This model's maximum context length is ${maxContext} tokens. However, you requested about ${
+      promptTokens + maxTokens
+    } tokens (${promptTokens} in the messages, ${maxTokens} in the completion). Please reduce the length of the messages or max_tokens.`,
+    400,
+    { openaiCode: 'context_length_exceeded', model, maxContext, promptTokens, maxTokens },
+  );
 }
 
 export async function resolveModel(id: string, kind: JobKind, lane: Lane): Promise<CatalogModel> {
@@ -108,11 +130,66 @@ export async function settleJob(jobId: string, chargeMicros: bigint): Promise<bi
     throw new Error(`payment provider '${auth.provider}' is not registered`);
   }
   try {
-    return await provider.finalize(auth, chargeMicros);
+    const charged = await provider.finalize(auth, chargeMicros);
+    if (charged > 0n) await rememberCharge(auth, charged);
+    return charged;
   } catch (err) {
     await rememberAuth(auth); // keep the reservation recoverable
     throw err;
   }
+}
+
+// ---- charge records (so a failed receipt can reverse an already-applied charge) ------------------------
+
+const CHARGE_TTL_SEC = 7 * 24 * 3600;
+export const chargeKey = (jobId: string) => `gw:charged:${jobId}`;
+const chargedLocal = new Map<string, string>();
+
+async function rememberCharge(auth: Authorization, charged: bigint): Promise<void> {
+  const v = JSON.stringify({ auth: serializeAuth(auth), charged: charged.toString() });
+  chargedLocal.set(auth.jobId, v);
+  try {
+    await getRedis().set(chargeKey(auth.jobId), v, 'EX', CHARGE_TTL_SEC);
+    chargedLocal.delete(auth.jobId);
+  } catch (err) {
+    logger.warn({ err: String(err) }, 'could not persist charge record; keeping it in memory');
+  }
+}
+
+/**
+ * Undo the charge `settleJob` applied for this job (its receipt failed verification), through the payment
+ * provider: prepaid gets a credit + `refund` ledger row, an x402 session gets its `used` reduced, an
+ * unsettled exact payment is voided, and an x402 payment already settled on-chain stays settled and the
+ * payer is credited on their prepaid balance. Idempotent: the record is taken atomically, so only one
+ * caller reverses. Returns the amount reversed (0n when nothing was charged).
+ */
+export async function reverseCharge(jobId: string): Promise<bigint> {
+  let raw: string | null = null;
+  try {
+    raw = await getRedis().getdel(chargeKey(jobId));
+  } catch {
+    // Redis down: fall back to the in-memory copy
+  }
+  if (!raw) {
+    raw = chargedLocal.get(jobId) ?? null;
+  }
+  chargedLocal.delete(jobId);
+  if (!raw) return 0n;
+  const rec = JSON.parse(raw) as { auth: string; charged: string };
+  const auth = parseAuth(rec.auth);
+  const charged = BigInt(rec.charged);
+  const provider = getPaymentProvider(auth.provider);
+  if (!provider?.reverse) {
+    logger.error({ jobId, provider: auth.provider }, 'payment provider cannot reverse a charge');
+    return 0n;
+  }
+  try {
+    await provider.reverse(auth, charged);
+  } catch (err) {
+    await rememberCharge(auth, charged); // keep it recoverable
+    throw err;
+  }
+  return charged;
 }
 
 /** Drop a job's reservation without charging (failure, timeout, rejected receipt). Idempotent. */
@@ -223,6 +300,7 @@ export class JobRun {
           lane: this.req.lane,
           kind: this.req.kind,
           minVramMb: this.req.model.minVramMb,
+          ...(this.req.contextNeeded ? { minContext: this.req.contextNeeded } : {}),
           exclude: tried,
         })
       ).filter((c) => this.rates.has(c.gpuClass));
@@ -310,9 +388,19 @@ export async function checkCapacity(
     const r = await buyerRate(cls, req.lane, unit, day);
     if (r) rates.set(cls, r);
   }
-  const usable = ranked.filter((c) => rates.has(c.gpuClass));
+  let usable = ranked.filter((c) => rates.has(c.gpuClass));
   if (usable.length === 0)
     throw new AppError('NO_CAPACITY', 'No node is available for this model right now.');
+  if (req.contextNeeded) {
+    const needed = req.contextNeeded;
+    const fitting = usable.filter((c) => c.contextTokens >= needed);
+    if (fitting.length === 0) {
+      const max = Math.max(...usable.map((c) => c.contextTokens));
+      const maxTokens = req.maxTokens;
+      throw contextLengthError(req.model.id, max, Math.max(0, needed - maxTokens), maxTokens);
+    }
+    usable = fitting;
+  }
   return { ranked: usable, rates };
 }
 
@@ -538,6 +626,8 @@ export interface ModelListing {
   model: CatalogModel;
   available: boolean;
   buyerMicrosPerUnit: bigint;
+  /** Largest context (tokens) served by an online node for this model. */
+  contextLength: number;
 }
 
 export async function listModels(): Promise<ModelListing[]> {
@@ -556,6 +646,8 @@ export async function listModels(): Promise<ModelListing[]> {
   for (const model of catalog) {
     let serving = false;
     let available = false;
+    let ctxAll = 0;
+    let ctxRegistered = 0;
     for (const lane of model.lanes) {
       for (const c of nodeHub.candidates({
         model: model.id,
@@ -564,7 +656,11 @@ export async function listModels(): Promise<ModelListing[]> {
         includeUnregistered: true,
       })) {
         serving = true;
-        if (c.registered) available = true;
+        ctxAll = Math.max(ctxAll, c.contextTokens);
+        if (c.registered) {
+          available = true;
+          ctxRegistered = Math.max(ctxRegistered, c.contextTokens);
+        }
       }
     }
     if (!serving) continue;
@@ -572,7 +668,7 @@ export async function listModels(): Promise<ModelListing[]> {
       .filter((m) => model.lanes.includes(m.lane as Lane) && m.unitKind === unitKindFor(model.kind))
       .map((m) => BigInt(m.min));
     const min = prices.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0] ?? 0n;
-    out.push({ model, available, buyerMicrosPerUnit: min });
+    out.push({ model, available, buyerMicrosPerUnit: min, contextLength: ctxRegistered || ctxAll });
   }
   return out;
 }

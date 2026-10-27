@@ -11,6 +11,7 @@ import { nodeBindingTypedData } from '../../shared/binding';
 import { fitModels } from '../../shared/catalog';
 import {
   CLOSE_CODES,
+  DEFAULT_CONTEXT_TOKENS,
   type EligibilityMsg,
   type HelloBody,
   helloSigningMessage,
@@ -104,6 +105,8 @@ export interface Session {
   node?: NodeRow;
   /** catalog ids whose models.ready was reported (cumulative). */
   models: Set<string>;
+  /** Served context window (tokens) per catalog id; missing = DEFAULT_CONTEXT_TOKENS (FX3). */
+  contexts: Map<string, number>;
   /** catalog ids sent in models.ensure; models.ready outside this set is ignored. */
   ensured: Set<string>;
   inflight: Map<string, JobCtx>;
@@ -133,6 +136,8 @@ export interface NodeCandidate {
   inflight: number;
   capacity: number;
   lastSeen: number;
+  /** Context window (tokens) this node serves for the filtered model. */
+  contextTokens: number;
 }
 
 export interface CandidateFilter {
@@ -249,6 +254,7 @@ export class NodeHub {
       nonce: randomBytes(24).toString('base64url'),
       openedAt: Date.now(),
       models: new Set(),
+      contexts: new Map(),
       ensured: new Set(),
       inflight: new Map(),
       probes: new Map(),
@@ -546,6 +552,8 @@ export class NodeHub {
     for (const m of hello.models) {
       const id = catalogIdForEngineModel(catalog, hello.engine, m.id);
       if (id && s.ensured.has(id)) s.models.add(id);
+      const ctx = hello.contexts?.[m.id];
+      if (id && ctx) s.contexts.set(id, ctx);
     }
     const deadline = Math.floor(Date.now() / 1000) + nodeSettings.bindingValiditySec;
     const binding = this.bindingFor(s, node, deadline);
@@ -690,6 +698,7 @@ export class NodeHub {
     if (ignored.length > 0)
       logger.warn({ nodeId: s.node?.id, ignored }, 'models.ready outside the ensure set ignored');
     s.models = new Set(accepted.map((m) => m.id)); // cumulative
+    for (const [id, n] of Object.entries(msg.contexts ?? {})) if (s.ensured.has(id)) s.contexts.set(id, n);
     await this.persistModels(s, accepted);
   }
 
@@ -777,6 +786,7 @@ export class NodeHub {
         inflight: s.inflight.size,
         capacity: hello.capacity,
         lastSeen: s.lastSeen,
+        contextTokens: s.contexts.get(filter.model) ?? DEFAULT_CONTEXT_TOKENS,
       });
     }
     return out;

@@ -39,6 +39,8 @@ export interface FakeNodeOpts {
   token?: string;
   gpu?: { name: string; vramMb: number; cc?: boolean };
   models?: string[];
+  /** served context window reported for every model (omitted = an agent that predates FX3) */
+  context?: number;
   agentVersion?: string;
   capacity?: number;
   key?: `0x${string}`;
@@ -72,6 +74,9 @@ export function fakeNode(o: FakeNodeOpts): FakeNode {
     models: (o.models ?? []).map((id) => ({ id, digest: `sha256:${id}`, sizeMb: 100 })),
     capabilities: ['chat', 'embeddings'],
     capacity: o.capacity ?? 1,
+    ...(o.context
+      ? { contexts: Object.fromEntries((o.models ?? []).map((id) => [id, o.context as number])) }
+      : {}),
     ...(o.token ? { enrollToken: o.token } : {}),
   };
   const node: FakeNode = {
