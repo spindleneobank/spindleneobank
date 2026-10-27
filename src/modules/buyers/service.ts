@@ -1,7 +1,7 @@
 import { erc20Abi } from '@spindle/shared/abi';
 import { and, desc, eq, gt, gte, lt, or, sql } from 'drizzle-orm';
 import type { Address } from 'viem';
-import { charge, ensureBuyer, release as releaseDb, reserve as reserveDb } from '../../db/balances';
+import { charge, ensureBuyer, refund, release as releaseDb, reserve as reserveDb } from '../../db/balances';
 import { buyerLedger, jobs } from '../../db/schema';
 import { requireAddress } from '../../lib/contracts';
 import { AppError } from '../../lib/errors';
@@ -36,6 +36,19 @@ export async function settleCharge(
   const final = chargeMicros > reservedMicros ? reservedMicros : chargeMicros;
   await dbRef.db.transaction((tx) => charge(tx, { buyerId, reservedMicros, chargeMicros: final, jobId }));
   return final;
+}
+
+/** Credit a settled charge back (failed receipt). Skips when this job already has a refund row. */
+export async function refundCharge(buyerId: string, micros: bigint, jobId: string): Promise<void> {
+  await dbRef.db.transaction(async (tx) => {
+    const [done] = await tx
+      .select({ id: buyerLedger.id })
+      .from(buyerLedger)
+      .where(and(eq(buyerLedger.jobId, jobId), eq(buyerLedger.kind, 'refund')))
+      .limit(1);
+    if (done) return;
+    await refund(tx, { buyerId, micros, jobId });
+  });
 }
 
 /** Give back an unused reservation. */

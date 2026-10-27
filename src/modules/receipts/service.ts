@@ -10,7 +10,7 @@ import { dbRef } from '../auth/constants';
 import { type CanaryFinished, onCanaryFinished } from '../canary/hooks';
 import { actualCharge, buyerRate, type Usage, unitKindFor, utcDay } from '../gateway/pricing';
 import { billableMs, gpuHourMicros } from '../gateway/sealed';
-import { registerJobFinishedHandler, releaseJob, settleJob } from '../gateway/service';
+import { registerJobFinishedHandler, releaseJob, reverseCharge, settleJob } from '../gateway/service';
 import { type VerifyResult, verifyJobReceipt, withinTolerance } from './verify';
 
 /** Provider share of every verified charge, in basis points. */
@@ -22,10 +22,11 @@ export const REPUTATION_OK_DELTA = 1;
 
 export const receiptSettings = {
   /**
-   * task B7 step 2: a failed receipt still bills the gateway-recounted usage (the buyer got the output)
-   * and pays nobody. Set false to release without charging instead.
+   * FX3: a failed receipt never costs the buyer anything (and pays nobody): the reservation is released,
+   * or a charge that was already applied is reversed. Set true to bill the gateway-recounted usage instead
+   * (the old B7 behaviour).
    */
-  chargeOnFailure: true,
+  chargeOnFailure: false,
 };
 
 interface Counts {
@@ -163,7 +164,9 @@ export const onJobFinished: OnJobFinished = async (jobId, done, view) => {
         keepEarning = fromLedger > 0n;
       }
     } else {
-      await releaseJob(jobId);
+      const released = await releaseJob(jobId);
+      // the reservation was already settled elsewhere (reaper) and the receipt failed: undo that charge
+      if (!released && !v.verified && !free) await reverseCharge(jobId);
     }
 
     // ---- earnings: verified, non-canary, non-probe only ----

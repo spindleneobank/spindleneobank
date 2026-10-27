@@ -71,6 +71,23 @@ export async function charge(
   await tx.insert(buyerLedger).values({ buyerId, kind: 'charge', usdgMicros: -chargeMicros, jobId });
 }
 
+/** Credit a charge back to the buyer: `balance += micros` and a positive `refund` ledger row for the job. */
+export async function refund(
+  tx: Tx,
+  args: { buyerId: string; micros: bigint; jobId: string },
+): Promise<void> {
+  const { buyerId, micros, jobId } = args;
+  if (micros <= 0n) return;
+  await tx
+    .update(buyerBalances)
+    .set({
+      balanceUsdgMicros: sql`${buyerBalances.balanceUsdgMicros} + ${micros}`,
+      updatedAt: sql`now()`,
+    })
+    .where(eq(buyerBalances.buyerId, buyerId));
+  await tx.insert(buyerLedger).values({ buyerId, kind: 'refund', usdgMicros: micros, jobId });
+}
+
 /** Idempotent deposit credit keyed on (txHash, logIndex). Returns true when newly credited. */
 export async function credit(
   tx: Tx,

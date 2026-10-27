@@ -13,7 +13,7 @@ import {
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
 import { config } from '../../config';
-import { x402Payments } from '../../db/schema';
+import { buyerLedger, x402Payments } from '../../db/schema';
 import type { X402Payment } from '../../db/types';
 import { AppError } from '../../lib/errors';
 import type { Env } from '../../lib/http';
@@ -458,6 +458,30 @@ describe('sessions', () => {
     expect(row).toMatchObject({ usedMicros: 993_000n, status: 'closing' });
     const next = (await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(1n))) as Challenge;
     expect(JSON.stringify(next.body)).toMatch(/SESSION_CLOSED|SESSION_EXHAUSTED/);
+  });
+
+  test('reverse (failed receipt): a session gives the charge back; a settled payment becomes a credit entry', async () => {
+    const { o } = await open();
+    const a = (await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(500_000n))) as Authorization;
+    await x402Provider.finalize(a, 123_000n);
+    expect((await rows())[0]?.usedMicros).toBe(123_000n);
+    await x402Provider.reverse(a, 123_000n);
+    expect((await rows())[0]).toMatchObject({ usedMicros: 0n, reservedMicros: 0n });
+    // the redis counter went back down too: the whole spendable amount is reservable again
+    const b = (await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(993_000n))) as Authorization;
+    expect(b.reservedMicros).toBe(993_000n);
+    await x402Provider.release(b);
+    // already settled on-chain: the session stays settled, the payer is credited on the prepaid balance
+    await dbRef.db
+      .update(x402Payments)
+      .set({ status: 'settled' })
+      .where(eq(x402Payments.id, a.x402PaymentId as string));
+    await x402Provider.reverse(a, 123_000n);
+    const [led] = await dbRef.db.select().from(buyerLedger).where(eq(buyerLedger.jobId, a.jobId));
+    expect(led).toMatchObject({ kind: 'refund', usdgMicros: 123_000n });
+    await x402Provider.reverse(a, 123_000n); // idempotent per job
+    expect(await dbRef.db.select().from(buyerLedger).where(eq(buyerLedger.jobId, a.jobId))).toHaveLength(1);
+    expect((await rows())[0]?.usedMicros).toBe(0n);
   });
 
   test('redis counters rebuild from the DB when the key is lost', async () => {
