@@ -7,7 +7,7 @@ import { requireAddress } from '../../lib/contracts';
 import { getRedis } from '../../lib/redis';
 import {
   encodeHeader,
-  NETWORK,
+  networkFor,
   SPINDLE_PAYMENT_TYPE,
   X402_VERSION,
   type X402Challenge,
@@ -83,7 +83,7 @@ export async function buildChallenge(i: BuildChallengeInput): Promise<{
     accepts: [
       {
         scheme: 'exact',
-        network: NETWORK,
+        network: networkFor(config.CHAIN_ID),
         asset: a.usdg,
         amount: stored.cap,
         payTo: a.vault,

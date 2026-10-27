@@ -42,7 +42,10 @@ const envSchema = z.object({
   COOKIE_SECURE: boolean(false),
   SIWE_ALLOWED_DOMAINS: csv,
 
+  /** Chain the app talks to: 4663 in prod, 31337 on the local anvil fork. */
   CHAIN_ID: z.coerce.number().int().positive().default(4663),
+  /** Real chain used for Relay quotes; stays 4663 even when CHAIN_ID is the dev fork. */
+  RELAY_ORIGIN_CHAIN_ID: z.coerce.number().int().positive().default(4663),
   RPC_URLS: csv,
   ALCHEMY_API_KEYS: csv,
   PUBLIC_RPC_URL: z.string().default('https://rpc.mainnet.chain.robinhood.com'),

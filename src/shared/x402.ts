@@ -10,7 +10,10 @@ import { z } from 'zod';
 import { KNOWN } from './chain';
 import { MicrosString } from './money';
 
-export const NETWORK = 'eip155:4663' as const;
+/** CAIP-2 network id for a chain id. */
+export const networkFor = (chainId: number) => `eip155:${chainId}`;
+/** Production network (4663); the backend and web use `networkFor(<configured chain id>)`. */
+export const NETWORK = networkFor(4663);
 export const X402_VERSION = 2 as const;
 export const MAX_HEADER_BYTES = 32 * 1024;
 
@@ -101,7 +104,7 @@ export const X402Challenge = z.object({
     .array(
       z.object({
         scheme: z.literal('exact'),
-        network: z.literal(NETWORK),
+        network: z.string().regex(/^eip155:\d+$/),
         asset: AddrStr,
         amount: MicrosString,
         payTo: AddrStr,
@@ -131,7 +134,7 @@ export type X402Challenge = z.infer<typeof X402Challenge>;
 export const X402PaymentHeader = z.object({
   x402Version: z.literal(X402_VERSION),
   scheme: z.literal('exact'),
-  network: z.literal(NETWORK),
+  network: z.string().regex(/^eip155:\d+$/),
   payload: z.object({
     payer: AddrStr,
     paymentId: Bytes32,

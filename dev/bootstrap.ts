@@ -10,6 +10,7 @@ import { KNOWN } from '../src/shared/chain';
 import { ALL_ACCOUNTS, account, privateKey } from './lib/accounts';
 import {
   ANVIL_URL,
+  DEV_CHAIN_ID,
   deployContracts,
   forkStateAvailable,
   hasCode,
@@ -55,7 +56,7 @@ async function ensureFork(deployed: boolean): Promise<void> {
 async function main() {
   log(`waiting for anvil at ${ANVIL_URL}`);
   await waitForAnvil();
-  log('anvil ok (chain 4663)');
+  log(`anvil ok (chain ${DEV_CHAIN_ID})`);
 
   let dep = readDeployment();
   const deployed = !!dep && (await hasCode(dep.addresses.registry));
@@ -97,6 +98,8 @@ async function main() {
     CLAIMS_ADDRESS: lc(a.claims),
     VAULT_ADDRESS: lc(a.vault),
     RELAY_STUB_ADDRESS: lc(a.relayStub),
+    CHAIN_ID: String(DEV_CHAIN_ID),
+    RELAY_ORIGIN_CHAIN_ID: '4663',
     TREASURY_ADDRESS: lc(account(2).address),
     HOUSE_OWNER_ADDRESS: lc(account(0).address),
     ADMIN_ADDRESSES: lc(account(0).address),
@@ -114,7 +117,7 @@ async function main() {
   if (!current.CARD_DATA_ENC_KEY) mockSecrets.CARD_DATA_ENC_KEY = randomBytes(32).toString('hex');
   backendChanged.push(...updateEnvFile(BACKEND_ENV_DEV, mockSecrets));
   const webChanged = updateEnvFile(WEB_ENV_DEV, {
-    VITE_CHAIN_ID: '4663',
+    VITE_CHAIN_ID: String(DEV_CHAIN_ID),
     VITE_RPC_URL: 'http://127.0.0.1:7245',
     VITE_USDG_ADDRESS: getAddress(a.usdg),
     VITE_PERMIT2_ADDRESS: getAddress(a.permit2),

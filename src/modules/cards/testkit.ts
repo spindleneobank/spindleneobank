@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { createMock } from '../../../dev/izipay-mock/server';
 import type { TestDb } from '../../../test/db-setup';
+import { config } from '../../config';
 import { type Env, jsonError } from '../../lib/http';
 import { dbRef, settings } from '../auth/constants';
 import authRoutes from '../auth/routes';
@@ -47,7 +48,7 @@ export async function bootCards(opts: { stepDelayMs?: number; timeoutMs?: number
   Object.assign(settings, {
     corsOrigins: [ORIGIN],
     allowedDomains: ['localhost:7000'],
-    chainId: 4663,
+    chainId: config.CHAIN_ID,
     adminAddresses: [],
   });
   const app = new Hono<Env>();

@@ -7,17 +7,18 @@
  */
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { erc20Abi } from '@spindle/shared/abi';
-import { KNOWN, rhc } from '@spindle/shared/chain';
+import { chainFor, KNOWN } from '@spindle/shared/chain';
 import { type Address, createWalletClient, type Hex, http, maxUint256 } from 'viem';
 import { account } from '../../../dev/lib/accounts';
 import { readDeployment } from '../../../dev/lib/chain';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
 import { FORK_SKIP_MESSAGE, forkHealthy, syncChainTime } from '../../../test/fork';
+import { config } from '../../config';
 import { x402Payments } from '../../db/schema';
 import { createKeeper } from '../../lib/keeper';
 import { closeRedis, getRedis } from '../../lib/redis';
 import { publicClient } from '../../lib/viem';
-import { encodeHeader, spindlePaymentTypedData, X402Challenge } from '../../shared/x402';
+import { encodeHeader, networkFor, spindlePaymentTypedData, X402Challenge } from '../../shared/x402';
 import { dbRef } from '../auth/constants';
 import {
   type Authorization,
@@ -32,6 +33,8 @@ import { defaultSettleDeps, runSettle } from './settle';
 import { defaultSurchargeDeps, refreshSurcharge, resetSurchargeMemo } from './surcharge';
 import { memKv } from './testing';
 import { BARRED_KEY, resetPayerCache } from './verify';
+
+const appChain = chainFor(config.CHAIN_ID);
 
 // anvil auto-mines every 2s: setup txs wait for blocks
 setDefaultTimeout(120_000);
@@ -90,7 +93,7 @@ describe.skipIf(!healthy)('x402 on the RHC fork', () => {
     });
     // approve USDG -> Permit2 once per payer (normal txs paid by the payer)
     for (const p of payers) {
-      const w = createWalletClient({ account: p, chain: rhc, transport: http(rpcUrl) });
+      const w = createWalletClient({ account: p, chain: appChain, transport: http(rpcUrl) });
       const h = await w.writeContract({
         address: USDG,
         abi: erc20Abi,
@@ -133,7 +136,7 @@ describe.skipIf(!healthy)('x402 on the RHC fork', () => {
       const e = acc.extra;
       const signature = await p.signTypedData(
         spindlePaymentTypedData({
-          chainId: 4663,
+          chainId: config.CHAIN_ID,
           token: USDG,
           cap: BigInt(acc.amount),
           spender: VAULT,
@@ -147,7 +150,7 @@ describe.skipIf(!healthy)('x402 on the RHC fork', () => {
       const header = encodeHeader({
         x402Version: 2,
         scheme: 'exact',
-        network: 'eip155:4663',
+        network: networkFor(config.CHAIN_ID),
         payload: {
           payer: p.address,
           paymentId: e.paymentId,
@@ -164,7 +167,7 @@ describe.skipIf(!healthy)('x402 on the RHC fork', () => {
       auths.push(a);
     }
     // payer #2 revokes its Permit2 allowance after signing -> only its item fails
-    const w = createWalletClient({ account: P1, chain: rhc, transport: http(rpcUrl) });
+    const w = createWalletClient({ account: P1, chain: appChain, transport: http(rpcUrl) });
     await publicClient.waitForTransactionReceipt({
       hash: await w.writeContract({
         address: USDG,
@@ -179,7 +182,7 @@ describe.skipIf(!healthy)('x402 on the RHC fork', () => {
       redis: getRedis,
       account: () => keeperAcct,
       client: publicClient,
-      wallet: (a) => createWalletClient({ account: a, chain: rhc, transport: http(rpcUrl) }) as never,
+      wallet: (a) => createWalletClient({ account: a, chain: appChain, transport: http(rpcUrl) }) as never,
       receiptTimeoutMs: 60_000,
     });
     const sum = await runSettle({

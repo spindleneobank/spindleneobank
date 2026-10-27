@@ -12,12 +12,19 @@ import {
 } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
+import { config } from '../../config';
 import { x402Payments } from '../../db/schema';
 import type { X402Payment } from '../../db/types';
 import { AppError } from '../../lib/errors';
 import type { Env } from '../../lib/http';
 import { closeRedis, getRedis } from '../../lib/redis';
-import { decodeHeader, encodeHeader, spindlePaymentTypedData, X402Challenge } from '../../shared/x402';
+import {
+  decodeHeader,
+  encodeHeader,
+  networkFor,
+  spindlePaymentTypedData,
+  X402Challenge,
+} from '../../shared/x402';
 import { dbRef } from '../auth/constants';
 import {
   type Authorization,
@@ -82,7 +89,7 @@ async function pay(
   if (!e || !acc) throw new Error('no accept');
   const signer = opts.signer ?? payer;
   const td = spindlePaymentTypedData({
-    chainId: 4663,
+    chainId: config.CHAIN_ID,
     token: A.usdg,
     cap: BigInt(acc.amount),
     spender: A.vault,
@@ -101,7 +108,7 @@ async function pay(
     signature,
   };
   opts.tweak?.(payload as unknown as Record<string, unknown>);
-  return encodeHeader({ x402Version: 2, scheme: 'exact', network: 'eip155:4663', payload });
+  return encodeHeader({ x402Version: 2, scheme: 'exact', network: networkFor(config.CHAIN_ID), payload });
 }
 
 const authorizeWith = (header: string, max = 100_000n) =>
@@ -163,7 +170,7 @@ describe('challenge', () => {
     if (!a) throw new Error('no accepts');
     expect(a).toMatchObject({
       scheme: 'exact',
-      network: 'eip155:4663',
+      network: networkFor(config.CHAIN_ID),
       asset: A.usdg,
       payTo: A.vault,
       amount: '107000',
@@ -279,6 +286,14 @@ describe('exact scheme', () => {
     const header = await pay(body, { signer: other, tweak: (p) => (p.payer = payer.address) });
     expect(await code(authorizeWith(header))).toContain('Invalid payment signature');
     expect(await rows()).toHaveLength(0);
+  });
+
+  test('a header for another network is rejected and the challenge network follows CHAIN_ID', async () => {
+    const { body } = await challengeFor(100_000n);
+    expect(body.accepts[0]?.network).toBe(networkFor(config.CHAIN_ID));
+    const good = decodeHeader(await pay(body)) as Record<string, unknown>;
+    const other = encodeHeader({ ...good, network: networkFor(config.CHAIN_ID + 1) } as never);
+    expect(await code(authorizeWith(other))).toContain('different network');
   });
 
   test('malformed header is a 400 and never dispatches', async () => {
