@@ -24,7 +24,7 @@ import {
   x402Payments,
 } from '../../db/schema';
 import { buyerAbis } from './abis';
-import { readCursor } from './cursor';
+import { readCursor, writeCursor } from './cursor';
 import { type IndexerClient, type IndexerDeps, runIndexOnce } from './indexer';
 import { readResync } from './pending';
 
@@ -166,6 +166,12 @@ async function balance() {
 }
 
 describe('indexer', () => {
+  test('a stored cursor older than DEPLOY_BLOCK restarts at the deployment', async () => {
+    await writeCursor(t.db, { lastSafeBlock: 40, recent: [] });
+    expect((await readCursor(t.db, 100)).lastSafeBlock).toBe(99);
+    await t.sql`delete from kv where key = 'indexer:cursor'`;
+  });
+
   test('deposit credited once across a double run; lowercase address; cursor advances', async () => {
     const m = mockClient({ head: 130, events: [deposit(110, 5_000_000n)] });
     await runIndexOnce(deps(m.client));

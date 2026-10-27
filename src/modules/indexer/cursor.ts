@@ -17,6 +17,8 @@ export async function readCursor(db: Tx, deployBlock: number): Promise<Cursor> {
   const [row] = await db.select({ value: kv.value }).from(kv).where(eq(kv.key, CURSOR_KEY));
   const v = row?.value as Partial<Cursor> | undefined;
   if (!v || typeof v.lastSafeBlock !== 'number') return initialCursor(deployBlock);
+  // a cursor from before DEPLOY_BLOCK (contracts redeployed later) would crawl history that holds none of our events
+  if (v.lastSafeBlock < deployBlock - 1) return initialCursor(deployBlock);
   return { lastSafeBlock: v.lastSafeBlock, recent: Array.isArray(v.recent) ? v.recent : [] };
 }
 
