@@ -1,21 +1,23 @@
 <#
 .SYNOPSIS
   Spindle node installer for Windows (Docker Desktop + WSL2).
+.DESCRIPTION
+  Downloads OUR compiled agent as a docker build context from the Spindle API (token-gated, sha256-verified)
+  and builds the node image locally on the pinned official base image. Nothing is pulled from a Spindle registry.
 .EXAMPLE
-  .\install.ps1 -Token <TOKEN>
+  & ([scriptblock]::Create((irm <api>/v1/node/install.ps1))) -Token <TOKEN> -Engine ollama
 #>
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingWriteHost", "", Justification = "interactive installer")]
 [CmdletBinding()]
 param(
   [string]$Token = $env:SPINDLE_TOKEN,
+  [string]$UpdateToken = '',
   [ValidateSet('ollama', 'vllm')][string]$Engine = 'ollama',
   [string]$Model = '',
+  [string]$Models = $env:SPINDLE_MODELS,
   [string]$Name = '',
-  # TODO(owner): set the production API URL and the Docker Hub namespace before publishing.
-  [string]$Api = $(if ($env:SPINDLE_API_URL) { $env:SPINDLE_API_URL } else { 'wss://api.spindle.example' }),
-  [string]$Image = $(if ($env:SPINDLE_IMAGE) { $env:SPINDLE_IMAGE } else { 'spindle/spindle-node' }),
-  [string]$Tag = '',
-  [switch]$NoPull,
+  [string]$Api = '',
+  [switch]$Update,
   [switch]$DryRun,
   [switch]$Uninstall,
   [switch]$Purge
@@ -24,7 +26,12 @@ param(
 $ErrorActionPreference = 'Stop'
 $Container = 'spindle-node'
 $Volume = 'spindle-node'
-if (-not $Tag) { $Tag = $Engine }
+$Image = "spindle-node:$Engine"
+# The API serves this script with its own URL templated in. (Split so the server's substitution leaves the test alone.)
+$ApiHttp = '__SPINDLE_API_URL__'
+$Placeholder = '__SPINDLE_API' + '_URL__'
+if ($Api) { $ApiHttp = $Api }
+if ($ApiHttp -eq $Placeholder -or -not $ApiHttp) { $ApiHttp = $env:SPINDLE_API_URL }
 
 function Invoke-Docker {
   param([string[]]$DockerArgs, [switch]$Quiet)
@@ -71,40 +78,94 @@ if ($Uninstall -or $Purge) {
   return
 }
 
-if ($Engine -eq 'vllm' -and -not $Model) { throw '-Model is required with -Engine vllm' }
+if (-not $ApiHttp) { throw 'Unknown API URL: fetch this script from your Spindle API (.../v1/node/install.ps1) or pass -Api <url>.' }
+$ApiHttp = ($ApiHttp -replace '^wss://', 'https://' -replace '^ws://', 'http://').TrimEnd('/')
+$ApiWs = $ApiHttp -replace '^https://', 'wss://' -replace '^http://', 'ws://'
+$apiHost = ([uri]$ApiHttp).Host
+$localApi = @('localhost', '127.0.0.1', '0.0.0.0') -contains $apiHost
+if ($localApi) { $ApiWs = $ApiWs -replace "//$([regex]::Escape($apiHost))", '//host.docker.internal' }
 
-# ---- GPU detection (NVIDIA through WSL2) ----
+if ($Engine -eq 'vllm' -and -not $Model) { throw '-Model is required with -Engine vllm' }
+if ($Update) {
+  $Token = ''
+  if (-not $DryRun) {
+    & docker volume inspect $Volume *> $null
+    if ($LASTEXITCODE -ne 0) { throw "No node data volume '$Volume' here: nothing to update. Use an install command from the dashboard." }
+  }
+}
+$dlToken = if ($UpdateToken) { $UpdateToken } else { $Token }
+
+# ---- the node image: download our agent, verify, build locally ----
+$arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' }
+if ($Engine -eq 'vllm' -and $arch -ne 'amd64') { throw 'The vllm engine is amd64 only.' }
+if ($DryRun) {
+  Write-Host "+ download $ApiHttp/v1/node/dist/$Engine/$arch/context.tar.gz (Authorization: Bearer ***), verify its sha256 against the manifest"
+  Write-Host "+ docker build -t $Image --label spindle.context-sha256=<sha256> - < context.tar.gz"
+} else {
+  $manifest = Invoke-RestMethod -Uri "$ApiHttp/v1/node/dist/manifest.json"
+  $entry = $manifest.contexts."$Engine/$arch"
+  if (-not $entry) { throw "No $Engine build for $arch on this server." }
+  $haveSha = (& docker image inspect -f '{{ index .Config.Labels "spindle.context-sha256" }}' $Image 2>$null)
+  if ($haveSha -eq $entry.sha256) {
+    Write-Host "Image $Image is already up to date (agent $($manifest.agentVersion)); skipping the download."
+  } else {
+    if (-not $dlToken) { throw 'A token is needed to download the agent. Generate a command in the dashboard (Compute tab).' }
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) ("spindle-node-" + [guid]::NewGuid().ToString('N') + '.tar.gz')
+    try {
+      Write-Host "Downloading the Spindle node agent $($manifest.agentVersion) ($Engine, $arch)..."
+      $ProgressPreference = 'SilentlyContinue'
+      try {
+        Invoke-WebRequest -Uri "$ApiHttp/v1/node/dist/$Engine/$arch/context.tar.gz" -Headers @{ Authorization = "Bearer $dlToken" } -OutFile $tmp
+      } catch {
+        throw 'Download failed. The command may have expired (they last 15 minutes): generate a new one in the dashboard.'
+      }
+      $got = (Get-FileHash -Algorithm SHA256 $tmp).Hash.ToLower()
+      if ($got -ne $entry.sha256) { throw "sha256 mismatch (got $got, expected $($entry.sha256)): refusing to build." }
+      Write-Host "sha256 verified. Building $Image locally on the official base image (the first build downloads about 2 GB from Docker Hub)..."
+      # `docker build -` reads the tarball from stdin; cmd.exe redirection avoids PowerShell's text pipeline.
+      & cmd.exe /c "docker build -t $Image --label spindle.context-sha256=$got --label spindle.agent-version=$($manifest.agentVersion) - < `"$tmp`""
+      if ($LASTEXITCODE -ne 0) { throw 'docker build failed.' }
+    } finally {
+      Remove-Item -Force -ErrorAction SilentlyContinue $tmp
+    }
+  }
+}
+
+# ---- GPU detection (NVIDIA through WSL2), using the freshly built image: no extra pulls ----
 $gpuArgs = @()
 $haveGpu = $false
-if ($DryRun) {
-  $haveGpu = $false
-} else {
-  & docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi -L *> $null
+if (-not $DryRun) {
+  & docker run --rm --gpus all --entrypoint nvidia-smi $Image -L *> $null
   $haveGpu = ($LASTEXITCODE -eq 0)
 }
 if ($haveGpu) {
   $gpuArgs = @('--gpus', 'all')
   Write-Host 'NVIDIA GPU detected: enabling --gpus all.'
-} elseif ($Engine -eq 'vllm') {
+} elseif ($Engine -eq 'vllm' -and -not $DryRun) {
   throw 'The vllm engine needs a working NVIDIA GPU in Docker (install the latest NVIDIA Windows driver; WSL2 GPU support is built in).'
 } else {
-  Write-Warning 'No GPU available to containers: running in CPU mode. Only small models will be offered. (NVIDIA: update the Windows driver; AMD/Intel GPUs are not supported in containers.)'
+  Write-Warning 'No GPU available to containers: running the node in CPU mode (only small models are offered). (NVIDIA: update the Windows driver; AMD/Intel GPUs are not supported in containers.)'
 }
 
 # ---- (re)create the container; the volume is never touched ----
-if (-not $NoPull) { Invoke-Docker -DockerArgs @('pull', "${Image}:${Tag}") }
 Invoke-Docker -DockerArgs @('rm', '-f', $Container) -Quiet
 
 $runArgs = @('run', '-d', '--name', $Container, '--restart', 'unless-stopped', '-v', "${Volume}:/data") + $gpuArgs + @(
-  '-e', "SPINDLE_API_URL=$Api", '-e', "SPINDLE_ENGINE=$Engine")
+  '-e', "SPINDLE_API_URL=$ApiWs", '-e', "SPINDLE_ENGINE=$Engine")
+if ($localApi) { $runArgs += @('--add-host', 'host.docker.internal:host-gateway') }
 if ($Token) { $runArgs += @('-e', "SPINDLE_TOKEN=$Token") }
 if ($Name) { $runArgs += @('-e', "SPINDLE_NAME=$Name") }
 if ($Model) { $runArgs += @('-e', "SPINDLE_VLLM_MODEL=$Model") }
-$runArgs += "${Image}:${Tag}"
+if ($Models) { $runArgs += @('-e', "SPINDLE_MODELS=$Models") }
+$runArgs += $Image
 Invoke-Docker -DockerArgs $runArgs -Quiet:(-not $DryRun)
 
 if (-not $DryRun) {
   Write-Host "Spindle node started. Follow the log with:  docker logs -f $Container"
-  if (-not $Token) { Write-Host 'No token given: the log will show a pairing code and URL; open it and approve the node.' }
-  Write-Host 'Then register the node in the dashboard (Compute tab); it receives jobs only once registered on-chain.'
+  if ($Update) {
+    Write-Host 'Updated; the node keeps its identity.'
+  } else {
+    if (-not $Token) { Write-Host 'No token given: the log will show a pairing code and URL; open it and approve the node.' }
+    Write-Host 'Then register the node in the dashboard (Compute tab); it receives jobs only once registered on-chain.'
+  }
 }

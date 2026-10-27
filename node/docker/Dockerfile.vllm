@@ -1,0 +1,19 @@
+# Spindle node image (vllm). amd64 only; needs an NVIDIA GPU at runtime. SINGLE SOURCE for both the maintainer
+# build and the context tarball served to testers (see Dockerfile.ollama). Build context = the dist context.
+# No `# syntax` line on purpose (it would pull a frontend image from Docker Hub).
+
+
+# vllm-openai v0.11.0
+FROM --platform=linux/amd64 vllm/vllm-openai:v0.11.0@sha256:014a95f21c9edf6abe0aea6b07353f96baa4ec291c427bb1176dc7c93a85845c
+COPY spindle-node /usr/local/bin/spindle-node
+COPY entrypoint.sh /usr/local/bin/spindle-entrypoint
+RUN chmod 0755 /usr/local/bin/spindle-node /usr/local/bin/spindle-entrypoint && mkdir -p /data/hf
+ENV SPINDLE_DATA_DIR=/data \
+    SPINDLE_ENGINE=vllm \
+    HF_HOME=/data/hf \
+    SPINDLE_VLLM_GPU_UTIL=0.90
+# Runs as root: vLLM's CUDA/HF cache layout is not designed for an unprivileged uid.
+VOLUME /data
+HEALTHCHECK --interval=30s --timeout=5s --start-period=600s --retries=3 \
+  CMD test -f /tmp/spindle-ready || exit 1
+ENTRYPOINT ["/usr/local/bin/spindle-entrypoint"]
