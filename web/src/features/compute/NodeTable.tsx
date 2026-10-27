@@ -7,6 +7,7 @@ import { useToast } from '../../components/Toast';
 import { fmtTime, RowTable } from '../shell/ui';
 import { CLASS_LABEL, fmtSpdl, readCanary, readProbe, stakeState, statusTone } from './format';
 import { useRename } from './queries';
+import { UpdateNode } from './UpdateNode';
 
 function RenameName({ node }: { node: NodeView }) {
   const [editing, setEditing] = useState(false);
@@ -44,6 +45,7 @@ function RenameName({ node }: { node: NodeView }) {
         >
           Rename
         </button>
+        {node.isHouse ? null : <UpdateNode node={node} />}
       </span>
     );
   }

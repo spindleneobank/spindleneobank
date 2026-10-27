@@ -18,7 +18,6 @@ export const envSchema = z.object({
   VITE_CLAIMS_ADDRESS: address,
   VITE_VAULT_ADDRESS: address,
   VITE_SPDL_ADDRESS: address,
-  VITE_NODE_IMAGE: z.string().min(1),
   VITE_API_MOCK: z.enum(['0', '1']).default('0'),
 });
 
@@ -47,7 +46,6 @@ export function parseEnv(raw: Record<string, unknown>) {
       vault: e.VITE_VAULT_ADDRESS.toLowerCase() as `0x${string}`,
       spdl: e.VITE_SPDL_ADDRESS.toLowerCase() as `0x${string}`,
     },
-    nodeImage: e.VITE_NODE_IMAGE,
     mock: e.VITE_API_MOCK === '1',
   };
 }

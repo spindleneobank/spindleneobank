@@ -209,17 +209,26 @@ export const nodeFixtures: MockFixtures = {
     need();
     const b = body as { engine: string; os: string };
     const token = `spdl_enr_${Math.random().toString(36).slice(2, 12)}`;
-    const gpus = b.os === 'macos' ? '' : '--gpus all ';
+    const flags = `--engine ${b.engine} --models qwen2.5:0.5b`;
     return {
       enrollmentId: `enr_${Date.now()}`,
       token,
       expiresAt: iso(Date.now() + 15 * M),
       commands: {
-        docker: `docker run -d --name spindle-node --restart unless-stopped ${gpus}-v spindle-node:/data -e SPINDLE_API_URL=wss://api.spindle.example -e SPINDLE_TOKEN=${token} -e SPINDLE_ENGINE=${b.engine} ghcr.io/spindle/node:latest`,
-        installer:
-          b.os === 'windows'
-            ? `& ([scriptblock]::Create((irm https://spindle.example/install.ps1))) -Token ${token}`
-            : `curl -fsSL https://spindle.example/install.sh | sh -s -- --token ${token}`,
+        installer: `curl -fsSL https://api.spindle.example/v1/node/install.sh | sh -s -- --token ${token} ${flags}`,
+        powershell: `& ([scriptblock]::Create((irm https://api.spindle.example/v1/node/install.ps1))) -Token ${token} -Engine ${b.engine} -Models qwen2.5:0.5b`,
+      },
+    };
+  },
+  'POST /v1/app/nodes/:id/update-command': ({ params }) => {
+    need();
+    const n = find(params.id as string);
+    const token = `spdl_upd_${Math.random().toString(36).slice(2, 12)}`;
+    return {
+      expiresAt: iso(Date.now() + 15 * M),
+      commands: {
+        installer: `curl -fsSL https://api.spindle.example/v1/node/install.sh | sh -s -- --update --update-token ${token} --engine ${n.engine}`,
+        powershell: `& ([scriptblock]::Create((irm https://api.spindle.example/v1/node/install.ps1))) -Update -UpdateToken ${token} -Engine ${n.engine}`,
       },
     };
   },

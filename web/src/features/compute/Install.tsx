@@ -113,6 +113,11 @@ export function InstallPanel() {
           />
         </label>
       </div>
+      <p className="cp-note" role="note">
+        The command downloads the Spindle node agent from this server and builds the node image on your own
+        machine. The first build also downloads the official {engine === 'vllm' ? 'vLLM' : 'Ollama'} base
+        image (about 2 GB or more) from Docker Hub, which takes a few minutes. Requires Docker.
+      </p>
       {os === 'macos' ? (
         <p className="cp-note" role="note">
           Install the Ollama app first. Spindle uses its GPU (Metal) from the container.
@@ -120,7 +125,8 @@ export function InstallPanel() {
       ) : null}
       {os === 'windows' ? (
         <p className="cp-note" role="note">
-          Run this inside WSL2 with GPU support enabled (NVIDIA driver for WSL).
+          Run this in PowerShell with Docker Desktop (WSL2 backend). For GPUs, install the current NVIDIA
+          Windows driver.
         </p>
       ) : null}
 
@@ -129,8 +135,10 @@ export function InstallPanel() {
       ) : null}
       {res ? (
         <div className="cp-cmds">
-          <CodeBlock label="Installer" code={res.commands.installer} />
-          <CodeBlock label="Docker" code={res.commands.docker} />
+          <CodeBlock
+            label={os === 'windows' ? 'PowerShell' : 'Terminal'}
+            code={os === 'windows' ? res.commands.powershell : res.commands.installer}
+          />
           <p className="cp-expiry" data-expired={left ? undefined : 'true'} role="status">
             {left
               ? `This command works once and expires in ${left}.`
