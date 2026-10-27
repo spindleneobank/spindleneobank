@@ -15,10 +15,9 @@ function Chrome() {
   const [open, setOpen] = useState(false);
   const auth = useAuth();
   const signedIn = auth.status === 'signed-in';
-  const me = useMe(signedIn);
+  useMe(signedIn); // keeps the session profile warm for the tabs
   const params = useParams({ strict: false }) as { tab?: string };
   const tab = params.tab ?? 'overview';
-  const tabs = TABS.filter((t) => !t.adminOnly || me.data?.isAdmin);
   const connect =
     signedIn && auth.session ? (
       <button type="button" className="sd-btn sd-btn-wallet" onClick={() => void openAccount()}>
@@ -40,7 +39,7 @@ function Chrome() {
             <span>Spindle</span>
           </Link>
           <nav className="sd-nav" aria-label="Dashboard tabs">
-            {tabs.map((t) => (
+            {TABS.map((t) => (
               <Link
                 key={t.id}
                 to="/dashboard/$tab"
@@ -88,7 +87,7 @@ function Chrome() {
       </header>
       <div className="sd-crumbs">
         <span>
-          <i aria-hidden="true" /> Personal workspace <b>/ {tabs.find((t) => t.id === tab)?.label ?? tab}</b>
+          <i aria-hidden="true" /> Personal workspace <b>/ {TABS.find((t) => t.id === tab)?.label ?? tab}</b>
         </span>
         <ChainStatus />
       </div>

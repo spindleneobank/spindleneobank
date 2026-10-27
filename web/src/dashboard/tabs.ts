@@ -4,7 +4,6 @@ export type TabDef = {
   id: string;
   label: string;
   icon: string;
-  adminOnly?: boolean;
   Component: ComponentType;
 };
 
@@ -48,12 +47,5 @@ export const TABS: TabDef[] = [
     label: 'Settings',
     icon: 'settings',
     Component: lazy(() => import('../features/settings')),
-  },
-  {
-    id: 'admin',
-    label: 'Admin',
-    icon: 'shield',
-    adminOnly: true,
-    Component: lazy(() => import('../features/admin')),
   },
 ];
