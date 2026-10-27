@@ -14,6 +14,7 @@ import { closeRedis } from '../../lib/redis';
 import { leafFor, treeFromJson } from '../../shared/merkle';
 import { dbRef } from '../auth/constants';
 import { buildEpoch, nextEpochNumber } from './builder';
+import { jsonSafe } from './jobs';
 import {
   ALERT_KEY,
   type OnchainRoot,
@@ -424,5 +425,13 @@ describe('routes', () => {
     expect(j.format).toBe('standard-v1');
     expect((await app().request('/v1/epochs/999/tree')).status).toBe(404);
     expect((await app().request('/v1/epochs/abc/tree')).status).toBe(400);
+  });
+});
+
+describe('jsonSafe', () => {
+  test('job results with bigint fields serialize', () => {
+    const out = jsonSafe({ post: { kind: 'failed', epoch: 498093n, reason: 'insolvent' } });
+    expect(out).toEqual({ post: { kind: 'failed', epoch: '498093', reason: 'insolvent' } });
+    expect(() => JSON.stringify(out)).not.toThrow();
   });
 });

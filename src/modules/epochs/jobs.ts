@@ -64,6 +64,11 @@ export async function runEpochOnce(now = new Date()): Promise<EpochRunResult> {
   }
 }
 
+/** Job results are stored as JSON by the queue (and the admin route): bigint fields become strings. */
+export function jsonSafe<T>(value: T): unknown {
+  return JSON.parse(JSON.stringify(value, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)));
+}
+
 /** Epochs currently stuck (admin visibility). */
 export async function pendingEpochs() {
   return dbRef.db.select().from(epochs).where(eq(epochs.status, 'posting'));
@@ -73,7 +78,7 @@ export const epochJobs: JobModule = async (ctx) => {
   ctx.process('epoch', 'epoch:run', async () => {
     const res = await runEpochOnce();
     if (res.post?.kind === 'error') ctx.logger.error({ error: res.post.error }, 'epoch post errored');
-    return res;
+    return jsonSafe(res);
   });
   await ctx.schedule('epoch', 'epoch:run', 60_000);
 };
@@ -84,7 +89,7 @@ export default epochJobs;
 export const adminJobs = {
   'epoch-build': async () => {
     const now = new Date();
-    return buildEpoch(await nextEpochNumber(now), { now });
+    return jsonSafe(await buildEpoch(await nextEpochNumber(now), { now }));
   },
-  'post-root': () => postPending(),
+  'post-root': async () => jsonSafe(await postPending()),
 } as const;
