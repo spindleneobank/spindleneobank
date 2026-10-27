@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { LOCAL_FORK_CHAIN_ID } from '../../src/shared/chain';
 
 /** Backend repo root (the directory holding package.json, `contracts/`, `dev/`). */
 export const APP_ROOT = resolve(import.meta.dir, '..', '..');
@@ -20,4 +21,9 @@ export const DOCS_DIR = findDocs();
 export const BACKEND_ENV_DEV = join(DOCS_DIR, 'deploy', 'backend.env.dev');
 export const WEB_ENV_DEV = join(APP_ROOT, 'web', '.env.development.local');
 export const CONTRACTS_DIR = join(APP_ROOT, 'contracts');
-export const DEPLOYMENT_FILE = join(CONTRACTS_DIR, 'deployments', '4663-fork.json');
+// Deploy.s.sol writes deployments/<chainid>-fork.json; the fork runs on DEV_CHAIN_ID
+export const DEPLOYMENT_FILE = join(
+  CONTRACTS_DIR,
+  'deployments',
+  `${process.env.DEV_CHAIN_ID ?? LOCAL_FORK_CHAIN_ID}-fork.json`,
+);
