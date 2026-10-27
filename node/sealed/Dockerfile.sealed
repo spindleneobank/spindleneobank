@@ -3,7 +3,7 @@
 # UNBUILT / UNVERIFIED ON HARDWARE: not built in the development environment (needs the vLLM base image + a GPU host).
 # amd64 only. Build context: the app/ root.  docker build -f node/sealed/Dockerfile.sealed .
 #
-# Same agent + vLLM as node/Dockerfile.vllm, plus:
+# Same agent + vLLM as node/docker/Dockerfile.vllm, plus:
 #   - nvTrust local GPU verifier + nv-attestation-sdk (evidence for NRAS)
 #   - SPINDLE_SEALED=1 (the agent generates the HPKE key in-CVM and attaches the attestation bundle)
 # After building, push by DIGEST and put that digest in app-compose.json: the dstack compose hash (measured into
@@ -21,7 +21,7 @@ COPY node/tsconfig.json node/tsconfig.json
 WORKDIR /app/node
 RUN bun build src/main.ts --compile --minify --target=bun-linux-x64 --outfile /out/spindle-node
 
-# vllm-openai v0.11.0 (same pin as Dockerfile.vllm)
+# vllm-openai v0.11.0 (same pin as docker/Dockerfile.vllm)
 FROM --platform=linux/amd64 vllm/vllm-openai:v0.11.0@sha256:014a95f21c9edf6abe0aea6b07353f96baa4ec291c427bb1176dc7c93a85845c
 # Pin both versions when first building on the tester's host and record them in docs/plan/sealed-testing.md.
 ARG NV_ATTESTATION_SDK_VERSION

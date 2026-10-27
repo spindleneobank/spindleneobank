@@ -62,6 +62,16 @@ export function useEnroll() {
   });
 }
 
+export function useUpdateCommand() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/v1/app/nodes/${id}/update-command`, {
+        schema: api.PostNodeUpdateCommandRes,
+        method: 'POST',
+      }),
+  });
+}
+
 export function usePair() {
   const qc = useQueryClient();
   return useMutation({

@@ -22,6 +22,7 @@
     "contracts:test": "cd contracts && forge test",
     "contracts:fork": "cd contracts && forge test --match-path 'test/fork/*' --fork-url $RHC_RPC_URL",
     "abi:export": "bun run contracts/script/export-abis.ts",
+    "node:dist": "bun run scripts/node-dist.ts",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
