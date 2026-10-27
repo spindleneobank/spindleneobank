@@ -46,7 +46,8 @@ export const siweConfig = createSIWEConfig({
       address: args.address.split(':').at(-1) as `0x${string}`,
       uri: args.uri,
       version: '1',
-      chainId: args.chainId,
+      // the app runs on one chain; the wallet's active network does not change who signs, and txs are gated by the wrong-chain banner
+      chainId: chain.id,
       nonce: args.nonce,
       statement: args.statement ?? SIGN_IN_STATEMENT,
       issuedAt: args.iat ? new Date(args.iat) : new Date(),
