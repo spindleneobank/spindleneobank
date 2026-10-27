@@ -50,6 +50,11 @@ export function tinyMicros(
   return { negative: raw < 0n, zeros, digits, exact: `${raw < 0n ? '-' : ''}0.${frac}` };
 }
 
+/** Plain-text amount for labels and tooltips: like formatMicros, but a tiny nonzero amount shows exactly. */
+export function formatMicrosText(micros: string | bigint, fractionDigits = 2): string {
+  return tinyMicros(micros, fractionDigits)?.exact ?? formatMicros(micros, { fractionDigits });
+}
+
 /** Leading zeros from this count on are compacted as 0.0₅3 instead of 0.000003. */
 const COMPACT_ZEROS = 4;
 

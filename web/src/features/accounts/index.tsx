@@ -2,7 +2,7 @@ import { type ReactNode, useMemo, useState } from 'react';
 import { CTA } from '../../components/CTA';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
-import { formatMicros, Money } from '../../components/Money';
+import { formatMicros, formatMicrosText, Money } from '../../components/Money';
 import { Skeleton } from '../../components/Skeleton';
 import { StatusPill } from '../../components/StatusPill';
 import { useToast } from '../../components/Toast';
@@ -76,7 +76,7 @@ export function SeriesChart({ buckets }: { buckets: Bucket[] }) {
                 type="button"
                 key={x.b.ts}
                 className="sd-bar"
-                aria-label={`${day(x.b.ts)}: ${formatMicros(x.total)} USDG`}
+                aria-label={`${day(x.b.ts)}: ${formatMicrosText(x.total)} USDG`}
                 onMouseEnter={() => setHover(i)}
                 onMouseLeave={() => setHover(null)}
                 onFocus={() => setHover(i)}
@@ -93,15 +93,15 @@ export function SeriesChart({ buckets }: { buckets: Bucket[] }) {
               <b>{day(h.b.ts)}</b>
               <span>
                 <i className="sd-dot-job" />
-                Jobs {formatMicros(h.job)}
+                Jobs {formatMicrosText(h.job)}
               </span>
               <span>
                 <i className="sd-dot-floor" />
-                Floor {formatMicros(h.floor)}
+                Floor {formatMicrosText(h.floor)}
               </span>
               <span>
                 <i className="sd-dot-slash" />
-                Slash {formatMicros(h.slash)}
+                Slash {formatMicrosText(h.slash)}
               </span>
             </div>
           ) : null}
