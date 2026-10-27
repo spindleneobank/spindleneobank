@@ -16,7 +16,7 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 import { spindleRegistryAbi } from '../../src/shared/abi/SpindleRegistry';
 import { nodeBindingTypedData } from '../../src/shared/binding';
-import { KNOWN, rhc } from '../../src/shared/chain';
+import { chainFor, KNOWN, LOCAL_FORK_CHAIN_ID } from '../../src/shared/chain';
 import { ALL_ACCOUNTS, account, privateKey } from './accounts';
 import { CONTRACTS_DIR, DEPLOYMENT_FILE } from './paths';
 
@@ -36,7 +36,10 @@ const erc20 = parseAbi([
   'function symbol() view returns (string)',
 ]);
 
-export const chain = { ...rhc, rpcUrls: { default: { http: [ANVIL_URL] } } };
+/** Chain id the local anvil fork runs with (anvil --chain-id); 31337 so MetaMask treats it as a local network. */
+export const DEV_CHAIN_ID = Number(process.env.DEV_CHAIN_ID ?? LOCAL_FORK_CHAIN_ID);
+
+export const chain = { ...chainFor(DEV_CHAIN_ID), rpcUrls: { default: { http: [ANVIL_URL] } } };
 export const publicClient = createPublicClient({ chain, transport: http(ANVIL_URL) });
 
 export async function rpc<T = unknown>(method: string, params: unknown[] = [], url = ANVIL_URL): Promise<T> {
@@ -57,10 +60,10 @@ export async function waitForAnvil(timeoutMs = 60_000): Promise<void> {
   for (;;) {
     try {
       const id = Number(await rpc<string>('eth_chainId'));
-      if (id !== 4663) throw new Error(`anvil chain id is ${id}, expected 4663`);
+      if (id !== DEV_CHAIN_ID) throw new Error(`anvil chain id is ${id}, expected ${DEV_CHAIN_ID}`);
       return;
     } catch (e) {
-      if (e instanceof Error && e.message.includes('expected 4663')) throw e;
+      if (e instanceof Error && e.message.includes('expected ')) throw e;
       if (Date.now() - start > timeoutMs) throw new Error(`anvil not reachable at ${ANVIL_URL}`);
       await sleep(1000);
     }
@@ -315,7 +318,7 @@ export async function registerHouseNode(registry: Address): Promise<string> {
   const signature = await nodeAccount.signTypedData(
     nodeBindingTypedData({
       registry,
-      chainId: 4663,
+      chainId: DEV_CHAIN_ID,
       owner: owner.address,
       nodeKey: nodeAccount.address,
       gpuClass: 0,
