@@ -38,6 +38,7 @@ function fakeEngine(deltas: (Delta & { wait?: number })[], opts: { usage?: boole
       usage: { prompt_tokens: 7 },
     }),
     version: async () => '1',
+    contextLength: async () => 4096,
   };
 }
 

@@ -20,6 +20,19 @@ export class VllmEngine implements Engine {
     return (j.data ?? []).map((m) => ({ id: m.id, digest: m.root ?? m.id, sizeMb: 0 }));
   }
 
+  /** `--max-model-len` as vLLM reports it; vLLM rejects (never truncates) longer prompts. */
+  async contextLength(model: string): Promise<number> {
+    try {
+      const res = await fetch(`${this.url}/v1/models`);
+      if (res.ok) {
+        const j = (await res.json()) as { data?: { id: string; max_model_len?: number }[] };
+        const n = j.data?.find((m) => m.id === model)?.max_model_len;
+        if (typeof n === 'number' && n > 0) return n;
+      }
+    } catch {}
+    return 4096;
+  }
+
   /** vLLM serves exactly one model per container; only verify it matches. */
   async ensureModel(model: string, onProgress: (pct: number) => void): Promise<string> {
     if (model !== this.servedModel) {
