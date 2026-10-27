@@ -167,3 +167,36 @@ export async function approvePairing(userId: string, rawCode: string): Promise<N
     throw new AppError('NOT_FOUND', 'This node is no longer connected. Restart it to get a new code.');
   return node;
 }
+
+// ---- node distribution download auth ---------------------------------------------------------
+// The agent binary (docker build context) is served only to holders of an unexpired enrollment token
+// (consumed or not: the download happens before the node first connects) or of a short-lived update token.
+
+export const UPDATE_TOKEN_PREFIX = 'spdl_upd_';
+export const UPDATE_TOKEN_TTL_MS = 15 * 60_000;
+const updateKey = (token: string) => `node:update-token:${sha256(token)}`;
+
+/** Owner-issued token that lets an existing node re-download the agent. Stored hashed in Redis. */
+export async function issueUpdateToken(
+  nodeId: string,
+  now = new Date(),
+): Promise<{ token: string; expiresAt: Date }> {
+  const token = UPDATE_TOKEN_PREFIX + randomBytes(32).toString('base64url');
+  await getRedis().set(updateKey(token), nodeId, 'PX', UPDATE_TOKEN_TTL_MS);
+  return { token, expiresAt: new Date(now.getTime() + UPDATE_TOKEN_TTL_MS) };
+}
+
+/** True for an unexpired enrollment token (pending or already consumed) or a live update token. */
+export async function isValidDownloadToken(token: string, now = new Date()): Promise<boolean> {
+  if (token.startsWith(UPDATE_TOKEN_PREFIX)) {
+    return (await getRedis().exists(updateKey(token))) === 1;
+  }
+  if (!token.startsWith(TOKEN_PREFIX)) return false;
+  const [row] = await dbRef.db
+    .select({ status: enrollments.status, expiresAt: enrollments.expiresAt })
+    .from(enrollments)
+    .where(and(eq(enrollments.tokenHash, sha256(token)), eq(enrollments.kind, 'token')))
+    .limit(1);
+  if (!row || row.expiresAt.getTime() <= now.getTime()) return false;
+  return row.status === 'pending' || row.status === 'approved' || row.status === 'claimed';
+}

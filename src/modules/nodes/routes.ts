@@ -17,7 +17,8 @@ import {
 } from '../../shared/api/nodes';
 import { dbRef } from '../auth/constants';
 import { requireSession } from '../auth/middleware';
-import { approvePairing, createEnrollment } from './enroll';
+import nodeDistRoutes from './dist';
+import { approvePairing, createEnrollment, issueUpdateToken } from './enroll';
 import { nodeHub } from './hub';
 import {
   loadNodeById,
@@ -50,28 +51,44 @@ async function currentUserId(c: Context<Env>): Promise<string> {
   return row.id;
 }
 
-function wsBase(): string {
-  return nodeSettings.apiUrl.replace(/^http/, 'ws');
+export interface InstallCommandOpts {
+  engine: string;
+  /** Enrollment token (fresh install). */
+  token?: string;
+  /** Update token (re-install of an existing node: reuses the volume and node key, no enrollment). */
+  updateToken?: string;
 }
 
-export function enrollCommands(token: string, engine: string, os: string) {
-  const image = nodeSettings.nodeImage.replaceAll('{engine}', engine);
-  const api = wsBase();
-  const gpus = nodeSettings.nodeGpus ? '--gpus all ' : '';
-  const models = nodeSettings.nodeModels ? `-e SPINDLE_MODELS=${nodeSettings.nodeModels} ` : '';
-  const docker =
-    `docker run -d --name spindle-node --restart unless-stopped ${gpus}-v spindle-node:/data ` +
-    `-e SPINDLE_API_URL=${api} -e SPINDLE_TOKEN=${token} -e SPINDLE_ENGINE=${engine} ${models}${image}`;
-  const installer =
-    os === 'windows'
-      ? `& ([scriptblock]::Create((irm ${nodeSettings.appUrl}/install.ps1))) -Token ${token}`
-      : `curl -fsSL ${nodeSettings.appUrl}/install.sh | sh -s -- --token ${token}`;
-  return { docker, installer };
+/** The one-liners shown in the dashboard. The API origin is where the scripts are fetched from. */
+export function installCommands(o: InstallCommandOpts) {
+  const api = nodeSettings.apiUrl;
+  const models = nodeSettings.nodeModels;
+  const sh = [
+    o.updateToken ? `--update --update-token ${o.updateToken}` : `--token ${o.token}`,
+    `--engine ${o.engine}`,
+    ...(models ? [`--models ${models}`] : []),
+  ].join(' ');
+  const ps = [
+    o.updateToken ? `-Update -UpdateToken ${o.updateToken}` : `-Token ${o.token}`,
+    `-Engine ${o.engine}`,
+    ...(models ? [`-Models ${models}`] : []),
+  ].join(' ');
+  return {
+    installer: `curl -fsSL ${api}/v1/node/install.sh | sh -s -- ${sh}`,
+    powershell: `& ([scriptblock]::Create((irm ${api}/v1/node/install.ps1))) ${ps}`,
+  };
 }
 
 // names are trimmed before validation, so whitespace-only names are rejected
 const PatchNodeReq = SharedPatchNodeReq.extend({ name: z.string().trim().min(1).max(64) });
 const PostNodesEnrollReq = SharedEnrollReq.extend({ name: z.string().trim().min(1).max(64).optional() });
+
+const updateLimit = rateLimit({
+  name: 'node_update_cmd',
+  key: (c) => c.get('user')?.address ?? '',
+  points: 20,
+  windowSec: 60,
+});
 
 const pairLimit = rateLimit({
   name: 'node_pair',
@@ -104,6 +121,8 @@ export default function nodesRoutes(app: Hono<Env>): void {
     }),
   );
 
+  nodeDistRoutes(app);
+
   // ---- dashboard -------------------------------------------------------------------------------
   const guard = requireSession;
 
@@ -115,7 +134,17 @@ export default function nodesRoutes(app: Hono<Env>): void {
       enrollmentId,
       token,
       expiresAt: expiresAt.toISOString(),
-      commands: enrollCommands(token, req.engine, req.os),
+      commands: installCommands({ engine: req.engine, token }),
+    });
+  });
+
+  // Re-install command for an existing node: same volume and node key, no enrollment token.
+  app.post('/v1/app/nodes/:id/update-command', guard, updateLimit, async (c) => {
+    const row = await ownedNode(await currentUserId(c), c.req.param('id'));
+    const { token, expiresAt } = await issueUpdateToken(row.id);
+    return c.json({
+      expiresAt: expiresAt.toISOString(),
+      commands: installCommands({ engine: row.engine, updateToken: token }),
     });
   });
 

@@ -11,12 +11,17 @@ export const PostNodesEnrollReq = z.object({
   os: NodeOs,
   name: z.string().min(1).max(64).optional(),
 });
+/** One-line installers: `installer` for Linux/macOS (sh), `powershell` for Windows (WSL2 / Docker Desktop). */
+export const NodeCommands = z.object({ installer: z.string(), powershell: z.string() });
 export const PostNodesEnrollRes = z.object({
   enrollmentId: z.string(),
   token: z.string(),
   expiresAt: IsoTime,
-  commands: z.object({ docker: z.string(), installer: z.string() }),
+  commands: NodeCommands,
 });
+
+export const PostNodeUpdateCommandReq = z.void();
+export const PostNodeUpdateCommandRes = z.object({ expiresAt: IsoTime, commands: NodeCommands });
 
 export const PairingCode = z.string().regex(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
 

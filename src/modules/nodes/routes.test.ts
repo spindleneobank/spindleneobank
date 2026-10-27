@@ -1,4 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
@@ -7,7 +10,7 @@ import { closeRedis } from '../../lib/redis';
 import { dbRef, settings } from '../auth/constants';
 import { createTestSession } from '../auth/testing';
 import { nodeHub } from './hub';
-import { enrollCommands } from './routes';
+import { installCommands } from './routes';
 import { nodeSettings, setStakingParamsForTest } from './service';
 import { type FakeNode, fakeNode, startTestServer } from './testing';
 
@@ -72,7 +75,7 @@ async function enrollNode(h: Record<string, string>) {
   expect(res.status).toBe(200);
   const body = (await res.json()) as {
     token: string;
-    commands: { docker: string; installer: string };
+    commands: { installer: string; powershell: string };
     enrollmentId: string;
   };
   const n = fakeNode({
@@ -94,26 +97,26 @@ describe('nodes routes', () => {
     expect((await req('/v1/app/staking/params')).status).toBe(401);
   });
 
-  test('install command: engine image tag, optional --gpus and SPINDLE_MODELS', () => {
+  test('install commands: installer one-liners, optional --models, update variant', () => {
     const saved = { ...nodeSettings };
     try {
-      Object.assign(nodeSettings, {
-        nodeImage: 'spindle/spindle-node:{engine}',
-        nodeGpus: true,
-        nodeModels: undefined,
-      });
-      const hub = enrollCommands('tok', 'vllm', 'linux').docker;
-      expect(hub).toContain('--gpus all ');
-      expect(hub).toEndWith('spindle/spindle-node:vllm');
-      expect(hub).not.toContain('SPINDLE_MODELS');
-      Object.assign(nodeSettings, {
-        nodeImage: 'spindle-node:{engine}-local',
-        nodeGpus: false,
-        nodeModels: 'qwen2.5:0.5b',
-      });
-      const local = enrollCommands('tok', 'ollama', 'linux').docker;
-      expect(local).not.toContain('--gpus');
-      expect(local).toEndWith('-e SPINDLE_MODELS=qwen2.5:0.5b spindle-node:ollama-local');
+      Object.assign(nodeSettings, { nodeModels: undefined });
+      const plain = installCommands({ engine: 'vllm', token: 'tok' });
+      expect(plain.installer).toBe(
+        'curl -fsSL https://api.example/v1/node/install.sh | sh -s -- --token tok --engine vllm',
+      );
+      expect(plain.installer).not.toContain('docker run');
+      expect(plain.powershell).toBe(
+        '& ([scriptblock]::Create((irm https://api.example/v1/node/install.ps1))) -Token tok -Engine vllm',
+      );
+      Object.assign(nodeSettings, { nodeModels: 'qwen2.5:0.5b' });
+      expect(installCommands({ engine: 'ollama', token: 'tok' }).installer).toEndWith(
+        '--token tok --engine ollama --models qwen2.5:0.5b',
+      );
+      const upd = installCommands({ engine: 'ollama', updateToken: 'u1' });
+      expect(upd.installer).toContain('--update --update-token u1');
+      expect(upd.installer).not.toContain('--token u1');
+      expect(upd.powershell).toContain('-Update -UpdateToken u1');
     } finally {
       Object.assign(nodeSettings, saved);
     }
@@ -123,11 +126,10 @@ describe('nodes routes', () => {
     const h = await as(alice);
     const { body, nodeId, n } = await enrollNode(h);
     expect(body.token).toStartWith('spdl_enr_');
-    expect(body.commands.docker).toContain('SPINDLE_API_URL=wss://api.example');
-    expect(body.commands.docker).toContain(`SPINDLE_TOKEN=${body.token}`);
-    expect(body.commands.installer).toBe(
-      `curl -fsSL https://app.example/install.sh | sh -s -- --token ${body.token}`,
+    expect(body.commands.installer).toStartWith(
+      `curl -fsSL https://api.example/v1/node/install.sh | sh -s -- --token ${body.token} --engine ollama`,
     );
+    expect(body.commands).not.toHaveProperty('docker');
     const win = await (
       await req('/v1/app/nodes/enroll', {
         method: 'POST',
@@ -135,7 +137,7 @@ describe('nodes routes', () => {
         body: { engine: 'vllm', os: 'windows' },
       })
     ).json();
-    expect((win as { commands: { installer: string } }).commands.installer).toContain('install.ps1');
+    expect((win as { commands: { powershell: string } }).commands.powershell).toContain('install.ps1');
 
     const list = (await (await req('/v1/app/nodes', { headers: h })).json()) as Record<string, unknown>[];
     expect(list).toHaveLength(1);
@@ -315,5 +317,84 @@ describe('nodes routes', () => {
     const res = await req('/v1/app/staking/params', { headers: h });
     expect(res.status).toBe(200);
     expect(((await res.json()) as { unstakeDelay: number }).unstakeDelay).toBe(604800);
+  });
+
+  describe('node distribution', () => {
+    let dir: string;
+    const savedDist = nodeSettings.distDir;
+    beforeAll(() => {
+      dir = mkdtempSync(join(tmpdir(), 'node-dist-'));
+      mkdirSync(join(dir, 'ollama/amd64'), { recursive: true });
+      writeFileSync(join(dir, 'ollama/amd64/context.tar.gz'), 'FAKE-TARBALL');
+      writeFileSync(join(dir, 'manifest.json'), '{"agentVersion":"9.9.9","contexts":{}}');
+      writeFileSync(join(dir, 'install.sh'), 'API="__SPINDLE_API_URL__"\n');
+      writeFileSync(join(dir, 'install.ps1'), '$Api = "__SPINDLE_API_URL__"\n');
+      nodeSettings.distDir = dir;
+    });
+    afterAll(() => {
+      nodeSettings.distDir = savedDist;
+      rmSync(dir, { recursive: true, force: true });
+    });
+    const dl = (token?: string, path = '/v1/node/dist/ollama/amd64/context.tar.gz') =>
+      req(path, { headers: token ? { authorization: `Bearer ${token}` } : {} });
+
+    test('installers are public and get the API url templated in', async () => {
+      const sh = await req('/v1/node/install.sh');
+      expect(sh.status).toBe(200);
+      expect(await sh.text()).toBe('API="https://api.example"\n');
+      expect(await (await req('/v1/node/install.ps1')).text()).toContain('"https://api.example"');
+      const m = await req('/v1/node/dist/manifest.json');
+      expect(((await m.json()) as { agentVersion: string }).agentVersion).toBe('9.9.9');
+    });
+
+    test('context download needs a valid enrollment token, consumed or not', async () => {
+      const h = await as(alice);
+      expect((await dl()).status).toBe(401);
+      expect((await dl('spdl_enr_nope')).status).toBe(401);
+      const { body } = await enrollNode(h); // the fake node consumes the token
+      const ok = await dl(body.token);
+      expect(ok.status).toBe(200);
+      expect(ok.headers.get('content-type')).toBe('application/gzip');
+      expect(await ok.text()).toBe('FAKE-TARBALL');
+      await t.db.update(enrollments).set({ expiresAt: new Date(Date.now() - 1000) });
+      expect((await dl(body.token)).status).toBe(401);
+    });
+
+    test('unknown engine/arch and a missing build are 404', async () => {
+      const h = await as(alice);
+      const res = await req('/v1/app/nodes/enroll', {
+        method: 'POST',
+        headers: h,
+        body: { engine: 'ollama', os: 'linux' },
+      });
+      const { token } = (await res.json()) as { token: string };
+      expect((await dl(token, '/v1/node/dist/evil/amd64/context.tar.gz')).status).toBe(404);
+      expect((await dl(token, '/v1/node/dist/ollama/arm64/context.tar.gz')).status).toBe(404);
+      nodeSettings.distDir = join(dir, 'missing');
+      const gone = await dl(token);
+      nodeSettings.distDir = dir;
+      expect(gone.status).toBe(404);
+      expect(JSON.stringify(await gone.json())).toContain('node:dist');
+    });
+
+    test('update-command is owner-only and its token downloads, reusing no enrollment', async () => {
+      const h = await as(alice);
+      const { nodeId } = await enrollNode(h);
+      const other = await as(bob);
+      expect(
+        (await req(`/v1/app/nodes/${nodeId}/update-command`, { method: 'POST', headers: other })).status,
+      ).toBe(404);
+      const res = await req(`/v1/app/nodes/${nodeId}/update-command`, { method: 'POST', headers: h });
+      expect(res.status).toBe(200);
+      const j = (await res.json()) as {
+        commands: { installer: string; powershell: string };
+        expiresAt: string;
+      };
+      expect(j.commands.installer).toContain('--update --update-token spdl_upd_');
+      expect(j.commands.installer).not.toContain('spdl_enr_');
+      const tok = /spdl_upd_\S+/.exec(j.commands.installer)?.[0] ?? '';
+      expect((await dl(tok)).status).toBe(200);
+      expect((await dl(`${tok}x`)).status).toBe(401);
+    });
   });
 });
