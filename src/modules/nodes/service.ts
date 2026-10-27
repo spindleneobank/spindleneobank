@@ -189,7 +189,7 @@ export async function stakingParams(force = false): Promise<StakingParams> {
   classes.forEach((c, i) => {
     minStakeByClass[String(c)] = String(mins[i]);
   });
-  const value = { token: token as string, minStakeByClass, unstakeDelay: Number(delay) };
+  const value = { token: (token as string).toLowerCase(), minStakeByClass, unstakeDelay: Number(delay) };
   paramsCache = { at: Date.now(), value };
   await getRedis()
     .set(REDIS_KEY, JSON.stringify(value), 'EX', PARAMS_TTL_MS / 1000)
