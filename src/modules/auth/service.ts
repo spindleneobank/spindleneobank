@@ -35,8 +35,8 @@ export const siweDeps: SiweDependencies = {
   now: () => new Date(),
 };
 
-function invalid(check: string): never {
-  logger.warn({ check }, 'SIWE verification rejected');
+function invalid(check: string, detail?: Record<string, unknown>): never {
+  logger.warn({ check, ...detail }, 'SIWE verification rejected');
   throw new AppError('UNAUTHENTICATED', INVALID_MESSAGE);
 }
 
@@ -107,7 +107,8 @@ export async function verifySiwe(
     return invalid('uri');
   }
   if (!settings.corsOrigins.includes(origin)) invalid('uri_origin');
-  if (parsed.chainId !== settings.chainId) invalid('chain');
+  if (parsed.chainId !== settings.chainId)
+    invalid('chain', { got: parsed.chainId, expected: settings.chainId });
   if (parsed.version !== '1') invalid('version');
   if (parsed.statement !== (options.expectedStatement ?? LOGIN_STATEMENT)) invalid('statement');
 
