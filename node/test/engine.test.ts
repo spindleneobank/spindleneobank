@@ -68,6 +68,18 @@ test('ollama engine sends options.num_ctx (model window capped by SPINDLE_NUM_CT
   expect(await e2.contextLength('q:1')).toBe(32768);
 });
 
+test('ollama engine sends options.num_thread only when a thread budget is set', async () => {
+  const seen: Record<string, unknown>[] = [];
+  srv = ollamaServer((b) => seen.push(b));
+  const msg = { model: 'q:1', messages: [{ role: 'user', content: 'hi' }] };
+  for await (const _ of new OllamaEngine(`http://127.0.0.1:${srv.port}`, 8192, 2).chatStream(msg)) {
+  }
+  for await (const _ of new OllamaEngine(`http://127.0.0.1:${srv.port}`, 8192).chatStream(msg)) {
+  }
+  expect(seen[0]?.options).toHaveProperty('num_thread', 2);
+  expect(seen[1]?.options).not.toHaveProperty('num_thread');
+});
+
 test('ollama engine falls back to 4096 when /api/show has no context length', async () => {
   srv = ollamaServer(() => {}, null);
   expect(await new OllamaEngine(`http://127.0.0.1:${srv.port}`, 8192).contextLength('q:1')).toBe(4096);
