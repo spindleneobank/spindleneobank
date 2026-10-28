@@ -55,6 +55,13 @@ export function formatMicrosText(micros: string | bigint, fractionDigits = 2): s
   return tinyMicros(micros, fractionDigits)?.exact ?? formatMicros(micros, { fractionDigits });
 }
 
+/** Every micro shown: 6 decimals, trailing zeros trimmed down to `minDigits` ("4.999747", "5.00"). */
+export function formatMicrosExact(micros: string | bigint, minDigits = 2): string {
+  const [whole, frac = ''] = formatMicros(micros, { fractionDigits: MICROS }).split('.');
+  const kept = frac.replace(/0+$/, '').padEnd(minDigits, '0');
+  return kept ? `${whole}.${kept}` : `${whole}`;
+}
+
 /** Leading zeros from this count on are compacted as 0.0₅3 instead of 0.000003. */
 const COMPACT_ZEROS = 4;
 
@@ -62,11 +69,14 @@ export function Money({
   micros,
   unit = 'USDG',
   fractionDigits = 2,
+  exact = false,
   className = '',
 }: {
   micros: string | bigint;
   unit?: string | null;
   fractionDigits?: number;
+  /** Show every micro of an amount that is not whole cents (balances), instead of rounding it. */
+  exact?: boolean;
   className?: string;
 }) {
   const tiny = tinyMicros(micros, fractionDigits);
@@ -96,7 +106,7 @@ export function Money({
   }
   return (
     <span className={`sp-money ${className}`} data-micros={String(micros)}>
-      {formatMicros(micros, { fractionDigits })}
+      {exact ? formatMicrosExact(micros, fractionDigits) : formatMicros(micros, { fractionDigits })}
       {unitEl}
     </span>
   );
