@@ -113,7 +113,7 @@ export function ApiKeys() {
               caption="API keys"
               rows={list}
               rowKey={(k) => k.id}
-              template="1.2fr 1.3fr 1fr 1fr 110px"
+              template="1.2fr 1.3fr 1fr 1fr 170px"
               cols={[
                 { key: 'name', header: 'Name', render: (k) => <strong>{k.name || 'Unnamed'}</strong> },
                 { key: 'prefix', header: 'Key', render: (k) => <code>{k.prefix}…</code> },

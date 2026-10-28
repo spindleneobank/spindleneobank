@@ -12,9 +12,28 @@
 .dv-rates {
   min-width: 0;
 }
+.dv-balance,
 .dv-keys,
 .dv-rates {
   grid-column: 1 / -1;
+}
+/* balance figures left, deposit form right; stacked on narrow screens */
+.dv-balance-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+.dv-balance-main {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.dv-balance-body .dv-deposit {
+  border-top: 0;
+  padding-top: 0;
+  border-left: 1px solid var(--d-line);
+  padding-left: 32px;
 }
 .dv-stats {
   display: grid;
@@ -97,10 +116,11 @@
 }
 .dv-key-actions {
   display: inline-flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+  white-space: nowrap;
 }
 .dv-chart {
   width: 100%;
@@ -145,5 +165,15 @@
 @media (max-width: 900px) {
   .dv-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .dv-balance-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .dv-balance-body .dv-deposit {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--d-line);
+    padding-top: 14px;
   }
 }
