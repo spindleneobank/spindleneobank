@@ -29,6 +29,16 @@
   gap: 14px;
   min-width: 0;
 }
+.dv-balance-main .dv-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+/* the headline balance gets its own line: exact amounts like 4.999747 are wide */
+.dv-balance-main .dv-stats > div:first-child {
+  grid-column: 1 / -1;
+}
+.dv-balance-main .dv-stats dd {
+  white-space: nowrap;
+}
 .dv-balance-body .dv-deposit {
   border-top: 0;
   padding-top: 0;
