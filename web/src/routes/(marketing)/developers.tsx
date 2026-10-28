@@ -65,7 +65,7 @@ function Code({ title, code }: { title: string; code: string }) {
 
 /** A real example file from app/examples, with the dev API URL swapped for this deployment's. */
 function ExampleFile({ example, open }: { example: Example; open?: boolean }) {
-  const code = example.code.replaceAll(EXAMPLE_DEFAULT_API, env.apiUrl);
+  const code = example.code.replaceAll(EXAMPLE_DEFAULT_API, env.publicApiUrl);
   return (
     <details className="dev-details" open={open}>
       <summary>examples/{example.file}</summary>
@@ -204,7 +204,7 @@ function LivePricing() {
 }
 
 function Developers() {
-  const base = `${env.apiUrl}/v1`;
+  const base = `${env.publicApiUrl}/v1`;
   return (
     <>
       <PageHero

@@ -22,6 +22,12 @@ describe('parseEnv', () => {
     expect(e.chainId).toBe(4663);
     expect(e.mock).toBe(false);
   });
+  it('publicApiUrl defaults to VITE_API_URL and can be set separately', () => {
+    expect(parseEnv(base).publicApiUrl).toBe('http://127.0.0.1:7200');
+    expect(parseEnv({ ...base, VITE_PUBLIC_API_URL: 'https://api.example.com/' }).publicApiUrl).toBe(
+      'https://api.example.com',
+    );
+  });
   it('rejects a missing VITE_API_URL', () => {
     const { VITE_API_URL: _omit, ...rest } = base;
     expect(() => parseEnv(rest)).toThrow(/VITE_API_URL/);
