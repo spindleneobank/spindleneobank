@@ -126,7 +126,7 @@ function LivePricing() {
   }, []);
 
   if (state === 'loading')
-    return <p className="dev-note">Loading live models and prices from {env.apiUrl}/v1 ...</p>;
+    return <p className="dev-note">Loading live models and prices from {env.publicApiUrl}/v1 ...</p>;
   if (state === 'offline')
     return (
       <p className="dev-callout">
