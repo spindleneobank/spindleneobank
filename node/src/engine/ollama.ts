@@ -14,6 +14,8 @@ export class OllamaEngine implements Engine {
   constructor(
     private readonly url: string,
     private readonly maxCtx = 8192,
+    /** `options.num_thread`; undefined keeps Ollama's default (one per visible core). */
+    private readonly numThread?: number,
   ) {}
 
   /** Context window this node serves for `model`: the model's own (from /api/show), capped by `maxCtx`. */
@@ -40,6 +42,7 @@ export class OllamaEngine implements Engine {
   private async nativeBody(req: ChatRequest, stream: boolean): Promise<Record<string, unknown>> {
     const model = String(req.model);
     const options: Record<string, unknown> = { num_ctx: await this.contextLength(model) };
+    if (this.numThread) options.num_thread = this.numThread;
     const maxTokens = Number(req.max_tokens ?? req.max_completion_tokens);
     if (Number.isFinite(maxTokens) && maxTokens > 0) options.num_predict = maxTokens;
     for (const k of ['temperature', 'top_p', 'seed', 'frequency_penalty', 'presence_penalty'] as const)

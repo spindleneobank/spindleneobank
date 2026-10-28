@@ -27,7 +27,12 @@ export const probeSettings = {
   maxTokens: 128,
   prompt: 'Write one short paragraph about graphics cards.',
   missesToSuspend: 2,
+  /** After an inconclusive probe (timeout, offline, stopped for a job) the node is retried this much later. */
+  retryMs: 30 * 60_000,
 };
+
+/** nodeId -> earliest next attempt after an inconclusive probe. Worker-local: a restart probes again. */
+export const probeRetryAt = new Map<string, number>();
 
 export const probeDeps = {
   probe: (nodeId: string, kind: 'hardware' | 'bench', model: string): Promise<ProbeResultMsg> =>
@@ -98,14 +103,23 @@ export async function probeNode(nodeId: string): Promise<{ classOk: boolean; sus
   const exp = CLASS_EXPECTATIONS[node.gpuClass as GpuClass];
   let hw: ProbeResultMsg;
   let bench: ProbeResultMsg;
+  const inconclusive = (why: string) => {
+    // retrying every tick would keep a slow node permanently probing (a node still running the timed-out
+    // benchmark refuses jobs), so wait `retryMs`
+    probeRetryAt.set(nodeId, probeDeps.now() + probeSettings.retryMs);
+    logger.info({ nodeId, why }, 'probe inconclusive');
+    return null;
+  };
   try {
     hw = await probeDeps.probe(nodeId, 'hardware', exp.refModel);
+    if (hw.aborted) return inconclusive('hardware probe stopped for a job');
     bench = await probeDeps.probe(nodeId, 'bench', exp.refModel);
+    if (bench.aborted) return inconclusive('benchmark stopped for a job');
   } catch (err) {
-    // offline, busy or slow: inconclusive, tried again next tick
-    logger.info({ nodeId, err: String(err) }, 'probe did not complete');
-    return null;
+    // offline, busy or slow
+    return inconclusive(String(err));
   }
+  probeRetryAt.delete(nodeId);
   const models = (Array.isArray(node.models) ? node.models : []) as { id: string }[];
   const ev = evaluateProbe(node.gpuClass, hw.hardware, bench.bench, {
     hasRefModel: models.some((m) => m.id === exp.refModel),
@@ -164,6 +178,7 @@ export async function dueNodes(now = probeDeps.now()): Promise<string[]> {
     .from(nodes)
     .where(and(eq(nodes.registered, true), inArray(nodes.status, ['online'])));
   return rows
+    .filter((r) => (probeRetryAt.get(r.id) ?? 0) <= now)
     .filter(
       (r) =>
         !r.last ||

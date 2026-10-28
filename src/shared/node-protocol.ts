@@ -283,6 +283,8 @@ export const ProbeResultMsg = z.object({
   bench: z
     .object({ tokPerSec: z.number(), ttftMs: z.number(), model: z.string(), digest: z.string() })
     .optional(),
+  /** The node stopped the probe to serve a job: inconclusive, never counted as a miss. */
+  aborted: z.boolean().optional(),
 });
 
 export const AttestRefreshMsg = z.object({

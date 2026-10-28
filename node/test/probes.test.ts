@@ -87,32 +87,109 @@ test('a failing bench still answers with an empty probe.result', async () => {
   expect(out).toEqual([{ v: 1, type: 'probe.result', probeId: 'p3' }]);
 });
 
-test('job gate: defers while a probe runs, BUSY if it takes too long', async () => {
+test('a job stops a running benchmark, which reports aborted, and runs at once', async () => {
   const out: NodeToServer[] = [];
-  let release!: () => void;
-  const hold = new Promise<void>((r) => {
-    release = r;
-  });
+  let jobBusy = false;
   const slow = engine();
-  slow.chatStream = async function* () {
-    await hold;
-    yield { content: 'a' };
+  slow.chatStream = async function* (_req, signal) {
+    for (let i = 0; i < 1000; i++) {
+      if (signal?.aborted) throw new Error('aborted');
+      await Bun.sleep(10);
+      yield { content: 'a' };
+    }
   };
   const p = new ProbeRunner({
     engine: slow,
     send: (m) => !!out.push(m),
     log: silentLogger,
     idle: async () => {},
-    busy: () => false,
+    busy: () => jobBusy,
   });
-  expect(await p.gate(50)).toBe(true); // no probe: immediate
   const done = p.handle(probe('p1', 'bench'));
-  expect(p.active).toBe(true);
-  expect(await p.gate(50)).toBe(false); // too long: caller replies BUSY
-  const waiting = p.gate(2000);
-  release();
-  expect(await waiting).toBe(true); // deferred until the probe finished
+  await Bun.sleep(50);
+  const t0 = performance.now();
+  expect(
+    await p.beforeJob(() => {
+      jobBusy = true;
+    }, 2000),
+  ).toBe(true);
+  expect(performance.now() - t0).toBeLessThan(500);
   await done;
+  expect(out).toEqual([{ v: 1, type: 'probe.result', probeId: 'p1', aborted: true }]);
+});
+
+test('queued probes wait for a job that is just starting', async () => {
+  const out: NodeToServer[] = [];
+  let jobBusy = false;
+  let finishJob!: () => void;
+  const job = new Promise<void>((r) => {
+    finishJob = () => {
+      jobBusy = false;
+      r();
+    };
+  });
+  const p = new ProbeRunner({
+    engine: engine(),
+    send: (m) => !!out.push(m),
+    log: silentLogger,
+    idle: () => job,
+    busy: () => jobBusy,
+    hardware: async () => ({ gpus: [], cpu: 'x', ramMb: 1 }),
+  });
+  expect(
+    await p.beforeJob(() => {
+      jobBusy = true;
+    }),
+  ).toBe(true); // nothing running: immediate
+  const queued = p.handle(probe('p2', 'hardware'));
+  await Bun.sleep(50);
+  expect(out.length).toBe(0);
+  finishJob();
+  await queued;
   expect(out.length).toBe(1);
-  expect(p.active).toBe(false);
+});
+
+test('a running hardware probe is waited for; BUSY if it takes too long', async () => {
+  const out: NodeToServer[] = [];
+  let release!: () => void;
+  const hold = new Promise<void>((r) => {
+    release = r;
+  });
+  const p = new ProbeRunner({
+    engine: engine(),
+    send: (m) => !!out.push(m),
+    log: silentLogger,
+    idle: async () => {},
+    busy: () => false,
+    hardware: async () => {
+      await hold;
+      return { gpus: [], cpu: 'x', ramMb: 1 };
+    },
+  });
+  const done = p.handle(probe('p1', 'hardware'));
+  await Bun.sleep(10);
+  let started = 0;
+  expect(await p.beforeJob(() => void started++, 50)).toBe(false);
+  expect(started).toBe(0);
+  const waiting = p.beforeJob(() => void started++, 2000);
+  release();
+  expect(await waiting).toBe(true);
+  expect(started).toBe(1);
+  await done;
+  expect((out[0] as { hardware?: unknown }).hardware).toBeDefined();
+});
+
+test('benchmark stops at its time budget and reports the speed so far', async () => {
+  const slow = engine();
+  slow.chatStream = async function* (_req, signal) {
+    for (let i = 0; i < 1000; i++) {
+      if (signal?.aborted) throw new Error('aborted');
+      await Bun.sleep(5);
+      yield { content: 'a' };
+    }
+  };
+  const t0 = performance.now();
+  const r = await runBenchmark(slow, 'q:1', undefined, { maxMs: 150 });
+  expect(performance.now() - t0).toBeLessThan(600);
+  expect(r.tokPerSec).toBeGreaterThan(0);
 });
