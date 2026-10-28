@@ -2,6 +2,7 @@ import type { HelloBody } from '@spindle/shared/node-protocol';
 import pkg from '../package.json';
 import { type Config, loadConfig } from './config';
 import { NodeConnection } from './connection';
+import { inferenceThreads } from './cpu';
 import { createEngine, type Engine } from './engine';
 import { detectHardware, readGpuStats } from './hardware';
 import { JobRunner } from './jobs';
@@ -59,7 +60,9 @@ async function main(): Promise<void> {
 
   const key = await loadOrCreateKey(config.dataDir);
   log.info(`node key: ${key.address}`);
-  const engine = createEngine(config);
+  const numThread = inferenceThreads(config.numThread);
+  if (numThread) log.info(`inference threads: ${numThread}`);
+  const engine = createEngine({ ...config, numThread });
   let stopping = false;
   const engineVersion = await waitForEngine(engine, log, () => stopping);
 
@@ -158,11 +161,19 @@ async function main(): Promise<void> {
           config.models ? m.models.filter((x) => config.models?.includes(x.engineModel)) : m.models,
         ),
       onJobStart: (m) =>
-        void probes.gate(5000).then((ok) => {
-          // a job never overlaps a probe: defer up to 5 s, else BUSY
-          if (ok) return runner.start(m);
-          send({ v: 1, type: 'job.error', jobId: m.jobId, code: 'BUSY', message: 'node is running a probe' });
-        }),
+        void probes
+          .beforeJob(() => void runner.start(m), 5000)
+          .then((ok) => {
+            // a job stops a running benchmark; only a hardware probe stuck for 5 s answers BUSY
+            if (!ok)
+              send({
+                v: 1,
+                type: 'job.error',
+                jobId: m.jobId,
+                code: 'BUSY',
+                message: 'node is running a probe',
+              });
+          }),
       onJobCancel: (m) => runner.cancel(m.jobId),
       onProbeStart: (m) => void probes.handle(m),
     },
