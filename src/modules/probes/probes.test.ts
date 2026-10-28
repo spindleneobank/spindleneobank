@@ -8,7 +8,15 @@ import type { ProbeResultMsg } from '../../shared/node-protocol';
 import { dbRef } from '../auth/constants';
 import { slashingDeps, unsuspendNode } from '../slashing/service';
 import { makeNode } from '../slashing/testkit';
-import { dueNodes, evaluateProbe, probeDeps, probeNode, probeSettings, scheduleProbes } from './service';
+import {
+  dueNodes,
+  evaluateProbe,
+  probeDeps,
+  probeNode,
+  probeRetryAt,
+  probeSettings,
+  scheduleProbes,
+} from './service';
 
 const gpu = (name: string, vramMb: number, cc = false) => ({
   gpus: [{ name, vramMb, driver: '550', uuid: 'GPU-1', cc }],
@@ -174,6 +182,33 @@ describe('probe flow', () => {
     };
     expect(await probeNode(n.id)).toBeNull();
     expect(await t.db.select().from(probeResults)).toHaveLength(0);
+  });
+
+  test('inconclusive probes back off instead of retrying every tick', async () => {
+    const n = await makeNode();
+    probeDeps.probe = async () => {
+      throw new Error('Probe timed out.');
+    };
+    expect(await probeNode(n.id)).toBeNull();
+    const now = Date.now();
+    expect(await dueNodes(now)).not.toContain(n.id);
+    expect(await dueNodes(now + probeSettings.retryMs + 1000)).toContain(n.id);
+    probeRetryAt.clear();
+  });
+
+  test('a benchmark stopped for a job is inconclusive: no miss, no result stored', async () => {
+    const n = await makeNode();
+    probeDeps.probe = async (_id, kind) =>
+      kind === 'hardware'
+        ? { v: 1, type: 'probe.result', probeId: 'p', hardware: hw }
+        : { v: 1, type: 'probe.result', probeId: 'p', aborted: true };
+    expect(await probeNode(n.id)).toBeNull();
+    expect(await probeNode(n.id)).toBeNull();
+    expect(await t.db.select().from(probeResults)).toHaveLength(0);
+    const [row] = await t.db.select().from(nodes).where(eq(nodes.id, n.id));
+    expect(row?.status).toBe('online');
+    expect(probeRetryAt.has(n.id)).toBe(true);
+    probeRetryAt.clear();
   });
 
   test('schedule: only registered online nodes whose last probe is older than 6h, capped per tick', async () => {
