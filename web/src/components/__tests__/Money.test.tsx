@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { formatCents, formatMicros, Money, tinyMicros } from '../Money';
+import { formatCents, formatMicros, formatMicrosExact, Money, tinyMicros } from '../Money';
 
 describe('formatMicros', () => {
   it('formats micro strings with bigint math', () => {
@@ -44,5 +44,14 @@ describe('formatMicros', () => {
     expect(el.textContent).toBe('0.0' + '5' + '0000' + '3' + ' USDG');
     render(<Money micros="125" unit={null} />);
     expect(screen.getByText('0.000125')).toBeInTheDocument();
+  });
+  it('exact amounts show every micro, trimmed down to two decimals', () => {
+    expect(formatMicrosExact('4999747')).toBe('4.999747');
+    expect(formatMicrosExact('5000000')).toBe('5.00');
+    expect(formatMicrosExact('5010000')).toBe('5.01');
+    expect(formatMicrosExact('1234500000')).toBe('1,234.50');
+    expect(formatMicrosExact('-250')).toBe('-0.00025');
+    render(<Money micros="4999747" exact />);
+    expect(screen.getByText('4.999747')).toBeInTheDocument();
   });
 });

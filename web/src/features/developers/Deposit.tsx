@@ -85,151 +85,159 @@ export function BalanceDeposit() {
         </div>
         <PixelIcon name="wallet" size={21} />
       </div>
-      <Boundary query={buyer} title="Balance" skeleton={<Skeleton height={120} />}>
-        {(b) => {
-          const total = BigInt(b.balanceMicros);
-          const reserved = BigInt(b.reservedMicros);
-          return (
-            <dl className="dv-stats">
-              <div>
-                <dt>Balance</dt>
-                <dd>
-                  <strong className="sd-amount">
-                    <Money micros={total} />
-                  </strong>
-                </dd>
-              </div>
-              <div>
-                <dt>Reserved</dt>
-                <dd>
-                  <Money micros={reserved} />
-                </dd>
-              </div>
-              <div>
-                <dt>Available</dt>
-                <dd>
-                  <Money micros={total - reserved} />
-                </dd>
-              </div>
-            </dl>
-          );
-        }}
-      </Boundary>
-      <p className="dv-note">
-        API credit is non-refundable. Each deposit is split on-chain: 80% funds providers, 20% goes to
-        Spindle.
-      </p>
-
-      <div className="dv-deposit">
-        <label className="dv-input">
-          <span className="sd-label">Deposit USDG</span>
-          <input
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => {
-              setAmount(e.target.value);
-              setCredited(null);
+      <div className="dv-balance-body">
+        <div className="dv-balance-main">
+          <Boundary query={buyer} title="Balance" skeleton={<Skeleton height={120} />}>
+            {(b) => {
+              const total = BigInt(b.balanceMicros);
+              const reserved = BigInt(b.reservedMicros);
+              return (
+                <dl className="dv-stats">
+                  <div>
+                    <dt>Balance</dt>
+                    <dd>
+                      <strong className="sd-amount">
+                        <Money micros={total} exact />
+                      </strong>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Reserved</dt>
+                    <dd>
+                      <Money micros={reserved} exact />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Available</dt>
+                    <dd>
+                      <Money micros={total - reserved} exact />
+                    </dd>
+                  </div>
+                </dl>
+              );
             }}
-            aria-invalid={!!error}
-            aria-describedby="dv-amount-help"
-            placeholder="50"
-          />
-        </label>
-        <p id="dv-amount-help" className={error ? 'dv-error' : 'dv-help'} role={error ? 'alert' : undefined}>
-          {error ??
-            (typeof walletBal.data === 'bigint'
-              ? `Wallet balance: ${formatUnits(walletBal.data, 6)} USDG`
-              : 'Wallet balance unavailable. Connect your wallet.')}
-        </p>
-        <div className="dv-tx">
-          {micros !== null && !approved ? (
-            <TxButton
-              key={`approve-${micros}`}
-              label={`1. Approve ${amount} USDG`}
-              variant="secondary"
-              disabled={!!error || !address}
-              request={{
-                address: env.addresses.usdg,
-                abi: erc20Abi,
-                functionName: 'approve',
-                args: [env.addresses.vault, micros],
-              }}
-              onConfirmed={() => void allowance.refetch()}
-            />
-          ) : null}
-          <TxButton
-            key={`deposit-${micros}`}
-            label={micros !== null && !approved ? '2. Deposit' : 'Deposit'}
-            disabled={!!error || micros === null || !approved || !address || !!pending}
-            request={{
-              address: env.addresses.vault,
-              abi: vaultAbi,
-              functionName: 'deposit',
-              args: [micros ?? 0n],
-            }}
-            onConfirmed={(r) => {
-              setTimedOut(false);
-              setCredited(null);
-              setPending({ baseline: bal ?? 0n, hash: r.transactionHash, startedAt: Date.now() });
-              void walletBal.refetch();
-              void allowance.refetch();
-            }}
-          />
-          {env.mock && micros !== null ? (
-            <CTA
-              variant="ghost"
-              icon=""
-              onClick={() => {
-                void apiFetch('/v1/app/buyer/_mock-deposit', {
-                  schema: z.object({}),
-                  method: 'POST',
-                  body: { amountMicros: micros.toString() },
-                }).catch(() => undefined);
-                setTimedOut(false);
-                setCredited(null);
-                setPending({ baseline: bal ?? 0n, hash: `0x${'e'.repeat(64)}`, startedAt: Date.now() });
-              }}
-            >
-              Simulate deposit (mock)
-            </CTA>
-          ) : null}
+          </Boundary>
+          <p className="dv-note">
+            Your full deposit becomes API credit, spent at the listed prices. Credit is non-refundable: on
+            deposit, the USDG moves on-chain, 80% to the provider claims pool and 20% to Spindle.
+          </p>
         </div>
 
-        {pending ? (
-          <p className="dv-status" role="status">
-            <PixelIcon name="hourly" size={14} /> Pending confirmations. Crediting after 12 confirmations…{' '}
-            {timedOut ? null : (
-              <a href={explorerTx(pending.hash)} target="_blank" rel="noreferrer noopener">
-                View transaction
-              </a>
-            )}
-          </p>
-        ) : null}
-        {pending && timedOut ? (
-          <p className="dv-error" role="alert">
-            Still not credited after 5 minutes. Your deposit is on-chain and will be credited once indexed;{' '}
-            <a href={explorerTx(pending.hash)} target="_blank" rel="noreferrer noopener">
-              check the transaction
-            </a>
-            .{' '}
-            <button
-              type="button"
-              className="sd-link"
-              onClick={() => {
-                setTimedOut(false);
-                setPending({ ...pending, startedAt: Date.now() });
-                void qc.invalidateQueries({ queryKey: bk.buyer });
+        <div className="dv-deposit">
+          <label className="dv-input">
+            <span className="sd-label">Deposit USDG</span>
+            <input
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setCredited(null);
               }}
-            >
-              Keep waiting
-            </button>
+              aria-invalid={!!error}
+              aria-describedby="dv-amount-help"
+              placeholder="50"
+            />
+          </label>
+          <p
+            id="dv-amount-help"
+            className={error ? 'dv-error' : 'dv-help'}
+            role={error ? 'alert' : undefined}
+          >
+            {error ??
+              (typeof walletBal.data === 'bigint'
+                ? `Wallet balance: ${formatUnits(walletBal.data, 6)} USDG`
+                : 'Wallet balance unavailable. Connect your wallet.')}
           </p>
-        ) : null}
-        {credited !== null ? (
-          <p className="dv-ok" role="status">
-            Credited <Money micros={credited} />. Your balance is updated.
-          </p>
-        ) : null}
+          <div className="dv-tx">
+            {micros !== null && !approved ? (
+              <TxButton
+                key={`approve-${micros}`}
+                label={`1. Approve ${amount} USDG`}
+                variant="secondary"
+                disabled={!!error || !address}
+                request={{
+                  address: env.addresses.usdg,
+                  abi: erc20Abi,
+                  functionName: 'approve',
+                  args: [env.addresses.vault, micros],
+                }}
+                onConfirmed={() => void allowance.refetch()}
+              />
+            ) : null}
+            <TxButton
+              key={`deposit-${micros}`}
+              label={micros !== null && !approved ? '2. Deposit' : 'Deposit'}
+              disabled={!!error || micros === null || !approved || !address || !!pending}
+              request={{
+                address: env.addresses.vault,
+                abi: vaultAbi,
+                functionName: 'deposit',
+                args: [micros ?? 0n],
+              }}
+              onConfirmed={(r) => {
+                setTimedOut(false);
+                setCredited(null);
+                setPending({ baseline: bal ?? 0n, hash: r.transactionHash, startedAt: Date.now() });
+                void walletBal.refetch();
+                void allowance.refetch();
+              }}
+            />
+            {env.mock && micros !== null ? (
+              <CTA
+                variant="ghost"
+                icon=""
+                onClick={() => {
+                  void apiFetch('/v1/app/buyer/_mock-deposit', {
+                    schema: z.object({}),
+                    method: 'POST',
+                    body: { amountMicros: micros.toString() },
+                  }).catch(() => undefined);
+                  setTimedOut(false);
+                  setCredited(null);
+                  setPending({ baseline: bal ?? 0n, hash: `0x${'e'.repeat(64)}`, startedAt: Date.now() });
+                }}
+              >
+                Simulate deposit (mock)
+              </CTA>
+            ) : null}
+          </div>
+
+          {pending ? (
+            <p className="dv-status" role="status">
+              <PixelIcon name="hourly" size={14} /> Pending confirmations. Crediting after 12 confirmations…{' '}
+              {timedOut ? null : (
+                <a href={explorerTx(pending.hash)} target="_blank" rel="noreferrer noopener">
+                  View transaction
+                </a>
+              )}
+            </p>
+          ) : null}
+          {pending && timedOut ? (
+            <p className="dv-error" role="alert">
+              Still not credited after 5 minutes. Your deposit is on-chain and will be credited once indexed;{' '}
+              <a href={explorerTx(pending.hash)} target="_blank" rel="noreferrer noopener">
+                check the transaction
+              </a>
+              .{' '}
+              <button
+                type="button"
+                className="sd-link"
+                onClick={() => {
+                  setTimedOut(false);
+                  setPending({ ...pending, startedAt: Date.now() });
+                  void qc.invalidateQueries({ queryKey: bk.buyer });
+                }}
+              >
+                Keep waiting
+              </button>
+            </p>
+          ) : null}
+          {credited !== null ? (
+            <p className="dv-ok" role="status">
+              Credited <Money micros={credited} />. Your balance is updated.
+            </p>
+          ) : null}
+        </div>
       </div>
     </section>
   );
