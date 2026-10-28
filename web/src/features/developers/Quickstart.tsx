@@ -9,7 +9,7 @@ import { env } from '../../config';
 import { Boundary, RowTable } from '../shell/ui';
 import { useModels, useRateCard } from './queries';
 
-const base = `${env.apiUrl}/v1`;
+const base = `${env.publicApiUrl}/v1`;
 const SNIPPETS = {
   curl: `curl ${base}/chat/completions \\
   -H "Authorization: Bearer sk-spdl-YOUR_KEY" \\

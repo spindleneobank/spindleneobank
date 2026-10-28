@@ -7,6 +7,9 @@ const url = z.string().url();
 export const envSchema = z.object({
   VITE_API_URL: url,
   VITE_APP_URL: url,
+  /** API URL shown in code examples and docs, when the browser reaches the API another way (dev: the
+   *  public tunnel, while the page calls localhost). Defaults to VITE_API_URL. */
+  VITE_PUBLIC_API_URL: url.optional(),
   VITE_CHAIN_ID: z.coerce.number().int().positive().default(4663),
   VITE_RPC_URL: url,
   VITE_REOWN_PROJECT_ID: z.string().min(1),
@@ -32,6 +35,7 @@ export function parseEnv(raw: Record<string, unknown>) {
   const e = parsed.data;
   return {
     apiUrl: e.VITE_API_URL.replace(/\/$/, ''),
+    publicApiUrl: (e.VITE_PUBLIC_API_URL ?? e.VITE_API_URL).replace(/\/$/, ''),
     appUrl: e.VITE_APP_URL.replace(/\/$/, ''),
     chainId: e.VITE_CHAIN_ID,
     rpcUrl: e.VITE_RPC_URL,
