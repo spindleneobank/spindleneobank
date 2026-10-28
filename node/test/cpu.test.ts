@@ -23,11 +23,13 @@ test('cgroup quota: v2, v1 and unlimited', () => {
   expect(cgroupCpuQuota(files({}))).toBeNull();
 });
 
-test('threads follow the quota only when it is below the visible cores', () => {
-  expect(inferenceThreads(undefined, 2, 6)).toBe(2);
-  expect(inferenceThreads(undefined, 1.5, 6)).toBe(1);
-  expect(inferenceThreads(undefined, 0.5, 6)).toBe(1);
-  expect(inferenceThreads(undefined, 8, 6)).toBeUndefined();
-  expect(inferenceThreads(undefined, null, 6)).toBeUndefined();
-  expect(inferenceThreads(3, null, 6)).toBe(3);
+test('threads follow the quota or core pin when either is below the host cores', () => {
+  expect(inferenceThreads(undefined, 2, 6, 6)).toBe(2); // --cpus 2
+  expect(inferenceThreads(undefined, 1.5, 6, 6)).toBe(1);
+  expect(inferenceThreads(undefined, 0.5, 6, 6)).toBe(1);
+  expect(inferenceThreads(undefined, null, 2, 8)).toBe(2); // --cpuset-cpus 0-1
+  expect(inferenceThreads(undefined, 4, 2, 8)).toBe(2); // both: the smaller wins
+  expect(inferenceThreads(undefined, 8, 6, 6)).toBeUndefined();
+  expect(inferenceThreads(undefined, null, 6, 6)).toBeUndefined();
+  expect(inferenceThreads(3, null, 6, 6)).toBe(3);
 });

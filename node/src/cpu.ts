@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { availableParallelism } from 'node:os';
+import { availableParallelism, cpus } from 'node:os';
 
 type Read = (path: string) => string;
 const readText: Read = (p) => readFileSync(p, 'utf8');
@@ -23,16 +23,18 @@ export function cgroupCpuQuota(read: Read = readText): number | null {
 
 /**
  * Inference threads to ask Ollama for, or undefined to keep its default. Ollama sizes its thread pool
- * from the cores it can see, which ignores a cgroup quota: `--cpus 2` on an 8-core host still runs 8
- * spinning threads in 2 CPUs of time and decode collapses. `override` is SPINDLE_NUM_THREAD.
+ * from all host cores and ignores both a cgroup quota (`--cpus 2`) and a core pin (`--cpuset-cpus 0-1`):
+ * on an 8-core host it still runs 8 spinning threads in 2 CPUs and decode collapses below 1 tok/s.
+ * `usable` is the cores this process may run on (affinity), `host` all cores. `override` is
+ * SPINDLE_NUM_THREAD.
  */
 export function inferenceThreads(
   override: number | undefined,
   quota: number | null = cgroupCpuQuota(),
-  visible: number = availableParallelism(),
+  usable: number = availableParallelism(),
+  host: number = cpus().length,
 ): number | undefined {
   if (override) return override;
-  if (quota === null) return undefined;
-  const n = Math.max(1, Math.floor(quota));
-  return n < visible ? n : undefined;
+  const n = Math.max(1, Math.floor(Math.min(usable, quota ?? usable)));
+  return n < host ? n : undefined;
 }
