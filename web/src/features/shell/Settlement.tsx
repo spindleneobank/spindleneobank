@@ -51,7 +51,7 @@ export function SettlementStages({ s, compact }: { s: Summary; compact?: boolean
           <i aria-hidden="true" />
           <span className="sd-stage-label">{st.label}</span>
           <strong>
-            <Money micros={st.micros} />
+            <Money micros={st.micros} exact />
           </strong>
           <small>{st.when}</small>
         </li>
