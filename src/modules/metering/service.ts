@@ -1,4 +1,4 @@
-import { and, desc, eq, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, lte, or, sql } from 'drizzle-orm';
 import { config } from '../../config';
 import { claims, earningEvents, epochBalances, epochs, nodes } from '../../db/schema';
 import { AppError } from '../../lib/errors';
@@ -7,6 +7,8 @@ import { dbRef } from '../auth/constants';
 
 /** A posted root becomes claimable this long after posting (contracts-spec: 1 h). */
 export const CLAIM_DELAY_MS = 3_600_000;
+/** The worker builds a closed hour's root this long after the hour ends (epochs/jobs BUILD_DELAY_S). */
+export const ROOT_BUILD_DELAY_MS = 120_000;
 
 export const meteringSettings = {
   epochSeconds: config.EPOCH_SECONDS,
@@ -40,18 +42,40 @@ export async function earningsSummary(owner: string, now: Date = new Date()) {
     .where(and(eq(epochs.status, 'posted'), lte(epochs.postedAt, new Date(now.getTime() - CLAIM_DELAY_MS))))
     .orderBy(desc(epochs.epoch))
     .limit(1);
-  let cumulative = 0n;
-  if (claimableEpoch) {
+  const cumulativeAt = async (epoch: bigint | undefined) => {
+    if (epoch === undefined) return 0n;
     const [bal] = await db
       .select({ c: epochBalances.cumulativeUsdgMicros })
       .from(epochBalances)
-      .where(and(eq(epochBalances.owner, o), eq(epochBalances.epoch, claimableEpoch.epoch)));
-    cumulative = bal?.c ?? 0n;
-  }
+      .where(and(eq(epochBalances.owner, o), eq(epochBalances.epoch, epoch)));
+    return bal?.c ?? 0n;
+  };
+  const cumulative = await cumulativeAt(claimableEpoch?.epoch);
+  const cumulativeLatest =
+    latest?.epoch === claimableEpoch?.epoch ? cumulative : await cumulativeAt(latest?.epoch);
   const totalEarned = big(total);
   const claimedMicros = big(claimed);
   const claimable = cumulative > claimedMicros ? cumulative - claimedMicros : 0n;
   const pending = totalEarned > cumulative ? totalEarned - cumulative : 0n;
+  // pending = unlocking (in a posted root, inside the claim delay) + awaiting a root
+  const unlocking = cumulativeLatest > cumulative ? cumulativeLatest - cumulative : 0n;
+  const awaitingRoot = pending > unlocking ? pending - unlocking : 0n;
+  const periodMs = meteringSettings.epochSeconds * 1000;
+  let nextRootAtMs: number | null = null;
+  if (awaitingRoot > 0n) {
+    // the oldest earning not yet in a posted root decides which hour's root picks it up next
+    const [{ ts } = { ts: null }] = await db
+      .select({ ts: sql<Date | string | null>`min(${earningEvents.ts})` })
+      .from(earningEvents)
+      .where(
+        and(
+          eq(earningEvents.owner, o),
+          latest ? or(isNull(earningEvents.epoch), gt(earningEvents.epoch, latest.epoch)) : undefined,
+        ),
+      );
+    const oldest = ts ? new Date(ts).getTime() : now.getTime();
+    nextRootAtMs = (Math.floor(oldest / periodMs) + 1) * periodMs + ROOT_BUILD_DELAY_MS;
+  }
   const [counts] = await db
     .select({
       total: sql<number>`count(*)::int`,
@@ -59,13 +83,16 @@ export async function earningsSummary(owner: string, now: Date = new Date()) {
     })
     .from(nodes)
     .where(eq(nodes.owner, o));
-  const periodMs = meteringSettings.epochSeconds * 1000;
   const claimableAtMs = latest?.postedAt ? latest.postedAt.getTime() + CLAIM_DELAY_MS : null;
   return {
     totalEarnedMicros: totalEarned.toString(),
     claimedMicros: claimedMicros.toString(),
     claimableMicros: claimable.toString(),
     pendingMicros: pending.toString(),
+    unlockingMicros: unlocking.toString(),
+    awaitingRootMicros: awaitingRoot.toString(),
+    /** estimated posting time of the root that includes the oldest `awaitingRoot` earning (may be past: posting now) */
+    nextRootAt: nextRootAtMs === null ? null : new Date(nextRootAtMs).toISOString(),
     latestEpoch: latest ? Number(latest.epoch) : null,
     nextEpochAt: new Date((Math.floor(now.getTime() / periodMs) + 1) * periodMs).toISOString(),
     claimableAt:

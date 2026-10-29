@@ -44,6 +44,8 @@ export function useSummary() {
   return useQuery({
     queryKey: dk.summary,
     retry: false,
+    // stages move on the hour (root) and an hour later (claim delay)
+    refetchInterval: 60_000,
     queryFn: () => guard(() => apiFetch('/v1/app/earnings/summary', { schema: api.GetEarningsSummaryRes })),
   });
 }

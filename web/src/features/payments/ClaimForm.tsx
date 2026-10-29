@@ -10,7 +10,8 @@ import { TxButton } from '../../components/TxButton';
 import { env, explorerTx } from '../../config';
 import { formatUnitsTrim, parseAmount } from '../card-funding/lib';
 import { dk, useSummary } from '../shell/queries';
-import { Boundary, fmtTime } from '../shell/ui';
+import { SettlementStages } from '../shell/Settlement';
+import { Boundary } from '../shell/ui';
 import { usePaymentsNav } from './nav';
 import { useClaimProof } from './queries';
 
@@ -81,7 +82,6 @@ function Body({
   const proofErr = proof.error instanceof ApiError ? proof.error : null;
   const chainState = proofErr?.code === 'CHAIN_STATE';
   const belowMin = chainState && (proofErr.details as { belowMinimum?: boolean } | undefined)?.belowMinimum;
-  const nextAt = s.claimableAt ?? s.nextEpochAt;
 
   if (done) {
     return (
@@ -101,7 +101,9 @@ function Body({
   if (claimable === 0n || chainState) {
     note = belowMin
       ? `Below the minimum claim of ${formatMicros(min)} USDG. Keep earning.`
-      : `Nothing claimable yet — next root at ${nextAt ? fmtTime(nextAt) : 'the next hourly epoch'}.`;
+      : BigInt(s.pendingMicros) > 0n
+        ? 'Nothing claimable yet. The times above show when your pending earnings unlock.'
+        : 'Nothing claimable yet. Earnings land in the next hourly root.';
   } else if (claimable < min) {
     note = `You can claim from ${formatMicros(min)} USDG. You have ${formatMicros(claimable)} USDG claimable.`;
   } else if (tooLow) note = `Minimum claim is ${formatMicros(min)} USDG.`;
@@ -112,26 +114,11 @@ function Body({
   const stale = p && amount !== null && amount > BigInt(p.claimableMicros);
   return (
     <>
-      <dl className="sd-kv">
-        <div>
-          <dt>Claimable</dt>
-          <dd>
-            <Money micros={s.claimableMicros} />
-          </dd>
-        </div>
-        <div>
-          <dt>Pending next root</dt>
-          <dd>
-            <Money micros={s.pendingMicros} />
-          </dd>
-        </div>
-        <div>
-          <dt>Minimum claim</dt>
-          <dd>
-            <Money micros={s.minClaimMicros} />
-          </dd>
-        </div>
-      </dl>
+      <SettlementStages s={s} />
+      <p className="sd-sub">
+        Minimum claim <Money micros={s.minClaimMicros} />. Earnings go into an hourly root, then unlock 1h after it
+        is posted.
+      </p>
       <div className="sd-field">
         <label htmlFor="claim-amount">Amount to claim (USDG)</label>
         <div className="sd-amount-row">

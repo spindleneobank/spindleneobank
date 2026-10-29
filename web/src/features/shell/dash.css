@@ -1040,3 +1040,59 @@
     text-align: right;
   }
 }
+
+/* settlement stages: claimable now / unlocking / waiting for next root */
+.sd-stages {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.sd-stages li {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  column-gap: 10px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(112, 86, 105, 0.12);
+}
+.sd-stages li:last-child {
+  border-bottom: 0;
+}
+.sd-stages i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  align-self: center;
+  background: #c9b8c3;
+}
+.sd-stages [data-stage='claimable'] i {
+  background: #2f9e6b;
+}
+.sd-stages [data-stage='unlocking'] i {
+  background: #e0a33a;
+}
+.sd-stage-label {
+  font: 10px var(--sp-font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7d6473;
+}
+.sd-stages strong {
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: right;
+}
+.sd-stages small {
+  grid-column: 2 / -1;
+  font-size: 11px;
+  color: #85717e;
+  line-height: 1.5;
+}
+.sd-stages[data-compact] li {
+  padding: 5px 0;
+}
+.sd-stages[data-compact] [data-stage='claimable'] {
+  display: none;
+}

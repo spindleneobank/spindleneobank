@@ -29,6 +29,11 @@ export const GetEarningsSummaryRes = z.object({
   claimedMicros: MicrosString,
   claimableMicros: MicrosString,
   pendingMicros: MicrosString,
+  /** in a posted root, claimable at `claimableAt` (1 h claim delay) */
+  unlockingMicros: MicrosString,
+  /** not in a posted root yet; the next root is expected at `nextRootAt` */
+  awaitingRootMicros: MicrosString,
+  nextRootAt: IsoTime.nullable(),
   latestEpoch: z.number().int().nullable(),
   nextEpochAt: IsoTime.nullable(),
   claimableAt: IsoTime.nullable(),

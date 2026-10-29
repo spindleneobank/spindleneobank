@@ -84,6 +84,9 @@ describe('summary', () => {
       claimedMicros: '0',
       claimableMicros: '0',
       pendingMicros: '0',
+      unlockingMicros: '0',
+      awaitingRootMicros: '0',
+      nextRootAt: null,
       latestEpoch: null,
       claimableAt: null,
       nodes: { total: 0, online: 0 },
@@ -146,10 +149,42 @@ describe('summary', () => {
       claimedMicros: '400',
       claimableMicros: '600',
       pendingMicros: '500',
+      unlockingMicros: '500',
+      awaitingRootMicros: '0',
+      nextRootAt: null,
       latestEpoch: 2,
       nodes: { total: 2, online: 1 },
     });
     expect(s.claimableAt).toBe(new Date(NOW.getTime() - 60_000 + CLAIM_DELAY_MS).toISOString());
+  });
+
+  test('earnings not in a posted root wait for the root of their hour', async () => {
+    await t.db.insert(epochs).values({
+      epoch: 1n,
+      root: '0x01',
+      totalEarnedUsdgMicros: 1000n,
+      owners: 1,
+      treePath: 'a',
+      status: 'posted',
+      postedAt: new Date(NOW.getTime() - CLAIM_DELAY_MS - 60_000),
+    });
+    await t.db.insert(epochBalances).values({ epoch: 1n, owner: OWNER, cumulativeUsdgMicros: 1000n });
+    await t.db
+      .insert(earningEvents)
+      .values([
+        { ...ev(OWNER, at('2026-03-10T09:00:00Z'), 1000n), epoch: 1n },
+        ev(OWNER, at('2026-03-10T12:10:00Z'), 300n),
+        ev(OWNER, at('2026-03-10T12:20:00Z'), 200n),
+      ]);
+    const s = await earningsSummary(OWNER, NOW);
+    expect(s).toMatchObject({
+      claimableMicros: '1000',
+      pendingMicros: '500',
+      unlockingMicros: '0',
+      awaitingRootMicros: '500',
+      nextRootAt: '2026-03-10T13:02:00.000Z',
+      claimableAt: null,
+    });
   });
 });
 

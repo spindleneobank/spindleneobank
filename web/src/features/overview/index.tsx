@@ -13,7 +13,8 @@ import { Skeleton } from '../../components/Skeleton';
 import { StatusPill } from '../../components/StatusPill';
 import { useToast } from '../../components/Toast';
 import { downloadStatement, useCards, useRecentReceipts, useSummary } from '../shell/queries';
-import { Boundary, countdown, fmtTime, PageHead, useNow } from '../shell/ui';
+import { SettlementStages } from '../shell/Settlement';
+import { Boundary, fmtTime, PageHead } from '../shell/ui';
 
 function ReceiveDialog({ open, onClose, address }: { open: boolean; onClose: () => void; address: string }) {
   const [qr, setQr] = useState('');
@@ -55,7 +56,6 @@ function Balance() {
   const auth = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const now = useNow();
   const [receive, setReceive] = useState(false);
   const [busy, setBusy] = useState(false);
   const go = (action: string) => () =>
@@ -77,19 +77,17 @@ function Balance() {
       </div>
       <Boundary query={summary} title="Earnings" skeleton={<Skeleton height={150} />}>
         {(s) => {
-          const wait = countdown(s.claimableAt, now);
-          const next = countdown(s.nextEpochAt, now);
+          const pending = BigInt(s.pendingMicros) > 0n;
           return (
             <>
               <span className="sd-label">Available to claim</span>
               <strong className="sd-amount">
                 <Money micros={s.claimableMicros} />
               </strong>
+              {pending ? <SettlementStages s={s} compact /> : null}
               <span className="sd-sub">
-                Pending <Money micros={s.pendingMicros} /> awaiting next root{next ? ` (${next})` : ''}
-                {' · '}Total earned <Money micros={s.totalEarnedMicros} />
+                Total earned <Money micros={s.totalEarnedMicros} />
               </span>
-              {wait ? <span className="sd-sub">Claimable after 1h delay: {wait}</span> : null}
               <div className="sd-money-actions">
                 <button type="button" onClick={go('claim')}>
                   <PixelIcon name="claim" size={20} />
@@ -291,7 +289,7 @@ function Breakdown() {
                 </span>
                 <span>
                   <i />
-                  Awaiting claim epoch
+                  Pending
                   <strong>
                     <Money micros={s.pendingMicros} unit={null} />
                   </strong>
