@@ -179,16 +179,18 @@ export async function reserveCredit(
   paymentRowId: string,
   payer: string,
   amount: bigint,
-): Promise<CreditRefusal | null> {
+): Promise<CreditRefusal | 'closed' | null> {
   return dbRef.db.transaction(async (tx) => {
     await lockCredit(tx);
     const refused = await checkCredit(tx, payer, amount);
     if (refused) return refused;
-    await tx
+    // only an open session takes new work: one closing at this moment may already be marked as having nothing to settle
+    const taken = await tx
       .update(x402Payments)
       .set({ reservedMicros: sql`${x402Payments.reservedMicros} + ${amount}` })
-      .where(sql`${x402Payments.id} = ${paymentRowId}`);
-    return null;
+      .where(sql`${x402Payments.id} = ${paymentRowId} and ${x402Payments.status} = 'open'`)
+      .returning({ id: x402Payments.id });
+    return taken.length > 0 ? null : 'closed';
   });
 }
 

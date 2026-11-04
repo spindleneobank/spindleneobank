@@ -82,7 +82,7 @@ export async function reserveSession(
     const refused = await reserveCredit(row.id, row.payer, amount);
     if (refused) {
       await undo();
-      return { refused };
+      return refused === 'closed' ? { closed: true } : { refused };
     }
   } catch (err) {
     await undo();
@@ -154,14 +154,17 @@ export async function closeSession(
   const [row] = await dbRef.db.select().from(x402Payments).where(eq(x402Payments.id, paymentRowId));
   if (!row) return null;
   await redis.hset(sessionKey(row.paymentId), 'closed', 1).catch(() => {});
-  const next = row.usedMicros > 0n || row.reservedMicros > 0n ? 'closing' : 'expired';
-  const upd = await dbRef.db
+  // decided in the update itself, so a reservation that landed since the read above is seen
+  const [upd] = await dbRef.db
     .update(x402Payments)
-    .set({ status: next, closedAt: new Date() })
+    .set({
+      status: sql`case when ${x402Payments.usedMicros} > 0 or ${x402Payments.reservedMicros} > 0 then 'closing' else 'expired' end`,
+      closedAt: new Date(),
+    })
     .where(and(eq(x402Payments.id, paymentRowId), eq(x402Payments.status, 'open')))
-    .returning({ id: x402Payments.id });
-  if (upd.length > 0 && next === 'closing') await redis.incr(CLOSING_COUNTER).catch(() => {});
-  return upd.length > 0 ? next : null;
+    .returning({ status: x402Payments.status });
+  if (upd?.status === 'closing') await redis.incr(CLOSING_COUNTER).catch(() => {});
+  return (upd?.status as 'closing' | 'expired' | undefined) ?? null;
 }
 export const CLOSING_COUNTER = 'x402:closing-count';
 

@@ -32,7 +32,7 @@ import {
   settleSessionUse,
 } from './sessions';
 import { currentSurchargeMicros } from './surcharge';
-import { ChallengeStale, enforceOpenIpCap, isNewPayer, verifyExactPayment } from './verify';
+import { ChallengeStale, enforceOpenIpCap, isBarred, isNewPayer, verifyExactPayment } from './verify';
 
 export const SETTLE_TRIGGER = 20;
 export const CHALLENGE_IP_LIMIT = { points: 60, windowSec: 60 } as const;
@@ -156,6 +156,14 @@ export class X402Provider implements PaymentProvider {
     const { count } = await hit(`gw:x402s:${row.id}`, API_RATE_LIMIT.windowSec);
     if (count > API_RATE_LIMIT.points)
       throw new AppError('RATE_LIMITED', 'Rate limit exceeded (60 requests per minute).');
+    // a wallet barred after a failed settle must not keep spending through sessions it already holds
+    if (await isBarred(row.payer)) {
+      if ((await closeSession(row.id)) === 'closing') await noteClosing(row.payer);
+      return refusal(
+        'SESSION_CLOSED',
+        'This wallet is barred from x402 payments pending review. Use an API key.',
+      );
+    }
     const expiresMs = sessionExpiresAt(row) * 1000;
     if (row.status !== 'open' || expiresMs <= Date.now()) {
       return refusal('SESSION_CLOSED', 'This x402 session is closed or expired. Open a new session.');
@@ -257,7 +265,8 @@ export class X402Provider implements PaymentProvider {
     const ref = auth.ref as Ref;
     const id = auth.x402PaymentId as string;
     if (ref.scheme === 'session') {
-      await settleSessionUse(id, auth.reservedMicros, 0n);
+      const r = await settleSessionUse(id, auth.reservedMicros, 0n);
+      if (r.settleable) await noteClosing(r.payer);
       return;
     }
     await dbRef.db

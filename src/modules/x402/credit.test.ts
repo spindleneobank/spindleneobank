@@ -15,7 +15,8 @@ import { closeRedis, getRedis } from '../../lib/redis';
 import { dbRef } from '../auth/constants';
 import { addressOverride } from './challenge';
 import { closeSession, reserveSession, settleSessionUse } from './sessions';
-import { chainDeps, creditLimit, resetPayerCache, verifyAndOpen, x402Limits } from './verify';
+import { barUnlessSettled } from './settle';
+import { chainDeps, creditLimit, isBarred, resetPayerCache, verifyAndOpen, x402Limits } from './verify';
 
 const USD = 1_000_000n;
 const SIGNED = 20n * USD;
@@ -186,6 +187,39 @@ test('a closed session reports it can settle only when its last job has finished
   await closeSession(id);
   expect((await settleSessionUse(id, 20_000n, 10_000n)).settleable).toBe(false);
   expect((await settleSessionUse(id, 20_000n, 10_000n)).settleable).toBe(true);
+});
+
+test('a session that is closing takes no new work, and one with a reservation never expires unsettled', async () => {
+  const payer = fresh();
+  const { row } = await reserve(payer, 10_000n);
+  expect(await closeSession(row?.id as string)).toBe('closing');
+  const [closing] = await t.db
+    .select()
+    .from(x402Payments)
+    .where(sqlId(row?.id as string));
+  expect(await reserveSession(closing as never, 10_000n, 60_000)).toEqual({ closed: true });
+  const [after] = await t.db
+    .select()
+    .from(x402Payments)
+    .where(sqlId(row?.id as string));
+  expect(after?.reservedMicros).toBe(10_000n);
+});
+
+test("a failed payment bars its wallet whoever recorded it first, and stops the wallet's other sessions", async () => {
+  const payer = fresh();
+  const failed = await open(payer, { cap: 10_000n, surcharge: 1_000n });
+  const other = await open(payer, { scheme: 'session', cap: 5n * USD, surcharge: 1_000n });
+  const deps = { redis: () => getRedis() };
+  // settled, or still settling: nothing to bar
+  expect(await barUnlessSettled(failed.id, payer, deps)).toBe(false);
+  expect(await isBarred(payer)).toBe(false);
+  // the indexer got there first
+  await t.db.update(x402Payments).set({ status: 'failed' }).where(sqlId(failed.id));
+  expect(await barUnlessSettled(failed.id, payer, deps)).toBe(true);
+  expect(await isBarred(payer)).toBe(true);
+  const [session] = await t.db.select().from(x402Payments).where(sqlId(other.id));
+  expect(session?.status).toBe('expired'); // unused, so nothing to settle
+  expect(await refusal(open(payer, { cap: 5_000n, surcharge: 1_000n }))).toContain('barred');
 });
 
 test('IPv6: one /64 is one client', async () => {

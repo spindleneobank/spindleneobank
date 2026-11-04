@@ -156,8 +156,35 @@ async function requeue(ids: string[], _deps: SettleDeps): Promise<void> {
     .where(and(inArray(x402Payments.id, ids), eq(x402Payments.status, 'settling')));
 }
 
-async function bar(payer: string, deps: SettleDeps): Promise<void> {
+async function bar(payer: string, deps: Pick<SettleDeps, 'redis'>): Promise<void> {
   await deps.redis().sadd(BARRED_KEY, payer.toLowerCase());
+  // the wallet's other sessions stop now too, and whatever they used goes to settlement
+  const others = await dbRef.db
+    .select({ id: x402Payments.id })
+    .from(x402Payments)
+    .where(
+      and(
+        eq(x402Payments.payer, payer.toLowerCase()),
+        eq(x402Payments.scheme, 'session'),
+        eq(x402Payments.status, 'open'),
+      ),
+    );
+  for (const { id } of others) await closeSession(id, deps.redis());
+}
+
+/** Bars the payer if this payment ended `failed`. True if it did. */
+export async function barUnlessSettled(
+  paymentRowId: string,
+  payer: string,
+  deps: Pick<SettleDeps, 'redis'>,
+): Promise<boolean> {
+  const [row] = await dbRef.db
+    .select({ status: x402Payments.status })
+    .from(x402Payments)
+    .where(eq(x402Payments.id, paymentRowId));
+  if (row?.status !== 'failed') return false;
+  await bar(payer, deps);
+  return true;
 }
 
 /** Apply Settled / SettleFailed logs of a mined tx (the indexer applies the same events idempotently). */
@@ -201,10 +228,9 @@ export async function applyReceipt(
         })
         .where(and(eq(x402Payments.id, row.id), eq(x402Payments.status, 'settling')))
         .returning({ id: x402Payments.id });
-      // never bar a payer whose payment was already settled (indexer got there first)
-      if (upd.length > 0) {
-        await bar(row.payer, deps);
-        out.failed++;
+      if (upd.length > 0) out.failed++;
+      // the indexer may have recorded this first, either way: bar on the final state, never on a settled payment
+      if (await barUnlessSettled(row.id, row.payer, deps)) {
         logger.warn(
           { paymentId: row.paymentId, payer: row.payer, reason: args.reason },
           'x402: settlement failed; payer barred',

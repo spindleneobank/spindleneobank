@@ -484,6 +484,17 @@ describe('sessions', () => {
     expect((await rows())[0]?.usedMicros).toBe(0n);
   });
 
+  test('a barred wallet cannot keep spending through a session it already holds', async () => {
+    const { o } = await open();
+    const a = (await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(100_000n))) as Authorization;
+    await x402Provider.finalize(a, 50_000n);
+    const [row] = await rows();
+    await getRedis().sadd(BARRED_KEY, row?.payer as string);
+    const next = await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(100_000n));
+    expect(JSON.stringify((next as { body: unknown }).body)).toContain('SESSION_CLOSED');
+    expect((await rows())[0]).toMatchObject({ status: 'closing', reservedMicros: 0n });
+  });
+
   test('L-9: once settlement claims a session, a reversal refunds instead of lowering `used`', async () => {
     const { o } = await open();
     const a = (await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(500_000n))) as Authorization;
