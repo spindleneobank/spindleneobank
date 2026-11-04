@@ -634,7 +634,10 @@ export async function recordCanaryResult(r: CanaryRecord): Promise<{ withheld: b
       })
       .where(eq(nodes.id, r.nodeId));
     const [sum] = await tx
-      .select({ n: sql<string>`coalesce(sum(${earningEvents.usdgMicros}), 0)::text` })
+      .select({
+        n: sql<string>`coalesce(sum(${earningEvents.usdgMicros}), 0)::text`,
+        first: sql<string | null>`min(${earningEvents.ts})`,
+      })
       .from(earningEvents)
       .where(
         and(
@@ -646,7 +649,8 @@ export async function recordCanaryResult(r: CanaryRecord): Promise<{ withheld: b
     withheld = withholdAmount(BigInt(sum?.n ?? '0'));
     if (withheld < 0n) {
       await tx.insert(earningEvents).values({
-        ts: new Date(),
+        // the earliest earning's time: a build then takes the withhold with the earnings it cancels
+        ts: new Date(sum?.first as string),
         nodeId: r.nodeId,
         owner: row.owner,
         jobId: r.jobId,
