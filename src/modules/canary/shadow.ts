@@ -11,6 +11,8 @@ import type { BuyerShape } from './corpus';
 export const shadowSettings = {
   /** Share of paid open-lane jobs re-run on the house node, in basis points. */
   rateBps: config.SHADOW_RATE_BPS,
+  /** Off while reviewing real mismatches: results are stored, but nothing happens to the node. */
+  enforce: config.SHADOW_ENFORCE,
   /** Sampled jobs are dropped rather than queued beyond this: the house node is a small CPU node. */
   maxWaiting: 20,
   /** A check holds the buyer's prompt and output in Redis until it runs, so oversized jobs are skipped. */

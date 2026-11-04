@@ -7,8 +7,10 @@ import { closeRedis } from '../../lib/redis';
 import { DEFAULT_CATALOG } from '../../shared/catalog';
 import { dbRef } from '../auth/constants';
 import type { Delta, JobDone } from '../nodes/jobs';
+import { slashingDeps } from '../slashing/service';
 import { makeCanaryJob, makeNode } from '../slashing/testkit';
 import { canaryDeps, compareChatWithHouse, compareSettings } from './compare';
+import { recordCanaryResult } from './service';
 import { maybeEnqueueShadow, type ShadowCheck, shadowSettings } from './shadow';
 import { runShadowCheck } from './shadow-job';
 
@@ -160,6 +162,87 @@ describe('runShadowCheck', () => {
       'skipped',
     );
     expect(sentToHouse).toHaveLength(0);
+  });
+});
+
+describe('judging shadow results apart from canaries', () => {
+  const realClose = slashingDeps.closeNode;
+  beforeEach(() => {
+    slashingDeps.closeNode = async () => {};
+  });
+  afterAll(() => {
+    slashingDeps.closeNode = realClose;
+    shadowSettings.enforce = true;
+  });
+  afterEach(() => {
+    shadowSettings.enforce = true;
+  });
+
+  const record = async (nodeId: string, kind: string, pass: boolean) =>
+    recordCanaryResult({
+      nodeId,
+      jobId: await makeCanaryJob(nodeId),
+      kind,
+      expected: {},
+      observed: {},
+      pass,
+    });
+
+  test('a node that passes every canary but fails shadow checks is still caught', async () => {
+    const n = await makeNode();
+    for (let i = 0; i < 24; i++) await record(n.id, 'chat', true);
+    let last = { withheld: 0n, suspended: false };
+    for (let i = 0; i < 5; i++) last = await record(n.id, 'shadow', false);
+    expect(last.suspended).toBe(true);
+    const [row] = await t.db.select().from(nodes).where(eq(nodes.id, n.id));
+    expect(row?.status).toBe('suspended');
+  });
+
+  test('fewer than 5 shadow results judge nothing, and half must fail', async () => {
+    const n = await makeNode();
+    for (let i = 0; i < 4; i++) expect((await record(n.id, 'shadow', false)).suspended).toBe(false);
+    const m = await makeNode();
+    for (let i = 0; i < 4; i++) await record(m.id, 'shadow', true);
+    for (let i = 0; i < 3; i++) expect((await record(m.id, 'shadow', false)).suspended).toBe(false);
+    const [row] = await t.db.select().from(nodes).where(eq(nodes.id, m.id));
+    expect(row?.status).not.toBe('suspended');
+  });
+
+  test('shadow failures do not count towards the canary share', async () => {
+    const n = await makeNode();
+    for (let i = 0; i < 4; i++) await record(n.id, 'shadow', false);
+    expect((await record(n.id, 'chat', false)).suspended).toBe(false);
+  });
+
+  test('with enforcement off, a mismatch is stored for review and nothing happens to the node', async () => {
+    shadowSettings.enforce = false;
+    const n = await makeNode();
+    const check = async () => {
+      const jobId = await makeCanaryJob(n.id);
+      await t.db
+        .update(jobs)
+        .set({ isCanary: false, status: 'completed', buyerUsdgMicros: 1000n })
+        .where(eq(jobs.id, jobId));
+      await t.db
+        .insert(receipts)
+        .values({ jobId, nodeId: n.id, cose: new Uint8Array(0), payload: {}, verified: true });
+      houseAnswers = ['house a', 'house b'];
+      return runShadowCheck({
+        jobId,
+        nodeId: n.id,
+        model: CHAT.id,
+        kind: 'chat',
+        body,
+        outputText: 'garbage',
+      });
+    };
+    for (let i = 0; i < 6; i++) expect(await check()).toBe('mismatch');
+    const rows = await t.db.select().from(canaryResults);
+    expect(rows).toHaveLength(6);
+    expect(rows.every((r) => r.kind === 'shadow' && !r.pass)).toBe(true);
+    const [row] = await t.db.select().from(nodes).where(eq(nodes.id, n.id));
+    expect(row?.status).not.toBe('suspended');
+    expect(row?.reputation).toBe(1000);
   });
 });
 

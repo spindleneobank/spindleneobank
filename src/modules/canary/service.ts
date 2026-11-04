@@ -565,6 +565,15 @@ export interface CanaryRecord {
 const counted = sql`not (${canaryResults.pass} = false and coalesce(${canaryResults.observed}->>'attempt', '') = '1')`;
 
 /**
+ * Shadow results and canaries are judged apart. A node that has learned the corpus passes every canary, so
+ * counted together those passes would outweigh its shadow failures and it would never reach the failure share.
+ */
+const sameCheck = (kind: string) =>
+  kind === 'shadow'
+    ? sql`${canaryResults.kind} = 'shadow'`
+    : sql`coalesce(${canaryResults.kind}, '') <> 'shadow'`;
+
+/**
  * Stores the result and moves reputation. A confirmed failure only becomes a failure *event* (reputation
  * -100, epoch earnings withheld) once the node has >= `minSample` canaries in the window and >= half of
  * them failed; with >= `suspendFails` failures it is also suspended and a slash case is opened.
@@ -606,7 +615,14 @@ export async function recordCanaryResult(r: CanaryRecord): Promise<{ withheld: b
         fails: sql<number>`(count(*) filter (where ${canaryResults.pass} = false))::int`,
       })
       .from(canaryResults)
-      .where(and(eq(canaryResults.nodeId, r.nodeId), gte(canaryResults.createdAt, since), counted));
+      .where(
+        and(
+          eq(canaryResults.nodeId, r.nodeId),
+          gte(canaryResults.createdAt, since),
+          counted,
+          sameCheck(r.kind),
+        ),
+      );
     const total = stats?.total ?? 0;
     failures = stats?.fails ?? 0;
     event = total >= canarySettings.minSample && failures * 10_000 >= total * canarySettings.failShareBps;

@@ -11,7 +11,7 @@ import { dbRef } from '../auth/constants';
 import { loadCatalog } from '../nodes/service';
 import { compareChatWithHouse, compareSettings, type HouseVerdict, houseEmbed } from './compare';
 import { EMBEDDING_COSINE_MIN, evaluateEmbeddings, recordCanaryResult } from './service';
-import type { ShadowCheck } from './shadow';
+import { type ShadowCheck, shadowSettings } from './shadow';
 
 async function compareEmbeddings(check: ShadowCheck): Promise<HouseVerdict> {
   const model = (await loadCatalog()).find((m) => m.id === check.model);
@@ -60,6 +60,7 @@ export async function runShadowCheck(check: ShadowCheck): Promise<HouseVerdict['
     },
     observed: { cosine: result.cosine, houseSelf: result.houseSelf },
     pass: result.verdict === 'match',
+    final: shadowSettings.enforce,
   });
   return result.verdict;
 }
