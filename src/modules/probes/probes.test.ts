@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { desc, eq } from 'drizzle-orm';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
 import { nodes, probeResults, slashCases } from '../../db/schema';
@@ -6,6 +8,7 @@ import { closeRedis, getRedis } from '../../lib/redis';
 import { CLASS_EXPECTATIONS, fitModels } from '../../shared/gpu';
 import type { ProbeResultMsg } from '../../shared/node-protocol';
 import { dbRef } from '../auth/constants';
+import { corpusSettings } from '../canary/corpus';
 import { tokenizerSettings } from '../gateway/tokenizer';
 import { slashingDeps, unsuspendNode } from '../slashing/service';
 import { makeNode } from '../slashing/testkit';
@@ -16,6 +19,7 @@ import {
   measureSpeed,
   probeDeps,
   probeNode,
+  probePrompt,
   probeRetryAt,
   probeSettings,
   scheduleProbes,
@@ -292,6 +296,18 @@ describe('probe flow', () => {
       for (let i = 0; i < 6; i++) last = await probeNode(n.id);
       expect(last?.suspended).toBe(true);
     });
+  });
+
+  test('M-6: the speed probe never sends a canary prompt, since a node can tell it is a probe', () => {
+    const corpus = readFileSync(join(import.meta.dir, '../../../test/fixtures/canary-corpus.jsonl'), 'utf8');
+    corpusSettings.path = join(import.meta.dir, '../../../test/fixtures/canary-corpus.jsonl');
+    try {
+      const a = probePrompt();
+      expect(a).not.toBe(probePrompt());
+      expect(corpus).not.toContain(a);
+    } finally {
+      corpusSettings.path = '';
+    }
   });
 
   describe('measureSpeed', () => {
