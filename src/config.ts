@@ -86,6 +86,9 @@ const envSchema = z.object({
   X402_ENABLED: boolean(true),
   X402_MIN_SURCHARGE_MICROS: intString('5000'),
   X402_MAX_UNSETTLED_MICROS: intString('20000000'),
+  /** Unsettled x402 exposure across all payers: per-payer limits alone can be farmed with fresh addresses. */
+  X402_MAX_GLOBAL_UNSETTLED_MICROS: intString('1000000000'),
+  X402_MAX_OPENS_PER_IP_DAY: positiveInt(500),
   KEEPER_MIN_ETH_WEI: intString('3000000000000000'),
   KEEPER_CRITICAL_ETH_WEI: intString('1500000000000000'),
   TREES_DIR: z.string().default('data/trees'),

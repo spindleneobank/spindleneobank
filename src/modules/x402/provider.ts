@@ -30,7 +30,7 @@ import {
   settleSessionUse,
 } from './sessions';
 import { currentSurchargeMicros } from './surcharge';
-import { ChallengeStale, verifyExactPayment } from './verify';
+import { ChallengeStale, enforceOpenIpCap, verifyExactPayment } from './verify';
 
 export const SETTLE_TRIGGER = 20;
 export const CHALLENGE_IP_LIMIT = { points: 60, windowSec: 60 } as const;
@@ -89,6 +89,7 @@ export class X402Provider implements PaymentProvider {
     if (sessionToken) return this.authorizeSession(sessionToken, ctx);
     const payment = c.req.header('x-payment');
     if (payment) {
+      await enforceOpenIpCap(c);
       try {
         return await this.authorizeExact(payment, ctx);
       } catch (err) {

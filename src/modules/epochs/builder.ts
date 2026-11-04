@@ -1,9 +1,10 @@
-import { and, desc, eq, inArray, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, lt, ne, not, sql } from 'drizzle-orm';
 import { earningEvents, epochBalances, epochs } from '../../db/schema';
 import { logger } from '../../lib/logger';
 import { buildTree, treeToJson } from '../../shared/merkle';
 import { dbRef } from '../auth/constants';
 import { closedEpochAt, type EpochRow, epochEnd, treeFile, treePathOf, writeFileAtomic } from './service';
+import { isHeldForX402, reverseUnpaidEarnings } from './x402-earnings';
 
 export type BuildResult =
   | { kind: 'built'; epoch: bigint; root: string; totalEarned: bigint; owners: number }
@@ -51,10 +52,11 @@ export async function buildEpoch(epoch: bigint, opts: BuildOpts = {}): Promise<B
       .set({ epoch: null })
       .where(and(isNotNull(earningEvents.epoch), inArray(earningEvents.epoch, vetoed)));
 
+    await reverseUnpaidEarnings(tx);
     await tx
       .update(earningEvents)
       .set({ epoch })
-      .where(and(isNull(earningEvents.epoch), lt(earningEvents.ts, boundary)));
+      .where(and(isNull(earningEvents.epoch), lt(earningEvents.ts, boundary), not(isHeldForX402)));
 
     const [base] = await tx
       .select()

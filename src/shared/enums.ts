@@ -29,7 +29,7 @@ export type UnitKind = (typeof UnitKind)[number];
 export const PayMode = ['balance', 'x402', 'canary', 'probe'] as const;
 export type PayMode = (typeof PayMode)[number];
 
-export const EarningKind = ['job', 'floor', 'slash', 'canary_withhold'] as const;
+export const EarningKind = ['job', 'floor', 'slash', 'canary_withhold', 'x402_reversal'] as const;
 export type EarningKind = (typeof EarningKind)[number];
 
 export const EpochStatus = ['built', 'posting', 'posted', 'vetoed', 'failed'] as const;

@@ -9,6 +9,7 @@ import './provider';
 import { DISABLED_MESSAGE } from './guard';
 import { noteClosing } from './provider';
 import { closeSession, createSession, openSession, sessionByToken, sessionSpendable } from './sessions';
+import { enforceOpenIpCap } from './verify';
 
 const ipLimit = rateLimit({ name: 'x402_ip', key: ipKey, points: 30, windowSec: 60 });
 
@@ -53,6 +54,7 @@ export default function x402Routes(app: Hono<Env>): void {
 
   app.post('/v1/x402/sessions/:id/open', ipLimit, async (c) => {
     if (!(await x402State()).enabled) throw new AppError('PAYMENT_REQUIRED', DISABLED_MESSAGE);
+    await enforceOpenIpCap(c);
     const req = await body(c, PostX402SessionOpenReq);
     return c.json(await openSession(c.req.param('id'), req.signature as Hex));
   });

@@ -1,10 +1,13 @@
 import { erc20Abi, permit2Abi } from '@spindle/shared/abi';
 import { sql } from 'drizzle-orm';
+import type { Context } from 'hono';
 import type { Redis } from 'ioredis';
 import { type Address, type Hex, verifyTypedData } from 'viem';
 import { config } from '../../config';
 import { x402Payments } from '../../db/schema';
 import { AppError } from '../../lib/errors';
+import type { Env } from '../../lib/http';
+import { clientIp, hashIp, hit } from '../../lib/ratelimit';
 import { getRedis } from '../../lib/redis';
 import { publicClient } from '../../lib/viem';
 import { decodeHeader, networkFor, spindlePaymentTypedData, X402PaymentHeader } from '../../shared/x402';
@@ -14,6 +17,25 @@ import { challengeKey, type StoredChallenge, x402Addresses } from './challenge';
 export const MIN_DEADLINE_LEAD_SEC = 30 * 60;
 export const CHAIN_READ_TTL_MS = 10_000;
 export const BARRED_KEY = 'x402:barred';
+
+/** Limits on unsettled credit. Mutable so tests can lower them. */
+export const x402Limits = {
+  maxGlobalUnsettled: BigInt(config.X402_MAX_GLOBAL_UNSETTLED_MICROS),
+  maxOpensPerIpDay: config.X402_MAX_OPENS_PER_IP_DAY,
+};
+
+const DAY_SEC = 86_400;
+
+/** Limits how many payments one client IP can open per day. Fresh addresses are free; IPs less so. */
+export async function enforceOpenIpCap(c: Context<Env>): Promise<void> {
+  const ip = clientIp(c);
+  if (ip === 'unknown') return; // never put all clients in one bucket
+  const { count, retryAfter } = await hit(`x402:open:${hashIp(ip)}`, DAY_SEC);
+  if (count > x402Limits.maxOpensPerIpDay) {
+    c.header('retry-after', String(retryAfter));
+    throw new AppError('RATE_LIMITED', 'Too many x402 payments from this address today. Use an API key.');
+  }
+}
 
 export type PayerChainState = { balance: bigint; allowance: bigint };
 
@@ -97,10 +119,16 @@ export type OpenInput = {
   nowSec?: number;
 };
 
+/** Sum of what unsettled payments may still cost: the whole cap while open, the used amount after that. */
+const exposureSum = sql<string>`coalesce(sum(case when ${x402Payments.status} = 'open' then ${x402Payments.capMicros}
+  else ${x402Payments.usedMicros} + ${x402Payments.surchargeMicros} end), 0)`;
+const unsettled = sql`${x402Payments.status} in ('open','closing','settling')`;
+
 /**
  * Steps 2-6 of "Gateway checks before dispatch": signature, deadline margin, on-chain nonce/balance/allowance,
- * per-payer exposure cap, then the `open` row. The exposure check and insert run under a per-payer advisory
- * lock, so parallel requests cannot jointly exceed X402_MAX_UNSETTLED_MICROS.
+ * global and per-payer exposure caps, then the `open` row. The checks and the insert run under one advisory
+ * lock, so parallel requests cannot jointly exceed X402_MAX_UNSETTLED_MICROS or
+ * X402_MAX_GLOBAL_UNSETTLED_MICROS.
  */
 export async function verifyAndOpen(i: OpenInput): Promise<{ id: string }> {
   const now = BigInt(i.nowSec ?? Math.floor(Date.now() / 1000));
@@ -137,16 +165,15 @@ export async function verifyAndOpen(i: OpenInput): Promise<{ id: string }> {
   const max = BigInt(config.X402_MAX_UNSETTLED_MICROS);
 
   const id = await dbRef.db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`x402:${payer}`}))`);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('x402:global'))`);
+    const [all] = await tx.select({ v: exposureSum }).from(x402Payments).where(unsettled);
+    if (BigInt(all?.v ?? '0') + i.cap > x402Limits.maxGlobalUnsettled) {
+      throw refuse('x402 is at capacity while earlier payments settle. Use an API key or try again shortly.');
+    }
     const [row] = await tx
-      .select({
-        v: sql<string>`coalesce(sum(case when ${x402Payments.status} = 'open' then ${x402Payments.capMicros}
-          else ${x402Payments.usedMicros} + ${x402Payments.surchargeMicros} end), 0)`,
-      })
+      .select({ v: exposureSum })
       .from(x402Payments)
-      .where(
-        sql`${x402Payments.payer} = ${payer} and ${x402Payments.status} in ('open','closing','settling')`,
-      );
+      .where(sql`${x402Payments.payer} = ${payer} and ${unsettled}`);
     const exposure = BigInt(row?.v ?? '0');
     if (exposure + i.cap > max) {
       throw refuse(
