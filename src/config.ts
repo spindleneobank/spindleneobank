@@ -70,6 +70,15 @@ const envSchema = z.object({
   RELAY_API_KEY: z.string().default(''),
   RELAY_MODE: z.enum(['live', 'stub']).default('live'),
   RELAY_STUB_ADDRESS: address,
+  /**
+   * Contracts a live Relay quote may have the user call or approve, besides USDG. Anything else is refused.
+   * Default: chain 4663's depository, ERC-20 routers and approval proxies from api.relay.link/chains (2026-11-04).
+   */
+  RELAY_ALLOWED_TARGETS: z
+    .string()
+    .default(
+      '0x4cd00e387622c35bddb9b4c962c136462338bc31,0x0729e2a4716d9f7dd17858d5d504426d228697f7,0x5567954cd026cebfe486062cb75848e0f1c12e58,0xb92fe925dc43a0ecde6c8b1a2709c170ec4fff4f,0xccc88a9d1b4ed6b0eaba998850414b24f1c315be',
+    ),
   IZIPAY_MODE: z.enum(['mock', 'live']).default('mock'),
   IZIPAY_LIVE_WRITES: boolean(false),
   IZIPAY_RATE_BUDGET_PER_MIN: positiveInt(30),

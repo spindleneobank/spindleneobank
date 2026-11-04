@@ -112,9 +112,15 @@ export async function quote(params: QuoteParams): Promise<{ quote: RelayQuote; e
 
 export type RelayStatusResult = 'pending' | 'success' | 'refund' | 'failure';
 
+/** A path on the Relay API. Joined onto its URL with our API key attached, so it must not be able to leave that host. */
+export const isRelayPath = (p: string): boolean => /^\/(?![/\\])[^@\s]*$/.test(p);
+
 /** `GET /intents/status/v3?requestId=`, falling back to the quote's `check.endpoint`. */
 export async function status(requestId: string, checkEndpoint?: string): Promise<RelayStatusResult> {
-  const paths = [`/intents/status/v3?requestId=${requestId}`, ...(checkEndpoint ? [checkEndpoint] : [])];
+  const paths = [
+    `/intents/status/v3?requestId=${requestId}`,
+    ...(checkEndpoint && isRelayPath(checkEndpoint) ? [checkEndpoint] : []),
+  ];
   for (const path of paths) {
     try {
       const res = await relayDeps.fetch(`${cardSettings.relayApiUrl}${path}`, {

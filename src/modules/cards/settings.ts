@@ -24,6 +24,7 @@ export const cardSettings = {
   relayApiUrl: config.RELAY_API_URL,
   relayApiKey: secrets.RELAY_API_KEY,
   relayStubAddress: config.RELAY_STUB_ADDRESS as string | undefined,
+  relayAllowedTargets: config.RELAY_ALLOWED_TARGETS.split(',').map((a) => a.trim().toLowerCase()),
   usdgAddress: (config.USDG_ADDRESS ?? '0x5fc5360d0400a0fd4f2af552add042d716f1d168') as string,
   /** Real chain id for Relay quotes; independent of CHAIN_ID (31337 on the dev fork). */
   originChainId: config.RELAY_ORIGIN_CHAIN_ID,
