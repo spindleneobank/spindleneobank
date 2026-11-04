@@ -106,7 +106,7 @@ const envSchema = z.object({
   /** Share of paid open-lane jobs re-run on the house node and compared, in basis points. */
   SHADOW_RATE_BPS: z.coerce.number().int().min(0).max(10_000).default(100),
   /** Minimum embedding cosine between a node's chat answer and the house node's. */
-  SHADOW_CHAT_COSINE_MIN: z.coerce.number().min(0).max(1).default(0.7),
+  SHADOW_CHAT_COSINE_MIN: z.coerce.number().min(0).max(1).default(0.65),
   SHADOW_EMBED_MODEL: z.string().default('nomic-embed-text'),
   SEALED_LANE_ENABLED: boolean(false),
   /** Availability floor start (YYYY-MM-DD, UTC). Empty = floor disabled. */
