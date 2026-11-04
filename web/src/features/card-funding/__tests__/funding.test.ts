@@ -64,6 +64,11 @@ describe('amount helpers', () => {
 });
 
 describe('reviveArgs', () => {
+  it('revives a swap multicall: deadline to bigint, encoded calls untouched', () => {
+    const [deadline, calls] = reviveArgs(swapRouter02Abi, 'multicall', ['1900000000', ['0xabcd']]);
+    expect(deadline).toBe(1_900_000_000n);
+    expect(calls).toEqual(['0xabcd']);
+  });
   it('turns JSON strings into bigint through tuples', () => {
     const [p] = reviveArgs(swapRouter02Abi, 'exactInputSingle', [
       {

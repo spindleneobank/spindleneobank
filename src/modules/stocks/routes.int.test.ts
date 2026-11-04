@@ -3,6 +3,7 @@
 // (backend.env.dev points RPC_URLS/TEST_DATABASE_URL at docker hostnames; env vars set in the shell win.)
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
+import { decodeFunctionData } from 'viem';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
 import { FORK_SKIP_MESSAGE, forkHealthy } from '../../../test/fork';
 import { type Env, jsonError } from '../../lib/http';
@@ -10,6 +11,7 @@ import { closeRedis } from '../../lib/redis';
 import { dbRef, settings } from '../auth/constants';
 import authRoutes from '../auth/routes';
 import { createTestSession } from '../auth/testing';
+import { swapRouter02Abi } from './abi';
 import stocksRoutes from './routes';
 import { DEFAULT_STOCKS, stockDb, upsertVerified } from './service';
 
@@ -72,12 +74,13 @@ describe.skipIf(!healthy)('stocks routes', () => {
     const q = (await res.json()) as {
       amountOut: string;
       feeBps: number;
-      swap: { args: { recipient: string }[] };
+      swap: { args: [string, `0x${string}`[]] };
       expiresAt: string;
     };
     expect(BigInt(q.amountOut)).toBeGreaterThan(0n);
     expect(q.feeBps).toBeGreaterThan(0);
-    expect(q.swap.args[0]?.recipient).toBe(USER);
+    const inner = decodeFunctionData({ abi: swapRouter02Abi, data: q.swap.args[1][0] as `0x${string}` });
+    expect((inner.args?.[0] as { recipient: string }).recipient.toLowerCase()).toBe(USER);
   }, 30_000);
 
   test('non-curated token is a 400', async () => {
