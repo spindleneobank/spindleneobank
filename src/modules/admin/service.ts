@@ -239,6 +239,30 @@ export async function getRateCard(now = new Date()) {
   };
 }
 
+/** The most a unit can cost, in micros. Far above any real price: this catches a typo or a stolen session. */
+export const MAX_BUYER_RATE_MICROS: Record<string, bigint> = {
+  tokens_1m: 50_000_000n,
+  job: 5_000_000n,
+  image: 5_000_000n,
+  gpu_hour: 100_000_000n,
+};
+
+/** Providers get at most 80% of what the buyer pays (`PROVIDER_SHARE_BPS`), and no rate can be free or absurd. */
+function assertRateInBounds(r: Omit<RateRowJson, never>): void {
+  const where = `${r.gpuClass}:${r.lane}:${r.unitKind}`;
+  const max = MAX_BUYER_RATE_MICROS[r.unitKind];
+  const buyer = BigInt(r.buyerMicrosPerUnit);
+  const provider = BigInt(r.providerMicrosPerUnit);
+  if (r.gpuClass < 0 || r.gpuClass > 4) throw new AppError('VALIDATION', `Unknown GPU class in ${where}.`);
+  if (max === undefined) throw new AppError('VALIDATION', `Unknown unit in ${where}.`);
+  if (buyer <= 0n || buyer > max) {
+    throw new AppError('VALIDATION', `Buyer rate for ${where} must be between 1 and ${max} micros.`);
+  }
+  if (provider < 0n || provider * 10_000n > buyer * 8_000n) {
+    throw new AppError('VALIDATION', `Provider rate for ${where} must be at most 80% of the buyer rate.`);
+  }
+}
+
 export async function putRateCard(rows: Omit<RateRowJson, never>[], actor: string, now = new Date()) {
   const day = addDays(utcDay(now), 1);
   const keys = new Set<string>();
@@ -247,6 +271,7 @@ export async function putRateCard(rows: Omit<RateRowJson, never>[], actor: strin
     if (keys.has(k)) throw new AppError('VALIDATION', `Duplicate rate row ${k}.`);
     keys.add(k);
   }
+  for (const r of rows) assertRateInBounds(r);
   const parsed: RateRow[] = rows.map((r) => ({
     gpuClass: r.gpuClass,
     lane: r.lane as RateRow['lane'],

@@ -142,6 +142,23 @@ describe('L-3: fresh signature', () => {
 });
 
 describe('rate card', () => {
+  test('D: rates outside their bounds are refused and nothing changes', async () => {
+    const row = { gpuClass: 1, lane: 'open', unitKind: 'tokens_1m' };
+    const put = (r: Record<string, unknown>) =>
+      call('PUT', '/v1/admin/rate-card', adminH, { rows: [{ ...row, ...r }] });
+    for (const bad of [
+      { providerMicrosPerUnit: '0', buyerMicrosPerUnit: '0' }, // free
+      { providerMicrosPerUnit: '1', buyerMicrosPerUnit: '50000001' }, // absurd
+      { providerMicrosPerUnit: '81', buyerMicrosPerUnit: '100' }, // above the provider share
+      { providerMicrosPerUnit: '1', buyerMicrosPerUnit: '100', gpuClass: 9 },
+    ]) {
+      expect((await put(bad)).status).toBe(400);
+    }
+    const audited = await t.db.select().from(auditLog).where(eq(auditLog.action, 'admin.rate_card.put'));
+    expect(audited).toHaveLength(0);
+    expect((await put({ providerMicrosPerUnit: '80', buyerMicrosPerUnit: '100' })).status).toBe(200);
+  });
+
   const rowsOf = (r: { rows: unknown[] }) => r.rows as { gpuClass: number; lane: string; unitKind: string }[];
 
   test("PUT replaces tomorrow's card, is audited, and never touches today's", async () => {
