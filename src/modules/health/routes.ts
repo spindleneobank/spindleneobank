@@ -39,20 +39,30 @@ async function chainCheck(): Promise<Check> {
   });
 }
 
+type Health = { ok: boolean; version: string; db: Check; redis: Check; chain: Check };
+
+export const healthSettings = { cacheMs: 5_000 };
+let cached: { at: number; result: Promise<Health> } | null = null;
+export const resetHealthCache = (): void => {
+  cached = null;
+};
+
+async function readHealth(): Promise<Health> {
+  const [db, redis, chain] = await Promise.all([
+    check(() => sql`select 1`),
+    check(() => getRedis().ping()),
+    chainCheck(),
+  ]);
+  return { ok: db === 'ok' && redis === 'ok' && chain === 'ok', version: VERSION, db, redis, chain };
+}
+
 export default (app: Hono<Env>) => {
+  // unauthenticated, so requests share one check: each would otherwise spend RPC quota and database time
   app.get('/v1/health', async (c) => {
-    const [db, redis, chain] = await Promise.all([
-      check(() => sql`select 1`),
-      check(() => getRedis().ping()),
-      chainCheck(),
-    ]);
-    return c.json({
-      ok: db === 'ok' && redis === 'ok' && chain === 'ok',
-      version: VERSION,
-      db,
-      redis,
-      chain,
-    });
+    if (!cached || Date.now() - cached.at >= healthSettings.cacheMs) {
+      cached = { at: Date.now(), result: readHealth() };
+    }
+    return c.json(await cached.result);
   });
 };
 
