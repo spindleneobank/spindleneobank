@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import type { Address, Hex } from 'viem';
 import { config } from '../../config';
@@ -119,6 +119,26 @@ export async function settleSessionUse(
   const exhausted = used >= spendable;
   if (exhausted) await closeSession(paymentRowId, redis);
   return { used, closing: exhausted, payer: row.payer };
+}
+
+/** Takes a charge back off a session that has not been claimed for settlement. False once it has been. */
+export async function reverseSessionUse(
+  paymentRowId: string,
+  charged: bigint,
+  redis: Redis = getRedis(),
+): Promise<boolean> {
+  const [row] = await dbRef.db
+    .update(x402Payments)
+    .set({ usedMicros: sql`greatest(${x402Payments.usedMicros} - ${charged}, 0)` })
+    .where(and(eq(x402Payments.id, paymentRowId), inArray(x402Payments.status, ['open', 'closing'])))
+    .returning({ paymentId: x402Payments.paymentId });
+  if (!row) return false;
+  await redis
+    .eval(FINALIZE_LUA, 1, sessionKey(row.paymentId), '0', (-charged).toString())
+    .catch((err) =>
+      logger.warn({ err: String(err) }, 'x402: session counter update failed (DB is authoritative)'),
+    );
+  return true;
 }
 
 /**

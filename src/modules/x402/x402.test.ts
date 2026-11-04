@@ -484,6 +484,21 @@ describe('sessions', () => {
     expect((await rows())[0]?.usedMicros).toBe(0n);
   });
 
+  test('L-9: once settlement claims a session, a reversal refunds instead of lowering `used`', async () => {
+    const { o } = await open();
+    const a = (await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(500_000n))) as Authorization;
+    await x402Provider.finalize(a, 123_000n);
+    // the settle run claimed it after this request last read the row
+    await dbRef.db
+      .update(x402Payments)
+      .set({ status: 'settling' })
+      .where(eq(x402Payments.id, a.x402PaymentId as string));
+    await x402Provider.reverse(a, 123_000n);
+    expect((await rows())[0]?.usedMicros).toBe(123_000n); // this is what the chain will collect
+    const [led] = await dbRef.db.select().from(buyerLedger).where(eq(buyerLedger.jobId, a.jobId));
+    expect(led).toMatchObject({ kind: 'refund', usdgMicros: 123_000n });
+  });
+
   test('redis counters rebuild from the DB when the key is lost', async () => {
     const { o } = await open();
     const a = (await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(900_000n))) as Authorization;

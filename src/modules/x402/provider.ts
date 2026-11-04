@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { Context } from 'hono';
 import { config } from '../../config';
 import { x402Payments } from '../../db/schema';
@@ -26,6 +26,7 @@ import {
   CLOSING_COUNTER,
   closeSession,
   reserveSession,
+  reverseSessionUse,
   sessionByToken,
   sessionExpiresAt,
   settleSessionUse,
@@ -223,20 +224,18 @@ export class X402Provider implements PaymentProvider {
   async reverse(auth: Authorization, chargedMicros: bigint): Promise<void> {
     const ref = auth.ref as Ref;
     const id = auth.x402PaymentId as string;
-    const [row] = await dbRef.db.select().from(x402Payments).where(eq(x402Payments.id, id));
-    if (!row) return;
-    const unsettled = row.status === 'open' || row.status === 'closing';
-    if (unsettled && ref.scheme === 'session') {
-      await settleSessionUse(id, 0n, -chargedMicros);
-      return;
-    }
-    if (unsettled) {
-      await dbRef.db
-        .update(x402Payments)
-        .set({ usedMicros: 0n, status: 'expired', closedAt: new Date() })
-        .where(and(eq(x402Payments.id, id), eq(x402Payments.status, row.status)));
-      return;
-    }
+    // Conditional on the payment still being unsettled: settlement may claim it at any moment, and once it has,
+    // lowering `used` would no longer change what the payer is charged, so they get a refund instead.
+    const reversed =
+      ref.scheme === 'session'
+        ? await reverseSessionUse(id, chargedMicros)
+        : await dbRef.db
+            .update(x402Payments)
+            .set({ usedMicros: 0n, status: 'expired', closedAt: new Date() })
+            .where(and(eq(x402Payments.id, id), inArray(x402Payments.status, ['open', 'closing'])))
+            .returning({ id: x402Payments.id })
+            .then((rows) => rows.length > 0);
+    if (reversed) return;
     await refundCharge(auth.buyerId, chargedMicros, auth.jobId);
   }
 
