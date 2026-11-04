@@ -28,7 +28,8 @@ export type JobFailCode =
   | 'OOM'
   | 'BUSY'
   | 'NODE_LOST'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'OUTPUT_TOO_LARGE';
 
 /**
  * Rejection of `JobHandle.done`. `requeueable` is true when no chunk had been streamed and the failure

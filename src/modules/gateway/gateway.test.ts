@@ -513,6 +513,44 @@ describe('release on every failure path', () => {
     await waitFor(async () => (nodeHub.getSession(job?.nodeId as string)?.inflight.size ?? 0) === 0);
   });
 
+  test('M-4: a node over the output limit fails the stream and the buyer pays nothing', async () => {
+    await spawnNode({
+      onJob: (node, j) => {
+        node.conn.send({ v: 1, type: 'job.accepted', jobId: j.jobId });
+        node.conn.send({ v: 1, type: 'job.chunk', jobId: j.jobId, seq: 0, delta: { content: 'ok' } });
+        node.conn.send({
+          v: 1,
+          type: 'job.chunk',
+          jobId: j.jobId,
+          seq: 1,
+          delta: { content: 'x'.repeat(100_000) },
+        });
+      },
+    });
+    const res = await fetch(`${base}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ ...chatBody, stream: true, max_tokens: 16 }),
+    });
+    const text = await res.text();
+    expect(text).toContain('The node failed');
+    expect(text).not.toContain('x'.repeat(5000));
+    await waitFor(settled);
+    const job = await lastJob();
+    expect(job?.status).toBe('failed');
+    expect(job?.buyerUsdgMicros).toBe(0n);
+    expect(await balance()).toEqual({ balance: 1_000_000n, reserved: 0n });
+  });
+
+  test('more embedding inputs than fit in one node frame are refused', async () => {
+    const res = await fetch(`${base}/v1/embeddings`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: 'nomic-embed-text', input: Array.from({ length: 49 }, () => 'x') }),
+    });
+    expect(res.status).toBe(400);
+  });
+
   test('non-stream client abort -> partial charge and cancelled', async () => {
     await spawnNode({
       onJob: (node, j) => {

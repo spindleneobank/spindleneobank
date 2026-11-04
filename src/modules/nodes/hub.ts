@@ -5,6 +5,7 @@ import { type Hex, recoverMessageAddress, recoverTypedDataAddress } from 'viem';
 import { publicKeyToAddress } from 'viem/utils';
 import { enrollments, nodes, users } from '../../db/schema';
 import { AppError } from '../../lib/errors';
+import { MAX_PREAUTH_FRAME_BYTES, maxOutputBytes } from '../../lib/limits';
 import { logger } from '../../lib/logger';
 import { createRedis } from '../../lib/redis';
 import { nodeBindingTypedData } from '../../shared/binding';
@@ -82,9 +83,14 @@ interface JobCtx {
   resolveAccepted: (v: boolean) => void;
   timer: ReturnType<typeof setTimeout>;
   chunksSent: number;
+  outputBytes: number;
+  maxOutputBytes: number;
   accepted: boolean;
   settled: boolean;
 }
+
+/** What a provable node fault costs: the same as a rejected receipt. */
+const NODE_FAULT_REPUTATION_DELTA = -25;
 
 interface ProbeCtx {
   resolve: (r: ProbeResultMsg) => void;
@@ -282,6 +288,11 @@ export class NodeHub {
   }
 
   onMessage(s: Session, data: string): void {
+    // Before any parsing: a socket that has not authenticated gets no room to make us do work.
+    if (s.phase !== 'ready' && data.length > MAX_PREAUTH_FRAME_BYTES) {
+      this.closeConn(s, CLOSE_CODES.PROTOCOL_ERROR, 'frame too large');
+      return;
+    }
     // Messages from one socket are handled strictly in order.
     s.chain = s.chain
       .then(() => this.handle(s, data))
@@ -827,6 +838,8 @@ export class NodeHub {
       reject: rejectDone,
       resolveAccepted,
       chunksSent: 0,
+      outputBytes: 0,
+      maxOutputBytes: maxOutputBytes(job.maxTokens, job.lane === 'sealed'),
       accepted: false,
       settled: false,
       timer: setTimeout(() => {
@@ -893,12 +906,38 @@ export class NodeHub {
     ctx.accepted = true;
     ctx.resolveAccepted(true);
     ctx.chunksSent++;
+    ctx.outputBytes += Buffer.byteLength(m.delta.content ?? '') + Buffer.byteLength(m.delta.reasoning ?? '');
+    if (ctx.outputBytes > ctx.maxOutputBytes) {
+      this.failOversize(s, ctx);
+      return;
+    }
     ctx.chunks.push({ seq: m.seq, delta: m.delta, ...(m.sealed ? { sealed: true } : {}) });
+  }
+
+  /** More output than the job's max_tokens can produce: cancel it, fail it and hold it against the node. */
+  private failOversize(s: Session, ctx: JobCtx): void {
+    logger.warn({ nodeId: s.node?.id, jobId: ctx.jobId }, 'node output over the limit; failing the job');
+    this.sendRaw(s, { v: 1, type: 'job.cancel', jobId: ctx.jobId });
+    this.failJob(s, ctx, 'OUTPUT_TOO_LARGE', 'Node output exceeded the limit for this job.', false);
+    const nodeId = s.node?.id;
+    if (!nodeId) return;
+    void dbRef.db
+      .update(nodes)
+      .set({ reputation: sql`greatest(0, ${nodes.reputation} + ${NODE_FAULT_REPUTATION_DELTA})` })
+      .where(eq(nodes.id, nodeId))
+      .catch((err) => logger.warn({ err: String(err), nodeId }, 'could not lower node reputation'));
   }
 
   private onJobDone(s: Session, m: JobDoneMsg): void {
     const ctx = this.ownedJob(s, m.jobId, 'done');
     if (!ctx) return;
+    // a non-streamed answer in job.done counts against the same limit
+    const answer = (m.output as { choices?: { message?: { content?: unknown } }[] } | null)?.choices?.[0]
+      ?.message?.content;
+    if (typeof answer === 'string' && Buffer.byteLength(answer) > ctx.maxOutputBytes) {
+      this.failOversize(s, ctx);
+      return;
+    }
     if (!this.settle(s, ctx)) return;
     ctx.resolve({
       output: m.output,

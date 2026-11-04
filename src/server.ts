@@ -1,52 +1,15 @@
-import { Hono } from 'hono';
-import { cors } from 'hono/cors';
+import { buildApp, serveOptions } from './app';
 import { config } from './config';
 import { sql } from './db/client';
-import { type Env, jsonError, notFound, requestId } from './lib/http';
 import { logger } from './lib/logger';
 import { routeModules } from './lib/modules';
 import { closeQueues } from './lib/queue';
 import { closeRedis } from './lib/redis';
-import { websocket } from './lib/ws';
 import { warmTokenizers } from './modules/gateway/tokenizer';
 import { nodeHub } from './modules/nodes/hub';
 
-export function buildApp(): Hono<Env> {
-  const app = new Hono<Env>();
-  app.use('*', requestId);
-  app.use(
-    '*',
-    cors({
-      origin: (origin) => (config.CORS_ORIGINS.includes(origin) ? origin : null),
-      credentials: true,
-      allowHeaders: [
-        'content-type',
-        'authorization',
-        'x-spindle',
-        'x-spindle-pay',
-        'x-spindle-session',
-        'x-payment',
-        'x-spindle-lane',
-      ],
-      allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      exposeHeaders: [
-        'x-request-id',
-        'X-Spindle-Job-Id',
-        'X-Spindle-Receipt',
-        'X-Spindle-Charge-Micros',
-        'PAYMENT-REQUIRED',
-        'X-PAYMENT-RESPONSE',
-      ],
-    }),
-  );
-  app.onError(jsonError);
-  app.notFound(notFound);
-  for (const mount of routeModules) mount(app);
-  return app;
-}
-
-const app = buildApp();
-const server = Bun.serve({ port: config.PORT, fetch: app.fetch, websocket });
+const app = buildApp(routeModules);
+const server = Bun.serve(serveOptions(app, config.PORT));
 logger.info({ port: server.port }, 'api listening');
 void nodeHub.start().catch((err) => logger.error({ err }, 'node hub failed to start'));
 void warmTokenizers();

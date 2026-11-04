@@ -10,6 +10,8 @@ export const HEADER_CHARGE_MICROS = 'X-Spindle-Charge-Micros';
 export const HEADER_LANE = 'X-Spindle-Lane';
 export const MAX_TOKENS_DEFAULT = 1024;
 export const MAX_TOKENS_CAP = 8192;
+/** A larger batch would not fit in one node frame (`src/lib/limits.ts`). */
+export const MAX_EMBEDDING_INPUTS = 48;
 
 export const SpindleMeta = z.object({
   jobId: z.string(),
@@ -106,7 +108,7 @@ export const ChatCompletionChunk = z.object({
 
 export const PostEmbeddingsReq = z.object({
   model: z.string(),
-  input: z.union([z.string(), z.array(z.string()).min(1)]),
+  input: z.union([z.string(), z.array(z.string()).min(1).max(MAX_EMBEDDING_INPUTS)]),
 });
 export const PostEmbeddingsRes = z.object({
   object: z.literal('list'),

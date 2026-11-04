@@ -322,7 +322,9 @@ async function respondChatStream(c: Context<Env>, run: JobRun): Promise<Response
           if (run.aborted) {
             await cancelRun(run);
           } else {
-            if (run.text || run.reasoning) await cancelRun(run, 'failed', errorMessage(err));
+            // a node that broke the output limit gets nothing billed for what it sent
+            const nodeFault = err instanceof JobFailure && err.code === 'OUTPUT_TOO_LARGE';
+            if (!nodeFault && (run.text || run.reasoning)) await cancelRun(run, 'failed', errorMessage(err));
             else await failRun(run.jobId, err);
             const e = httpError(err);
             const code = e instanceof AppError ? e.code : 'INTERNAL';
