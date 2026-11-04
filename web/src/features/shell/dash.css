@@ -689,6 +689,45 @@
   max-height: 120px;
   overflow: auto;
 }
+.sd-report {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  min-width: 0;
+}
+.sd-report p,
+.sd-report-sent {
+  margin: 0;
+  font-size: 14px;
+  color: inherit;
+}
+.sd-report-sent {
+  margin-top: 16px;
+}
+.sd-report label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.sd-report label > span {
+  font: 10px var(--sp-font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sp-ink-muted);
+}
+.sd-report select,
+.sd-report textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #dcc9d4;
+  background: #fffbf6;
+  font: 14px var(--sp-font-body, inherit);
+  color: var(--d-ink, inherit);
+}
+.sd-report select {
+  min-height: 44px;
+}
 .sd-field {
   display: grid;
   gap: 8px;
