@@ -83,6 +83,8 @@ const envSchema = z.object({
 
   /** Largest gap between a pool's spot price and its 30-minute TWAP at which a swap is still quoted, in bps. */
   STOCK_MAX_TWAP_DEVIATION_BPS: positiveInt(500),
+  /** Believe cf-connecting-ip and x-forwarded-for from loopback or private peers. false: socket address only. */
+  TRUST_PROXY: boolean(true),
   EPOCH_SECONDS: positiveInt(3600),
   CLAIM_MIN_USDG_MICROS: intString('10000000'),
   X402_ENABLED: boolean(true),

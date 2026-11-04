@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Context, MiddlewareHandler } from 'hono';
 import { getConnInfo } from 'hono/bun';
+import { config } from '../config';
 import { AppError } from './errors';
 import type { Env } from './http';
 import { getRedis } from './redis';
@@ -39,17 +40,39 @@ export function rateLimit(opts: RateLimitOptions): MiddlewareHandler<Env> {
   };
 }
 
-/** cf-connecting-ip, then first x-forwarded-for entry, then the socket address. */
+/** Loopback or a private range: the local tunnel, directly or through the Docker bridge. */
+export function isPrivatePeer(ip: string): boolean {
+  const v4 = ip.replace(/^::ffff:/i, '');
+  return (
+    ip === '::1' ||
+    /^f[cd]/i.test(ip) ||
+    /^(127|10)\./.test(v4) ||
+    /^192\.168\./.test(v4) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(v4)
+  );
+}
+
+export const proxySettings = { trust: config.TRUST_PROXY };
+
+/**
+ * The client's IP. Proxy headers are only believed from a peer that can be our own proxy: anyone reaching the
+ * origin directly could otherwise pick their own rate-limit bucket. Without a socket address (tests calling the
+ * app directly) there is no peer to distrust.
+ */
 export function clientIp(c: Context): string {
-  const cf = c.req.header('cf-connecting-ip')?.trim();
-  if (cf) return cf;
-  const xff = c.req.header('x-forwarded-for')?.split(',')[0]?.trim();
-  if (xff) return xff;
+  let peer: string | undefined;
   try {
-    return getConnInfo(c).remote.address ?? 'unknown';
+    peer = getConnInfo(c).remote.address;
   } catch {
-    return 'unknown';
+    peer = undefined;
   }
+  if (proxySettings.trust && (!peer || isPrivatePeer(peer))) {
+    const cf = c.req.header('cf-connecting-ip')?.trim();
+    if (cf) return cf;
+    const xff = c.req.header('x-forwarded-for')?.split(',')[0]?.trim();
+    if (xff) return xff;
+  }
+  return peer ?? 'unknown';
 }
 
 /** sha256(ip + daily salt). The raw IP is never stored. */
