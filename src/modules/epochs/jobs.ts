@@ -1,10 +1,18 @@
 import { desc, eq } from 'drizzle-orm';
 import { epochs, kv } from '../../db/schema';
+import { logger } from '../../lib/logger';
 import type { JobModule } from '../../lib/modules';
 import { getRedis } from '../../lib/redis';
 import { dbRef } from '../auth/constants';
 import { buildEpoch, nextEpochNumber } from './builder';
-import { buildHeadroom, defaultPosterDeps, type PosterDeps, type PostOutcome, postPending } from './poster';
+import {
+  buildHeadroom,
+  checkLatestRoot,
+  defaultPosterDeps,
+  type PosterDeps,
+  type PostOutcome,
+  postPending,
+} from './poster';
 import { closedEpochAt, epochSettings } from './service';
 
 export const LOCK_KEY = 'lock:epoch';
@@ -61,6 +69,9 @@ export async function runEpochOnce(now = new Date(), posterDeps?: PosterDeps): P
           .onConflictDoUpdate({ target: kv.key, set: { value, updatedAt: new Date() } });
       }
     }
+    await checkLatestRoot(deps).catch((err) =>
+      logger.warn({ err: String(err) }, 'could not compare the latest root with the chain'),
+    );
     try {
       out.post = await postPending(deps);
     } catch (err) {

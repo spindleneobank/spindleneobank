@@ -94,6 +94,10 @@ const envSchema = z.object({
   STOCK_MAX_TWAP_DEVIATION_BPS: positiveInt(500),
   /** Believe cf-connecting-ip and x-forwarded-for from loopback or private peers. false: socket address only. */
   TRUST_PROXY: boolean(true),
+  /** Webhook for push alerts (Slack or Discord style). Empty: alerts only go to the logs and admin overview. */
+  ALERT_WEBHOOK_URL: z.string().default(''),
+  /** A single claim above this raises an alert, in USDG micros. */
+  ALERT_LARGE_CLAIM_MICROS: intString('1000000000'),
   EPOCH_SECONDS: positiveInt(3600),
   CLAIM_MIN_USDG_MICROS: intString('10000000'),
   X402_ENABLED: boolean(true),

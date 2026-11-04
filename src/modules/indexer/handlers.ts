@@ -1,5 +1,6 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { Hex } from 'viem';
+import { config } from '../../config';
 import { credit, ensureBuyer } from '../../db/balances';
 import {
   auditLog,
@@ -12,6 +13,7 @@ import {
   x402Payments,
 } from '../../db/schema';
 import type { Tx } from '../../db/types';
+import { sendAlert } from '../../lib/alerts';
 import { dec, enc } from './codec';
 
 export type Stake = { active: bigint; pending: bigint };
@@ -306,6 +308,13 @@ export async function applyLog(tx: Tx, log: IndexedLog, ctx: HandlerCtx): Promis
         blockNumber: log.blockNumber,
         status: 'confirmed',
       };
+      if (set.amountUsdgMicros >= BigInt(config.ALERT_LARGE_CLAIM_MICROS)) {
+        void sendAlert(`large-claim:${txHash}`, 'warning', 'Large claim from SpindleClaims', {
+          owner: set.owner,
+          amountMicros: set.amountUsdgMicros.toString(),
+          txHash,
+        });
+      }
       const [existing] = await tx.select().from(claims).where(eq(claims.txHash, txHash));
       if (existing) await mutate(tx, undo, 'claims', existing, set);
       else {

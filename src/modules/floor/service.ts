@@ -13,6 +13,7 @@ import {
   nodeAttestations,
   nodes,
 } from '../../db/schema';
+import { sendAlert } from '../../lib/alerts';
 import { requireAddress } from '../../lib/contracts';
 import { logger } from '../../lib/logger';
 import { getRedis } from '../../lib/redis';
@@ -270,6 +271,7 @@ export async function raiseFloorAlert(epoch: bigint, neededMicros: bigint, short
     message: `treasury top-up needed: ${fmtUsdg(shortfallMicros)} USDG`,
   };
   logger.error(details, 'floor skipped: claims pool would be insolvent');
+  await sendAlert(`floor:${details.epoch}`, 'critical', details.message, details);
   const [cur] = await dbRef.db.select().from(kv).where(eq(kv.key, ALERT_KEY));
   const prev = cur?.value as { epoch?: string } | undefined;
   const value = { ...details, at: new Date().toISOString() };

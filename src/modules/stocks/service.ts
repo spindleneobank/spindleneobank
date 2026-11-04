@@ -2,6 +2,7 @@ import { KNOWN } from '@spindle/shared/chain';
 import { eq } from 'drizzle-orm';
 import { db as defaultDb } from '../../db/client';
 import { auditLog, stockTokens } from '../../db/schema';
+import { sendAlert } from '../../lib/alerts';
 import { logger } from '../../lib/logger';
 import type { StockRow } from './quote';
 import { type VerifyResult, verifyStockToken } from './verify';
@@ -104,7 +105,10 @@ export async function upsertVerified(address: string, enabled: boolean, opts: { 
 export const DEEPER_POOL_FACTOR = 2n;
 
 async function disableWithAlert(token: string, reason: string, details: Record<string, unknown>) {
-  logger.error({ token, reason, ...details }, 'stock token disabled by re-verify');
+  await sendAlert(`stock-disabled:${token}`, 'critical', `Stock token disabled: ${reason}`, {
+    token,
+    ...details,
+  });
   await stockDb.db.update(stockTokens).set({ enabled: false }).where(eq(stockTokens.address, token));
   await stockDb.db.insert(auditLog).values({
     actor: 'system:stocks-reverify',
@@ -115,7 +119,11 @@ async function disableWithAlert(token: string, reason: string, details: Record<s
 }
 
 async function alertDeeperPool(token: string, pinned: string, deeper: { pool: string; fee: number }) {
-  logger.warn({ token, pinned, deeper: deeper.pool }, 'a stock pool is deeper than the pinned one');
+  await sendAlert(`stock-deeper:${token}`, 'warning', 'A stock pool is deeper than the pinned one', {
+    token,
+    pinned,
+    deeper: deeper.pool,
+  });
   await stockDb.db.insert(auditLog).values({
     actor: 'system:stocks-reverify',
     action: 'stock.deeper_pool',
