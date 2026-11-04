@@ -108,8 +108,8 @@ const envSchema = z.object({
   X402_MAX_OPENS_PER_IP_DAY: positiveInt(500),
   /** Unsettled credit for a wallet that has settled nothing yet. Enough for a first small job, and all it can default on. */
   X402_NEW_PAYER_CREDIT_MICROS: intString('50000'),
-  /** Extra credit per settled micro, in bps. Keep it well below 10000: a default must never beat paying. */
-  X402_CREDIT_PER_SETTLED_BPS: z.coerce.number().int().min(0).max(10_000).default(2500),
+  /** Extra credit per settled micro, in bps. Must stay under 2000: see `creditPerSettledBps`. */
+  X402_CREDIT_PER_SETTLED_BPS: z.coerce.number().int().min(0).max(1999).default(1000),
   X402_MAX_NEW_PAYERS_PER_IP_DAY: positiveInt(5),
   KEEPER_MIN_ETH_WEI: intString('3000000000000000'),
   KEEPER_CRITICAL_ETH_WEI: intString('1500000000000000'),

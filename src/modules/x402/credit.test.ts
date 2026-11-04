@@ -5,6 +5,7 @@
  */
 import { afterAll, beforeAll, beforeEach, expect, test } from 'bun:test';
 import { eq } from 'drizzle-orm';
+import fc from 'fast-check';
 import type { Address, Hex } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
@@ -13,7 +14,7 @@ import { AppError } from '../../lib/errors';
 import { closeRedis, getRedis } from '../../lib/redis';
 import { dbRef } from '../auth/constants';
 import { addressOverride } from './challenge';
-import { reserveSession } from './sessions';
+import { closeSession, reserveSession, settleSessionUse } from './sessions';
 import { chainDeps, creditLimit, resetPayerCache, verifyAndOpen, x402Limits } from './verify';
 
 const USD = 1_000_000n;
@@ -44,7 +45,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await t.reset();
   resetPayerCache();
-  Object.assign(x402Limits, origLimits, { newPayerCredit: 50_000n, creditPerSettledBps: 2500n });
+  Object.assign(x402Limits, origLimits, { newPayerCredit: 50_000n, creditPerSettledBps: 1000n });
 });
 
 const fresh = () => privateKeyToAccount(generatePrivateKey()).address.toLowerCase() as Address;
@@ -134,18 +135,19 @@ test('a refused reservation leaves nothing reserved, in Redis or the database', 
 
 test('credit grows with what a wallet has settled, stays below it, and stops at the payer cap', async () => {
   expect(creditLimit(0n)).toBe(50_000n);
-  expect(creditLimit(1n * USD)).toBe(300_000n);
+  expect(creditLimit(1n * USD)).toBe(150_000n);
   expect(creditLimit(1_000n * USD)).toBe(20n * USD);
   const payer = fresh();
   await settled(payer, 1n * USD);
-  expect(await refusal(open(payer, { cap: 300_000n }))).toBeNull();
+  expect(await refusal(open(payer, { cap: 150_000n }))).toBeNull();
   expect(await refusal(open(payer, { cap: 10_000n }))).toContain('credit limit');
 });
 
-test('defaulting after building history cannot get back what was paid', () => {
+test('farming history through your own node costs more than the credit it earns', () => {
   for (const paid of [0n, USD, 10n * USD, 80n * USD]) {
-    const free = creditLimit(paid) - x402Limits.newPayerCredit;
-    expect(free * 2n).toBeLessThanOrEqual(paid);
+    const earned = creditLimit(paid) - x402Limits.newPayerCredit;
+    // 80% comes back to an operator who served their own job, so history costs them 20%
+    expect(earned).toBeLessThanOrEqual((paid * 2_000n) / 10_000n);
   }
 });
 
@@ -163,3 +165,83 @@ test('one IP can bring only a few new wallets a day', async () => {
   await settled(proven, USD);
   expect(await refusal(open(proven, { clientIp: ip }))).toBeNull();
 });
+
+test('closing a session with a job in flight still counts that job against the limit', async () => {
+  const payer = fresh();
+  const first = await reserve(payer, 40_000n);
+  expect('remaining' in first.r).toBe(true);
+  await closeSession(first.row?.id as string);
+  const second = await open(payer, { scheme: 'session', cap: 5n * USD, surcharge: 0n });
+  const [row] = await t.db.select().from(x402Payments).where(sqlId(second.id));
+  expect(await reserveSession(row as never, 40_000n, 60_000)).toEqual({ refused: 'credit' });
+});
+
+test('a closed session reports it can settle only when its last job has finished', async () => {
+  const payer = fresh();
+  const { row } = await reserve(payer, 20_000n);
+  const id = row?.id as string;
+  await t.db.update(x402Payments).set({ status: 'open' }).where(sqlId(id));
+  const [fresher] = await t.db.select().from(x402Payments).where(sqlId(id));
+  await reserveSession(fresher as never, 20_000n, 60_000);
+  await closeSession(id);
+  expect((await settleSessionUse(id, 20_000n, 10_000n)).settleable).toBe(false);
+  expect((await settleSessionUse(id, 20_000n, 10_000n)).settleable).toBe(true);
+});
+
+test('IPv6: one /64 is one client', async () => {
+  x402Limits.maxNewPayersPerIpDay = 1;
+  const net = crypto.randomUUID().replaceAll('-', '').slice(0, 4);
+  expect(await refusal(open(fresh(), { clientIp: `2001:db8:${net}:1::1` }))).toBeNull();
+  expect(await refusal(open(fresh(), { clientIp: `2001:db8:${net}:1:aaaa:bbbb:cccc:dddd` }))).toContain(
+    'new x402 wallets',
+  );
+  expect(await refusal(open(fresh(), { clientIp: `2001:db8:${net}:2::1` }))).toBeNull();
+});
+
+test('model: whatever a wallet does in any order, its credit in use stays within its limit', async () => {
+  await fc.assert(
+    fc.asyncProperty(
+      fc.array(
+        fc.oneof(
+          fc.record({ op: fc.constant('open' as const) }),
+          fc.record({ op: fc.constant('reserve' as const), amount: fc.bigInt({ min: 1n, max: 40_000n }) }),
+          fc.record({ op: fc.constant('finish' as const), charge: fc.bigInt({ min: 0n, max: 40_000n }) }),
+          fc.record({ op: fc.constant('close' as const) }),
+        ),
+        { maxLength: 25 },
+      ),
+      async (ops) => {
+        await t.reset();
+        const payer = fresh();
+        const sessions: string[] = [];
+        const held: { id: string; amount: bigint }[] = [];
+        const limit = creditLimit(0n);
+        for (const o of ops) {
+          const last = sessions.at(-1);
+          if (o.op === 'open') {
+            const r = await open(payer, { scheme: 'session', cap: 5n * USD, surcharge: 1_000n }).catch(
+              () => null,
+            );
+            if (r) sessions.push(r.id);
+          } else if (o.op === 'close' && last) {
+            await closeSession(last);
+          } else if (o.op === 'reserve' && last) {
+            const [row] = await t.db.select().from(x402Payments).where(sqlId(last));
+            const r = await reserveSession(row as never, o.amount, 60_000);
+            if ('remaining' in r) held.push({ id: last, amount: o.amount });
+          } else if (o.op === 'finish') {
+            const job = held.shift();
+            if (job) await settleSessionUse(job.id, job.amount, o.charge);
+          }
+          const rows = await t.db.select().from(x402Payments);
+          const inUse = rows.reduce(
+            (a, p) => a + p.usedMicros + p.reservedMicros + (p.surchargeMicros ?? 0n),
+            0n,
+          );
+          expect(inUse).toBeLessThanOrEqual(limit);
+        }
+      },
+    ),
+    { numRuns: 25 },
+  );
+}, 60_000);

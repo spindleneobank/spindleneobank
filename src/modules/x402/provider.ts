@@ -6,7 +6,7 @@ import { AppError } from '../../lib/errors';
 import type { Env } from '../../lib/http';
 import { logger } from '../../lib/logger';
 import { enqueue } from '../../lib/queue';
-import { clientIp, hashIp, hit } from '../../lib/ratelimit';
+import { clientIp, hashIp, hit, ipBucket } from '../../lib/ratelimit';
 import { getRedis } from '../../lib/redis';
 import { HEADER_SESSION } from '../../shared/api/x402';
 import { encodeHeader, X402PaymentResponse } from '../../shared/x402';
@@ -66,7 +66,13 @@ export async function noteClosing(payer?: string): Promise<void> {
         { jobId: `x402-settle-now-${minute}` },
       );
     else if (payer && (await isNewPayer(payer)))
-      await enqueue('x402', 'x402-settle', { reason: 'new-payer' }, { jobId: `x402-settle-new-${minute}` });
+      // delayed to the end of its window, so one run serves every wallet that closed in that window
+      await enqueue(
+        'x402',
+        'x402-settle',
+        { reason: 'new-payer' },
+        { jobId: `x402-settle-new-${minute}`, delay: 60_000 - (Date.now() % 60_000) },
+      );
   } catch (err) {
     logger.warn({ err: String(err) }, 'x402: could not signal settlement trigger');
   }
@@ -110,7 +116,10 @@ export class X402Provider implements PaymentProvider {
   }
 
   private async challenge(c: Context<Env>, ctx: AuthorizeCtx): Promise<Challenge> {
-    const { count, retryAfter } = await hit(`x402chal:${hashIp(clientIp(c))}`, CHALLENGE_IP_LIMIT.windowSec);
+    const { count, retryAfter } = await hit(
+      `x402chal:${hashIp(ipBucket(clientIp(c)))}`,
+      CHALLENGE_IP_LIMIT.windowSec,
+    );
     if (count > CHALLENGE_IP_LIMIT.points) {
       c.header('retry-after', String(retryAfter));
       throw new AppError('RATE_LIMITED', 'Too many payment challenges. Please slow down.');
@@ -199,7 +208,7 @@ export class X402Provider implements PaymentProvider {
     const charge = chargeMicros > auth.reservedMicros ? auth.reservedMicros : chargeMicros;
     if (ref.scheme === 'session') {
       const r = await settleSessionUse(id, auth.reservedMicros, charge);
-      if (r.closing) await noteClosing(r.payer);
+      if (r.closing || r.settleable) await noteClosing(r.payer);
       return charge;
     }
     if (charge === 0n) {

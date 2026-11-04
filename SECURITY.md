@@ -27,6 +27,6 @@ Nothing is upgradeable, and the contracts have no owner and no pause. Users can 
 
 ## Known limits
 
-**x402 work is served before it is paid for (open, not accepted).** A wallet that makes its settle fail gets its credit for free, then is barred, and the serving nodes bear the loss. Limits: $0.05 for a new wallet, 5 new wallets per IP per day, at most 25% of what a wallet has paid, and $500 unsettled across all wallets. Setting up a wallet costs less than $0.05 in gas, so this is capped but not unprofitable. Only taking payment before serving would close it.
+**x402 work is served before it is paid for (open, not accepted).** A wallet that makes its settle fail gets its credit for free, then is barred, and the serving nodes bear the loss. Limits: $0.05 for a new wallet, 5 new wallets per IP per day, at most 10% of what a wallet has paid, and $500 unsettled across all wallets. Setting up a wallet costs less than $0.05 in gas, so this is capped but not unprofitable. Only taking payment before serving would close it.
 
 See the threat model in `docs/plan/threat-model.md` for what the system doesn't protect against, and `docs/plan/contracts-spec.md` for the invariants and the tests that check them.

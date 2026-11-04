@@ -91,17 +91,17 @@ describe('x402 credit', () => {
       }),
     );
   });
-  test('what a wallet can default on is always well under what it has paid', () => {
-    const saved = x402Limits.newPayerCredit;
-    x402Limits.newPayerCredit = 50_000n;
+  test('credit from history stays below what history costs an operator serving themselves', () => {
+    const saved = { ...x402Limits };
+    Object.assign(x402Limits, { newPayerCredit: 50_000n, creditPerSettledBps: 1000n });
     try {
       fc.assert(
         fc.property(amount, (paid) => {
-          expect((creditLimit(paid) - 50_000n) * 2n).toBeLessThanOrEqual(paid);
+          expect((creditLimit(paid) - 50_000n) * 10_000n).toBeLessThanOrEqual(paid * 2_000n);
         }),
       );
     } finally {
-      x402Limits.newPayerCredit = saved;
+      Object.assign(x402Limits, saved);
     }
   });
 });

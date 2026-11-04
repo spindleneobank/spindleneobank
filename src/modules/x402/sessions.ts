@@ -97,7 +97,7 @@ export async function settleSessionUse(
   reserved: bigint,
   charge: bigint,
   redis: Redis = getRedis(),
-): Promise<{ used: bigint; closing: boolean; payer: string }> {
+): Promise<{ used: bigint; closing: boolean; settleable: boolean; payer: string }> {
   const [row] = await dbRef.db.select().from(x402Payments).where(eq(x402Payments.id, paymentRowId));
   if (!row) throw new AppError('NOT_FOUND', 'x402 session not found.');
   const spendable = (row.capMicros ?? 0n) - (row.surchargeMicros ?? 0n);
@@ -114,11 +114,13 @@ export async function settleSessionUse(
       reservedMicros: sql`greatest(${x402Payments.reservedMicros} - ${reserved}, 0)`,
     })
     .where(eq(x402Payments.id, paymentRowId))
-    .returning({ used: x402Payments.usedMicros });
+    .returning({ used: x402Payments.usedMicros, reserved: x402Payments.reservedMicros });
   const used = upd?.used ?? row.usedMicros + c;
   const exhausted = used >= spendable;
   if (exhausted) await closeSession(paymentRowId, redis);
-  return { used, closing: exhausted, payer: row.payer };
+  // a closed session waits for its last job before it can settle
+  const settleable = row.status === 'closing' && upd?.reserved === 0n;
+  return { used, closing: exhausted, settleable, payer: row.payer };
 }
 
 /** Takes a charge back off a session that has not been claimed for settlement. False once it has been. */

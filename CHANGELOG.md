@@ -5,7 +5,7 @@ Pre-launch, so entries follow audits rather than releases. Reports are in the se
 ## audit-fixes-2 (2026-11-05)
 
 **Security**
-- x402 credit counts real use, so idle sessions can't lock buyers out. New wallets start at $0.05 and grow with what they settle, one IP can bring 5 a day, and they settle within a minute.
+- x402 credit counts real use, so idle sessions can't lock buyers out. New wallets start at $0.05 and grow by 10% of what they settle, one IP or IPv6 /64 can bring 5 a day, and they settle within about a minute.
 - A deeper stock pool raises an alert and no longer disables the token.
 - Live Relay quotes are checked before users sign them. Swaps carry a five-minute on-chain deadline.
 - Every admin change needs a recent wallet signature, and rate-card values are range-checked.

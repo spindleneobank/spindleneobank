@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { type Context, Hono } from 'hono';
 import { type Env, jsonError } from './http';
-import { clientIp, proxySettings, rateLimit } from './ratelimit';
+import { clientIp, ipBucket, proxySettings, rateLimit } from './ratelimit';
 import { closeRedis } from './redis';
 
 afterAll(closeRedis);
@@ -51,4 +51,12 @@ describe('L-2: clientIp', () => {
       proxySettings.trust = true;
     }
   });
+});
+
+test('ipBucket keeps IPv4 whole and reduces IPv6 to its /64', () => {
+  expect(ipBucket('1.2.3.4')).toBe('1.2.3.4');
+  expect(ipBucket('::ffff:1.2.3.4')).toBe('1.2.3.4');
+  expect(ipBucket('2001:db8:1:2:3:4:5:6')).toBe(ipBucket('2001:0db8:0001:0002::9'));
+  expect(ipBucket('2001:db8:1:2::1')).not.toBe(ipBucket('2001:db8:1:3::1'));
+  expect(ipBucket('::1')).toBe('0000:0000:0000:0000::/64');
 });

@@ -87,3 +87,36 @@ describe('an admin whose signature is stale', () => {
     });
   }
 });
+
+/** Everything else that changes state: without credentials or with a body that makes no sense, it must refuse. */
+describe('public routes refuse invalid input', () => {
+  const publicRoutes = [
+    ...new Set(
+      app.routes
+        .filter((r) => !['ALL', 'GET'].includes(r.method) && !/^\/v1\/(app|admin)\//.test(r.path))
+        .map((r) => `${r.method} ${r.path}`),
+    ),
+  ].filter((r) => r !== 'POST /v1/auth/logout'); // logging out with no session is a harmless no-op
+
+  test('the sweep sees them', () => {
+    for (const r of [
+      'POST /v1/x402/sessions',
+      'POST /v1/x402/sessions/:id/open',
+      'POST /v1/x402/sessions/:id/close',
+    ]) {
+      expect(publicRoutes).toContain(r);
+    }
+  });
+  for (const r of publicRoutes) {
+    const [method, path] = r.split(' ') as [string, string];
+    test(r, async () => {
+      const res = await app.request(path.replace(/:[^/]+/g, ID), {
+        method,
+        headers: { 'content-type': 'application/json', origin: ORIGIN, 'x-spindle': '1' },
+        body: '{"not":"valid"}',
+      });
+      expect(res.status).toBeGreaterThanOrEqual(400);
+      expect(res.status).toBeLessThan(500);
+    });
+  }
+});

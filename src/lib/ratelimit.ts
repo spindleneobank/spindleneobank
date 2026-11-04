@@ -75,6 +75,22 @@ export function clientIp(c: Context): string {
   return peer ?? 'unknown';
 }
 
+/**
+ * What one client counts as for a limit: the address, or the /64 for IPv6. A single home connection gets a whole /64,
+ * so limiting by full address would give it endless buckets.
+ */
+export function ipBucket(ip: string): string {
+  if (!ip.includes(':') || ip.toLowerCase().startsWith('::ffff:')) return ip.replace(/^::ffff:/i, '');
+  const [head = '', tail] = ip.toLowerCase().split('%')[0]?.split('::') ?? [];
+  const front = head ? head.split(':') : [];
+  const back = tail ? tail.split(':') : [];
+  const groups = [...front, ...Array(Math.max(0, 8 - front.length - back.length)).fill('0'), ...back];
+  return `${groups
+    .slice(0, 4)
+    .map((g) => g.padStart(4, '0'))
+    .join(':')}::/64`;
+}
+
 /** sha256(ip + daily salt). The raw IP is never stored. */
 export function hashIp(ip: string, now = new Date()): string {
   return createHash('sha256')
@@ -82,4 +98,4 @@ export function hashIp(ip: string, now = new Date()): string {
     .digest('hex');
 }
 
-export const ipKey = (c: Context<Env>): string => hashIp(clientIp(c));
+export const ipKey = (c: Context<Env>): string => hashIp(ipBucket(clientIp(c)));

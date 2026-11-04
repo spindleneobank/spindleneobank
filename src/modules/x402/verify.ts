@@ -7,7 +7,7 @@ import { config } from '../../config';
 import { x402Payments } from '../../db/schema';
 import { AppError } from '../../lib/errors';
 import type { Env } from '../../lib/http';
-import { clientIp, hashIp, hit } from '../../lib/ratelimit';
+import { clientIp, hashIp, hit, ipBucket } from '../../lib/ratelimit';
 import { getRedis } from '../../lib/redis';
 import { publicClient } from '../../lib/viem';
 import { decodeHeader, networkFor, spindlePaymentTypedData, X402PaymentHeader } from '../../shared/x402';
@@ -24,7 +24,10 @@ export const x402Limits = {
   maxOpensPerIpDay: config.X402_MAX_OPENS_PER_IP_DAY,
   /** Credit a wallet with no settled payments gets, which is also the most it can default on. */
   newPayerCredit: BigInt(config.X402_NEW_PAYER_CREDIT_MICROS),
-  /** Extra credit per settled micro, in basis points. Below 100%, so defaulting never beats paying. */
+  /**
+   * Extra credit per settled micro, in basis points. A node operator buying from their own node gets 80% back, so
+   * history costs them 20% of what they settle: this has to stay below that, or farming credit to default on pays.
+   */
   creditPerSettledBps: BigInt(config.X402_CREDIT_PER_SETTLED_BPS),
   maxNewPayersPerIpDay: config.X402_MAX_NEW_PAYERS_PER_IP_DAY,
 };
@@ -35,7 +38,7 @@ const DAY_SEC = 86_400;
 export async function enforceOpenIpCap(c: Context<Env>): Promise<void> {
   const ip = clientIp(c);
   if (ip === 'unknown') return; // never put all clients in one bucket
-  const { count, retryAfter } = await hit(`x402:open:${hashIp(ip)}`, DAY_SEC);
+  const { count, retryAfter } = await hit(`x402:open:${hashIp(ipBucket(ip))}`, DAY_SEC);
   if (count > x402Limits.maxOpensPerIpDay) {
     c.header('retry-after', String(retryAfter));
     throw new AppError('RATE_LIMITED', 'Too many x402 payments from this address today. Use an API key.');
@@ -127,16 +130,17 @@ export type OpenInput = {
 
 /** What the payer has signed for and may still be charged: the balance and allowance must cover this. */
 const signedSum = sql<string>`coalesce(sum(case when ${x402Payments.status} = 'open' then ${x402Payments.capMicros}
-  else ${x402Payments.usedMicros} + ${x402Payments.surchargeMicros} end), 0)`;
+  else ${x402Payments.usedMicros} + ${x402Payments.reservedMicros} + ${x402Payments.surchargeMicros} end), 0)`;
 /**
  * Credit actually in use: served or reserved work not yet paid for. An unused session costs nobody anything, so it
- * counts only its surcharge. Counting its whole cap would let a few idle sessions lock everyone else out.
+ * counts only its surcharge. Counting its whole cap would let a few idle sessions lock everyone else out. A job
+ * still in flight on a closed session is still credit, or closing a session would free its limit for free.
  */
 const creditInUse = sql<string>`coalesce(sum(case
   when ${x402Payments.status} = 'open' and ${x402Payments.scheme} = 'session'
     then ${x402Payments.usedMicros} + ${x402Payments.reservedMicros} + coalesce(${x402Payments.surchargeMicros}, 0)
   when ${x402Payments.status} = 'open' then ${x402Payments.capMicros}
-  else ${x402Payments.usedMicros} + coalesce(${x402Payments.surchargeMicros}, 0) end), 0)`;
+  else ${x402Payments.usedMicros} + ${x402Payments.reservedMicros} + coalesce(${x402Payments.surchargeMicros}, 0) end), 0)`;
 const unsettled = sql`${x402Payments.status} in ('open','closing','settling')`;
 
 type Tx = Parameters<Parameters<typeof dbRef.db.transaction>[0]>[0];
@@ -195,7 +199,7 @@ export const isNewPayer = async (payer: string): Promise<boolean> =>
 async function enforceNewPayerIpCap(ip: string, payer: string): Promise<void> {
   if (ip === 'unknown' || !(await isNewPayer(payer))) return;
   const redis = getRedis();
-  const key = `x402:newpayers:${hashIp(ip)}`;
+  const key = `x402:newpayers:${hashIp(ipBucket(ip))}`;
   const added = await redis.sadd(key, payer);
   await redis.expire(key, DAY_SEC);
   if (added === 1 && (await redis.scard(key)) > x402Limits.maxNewPayersPerIpDay) {
