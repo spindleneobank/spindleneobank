@@ -45,22 +45,25 @@ let buyerId: string;
 let nodeId: string;
 const request = { model: 'qwen2.5:7b', messages: [{ role: 'user', content: 'hi' }] };
 let RESERVE = 10_000n;
+const defaultCanaryHook = canaryHooks.onCanaryFinished;
 
 beforeAll(async () => {
   t = await setupTestDb();
   dbRef.db = t.db;
 });
 afterAll(async () => {
+  // this module object is shared by every test file in the bun process: leave it as it was found
+  canaryHooks.onCanaryFinished = defaultCanaryHook;
   await t.close();
   await closeRedis();
 });
 afterEach(() => {
   receiptSettings.chargeOnFailure = false;
-  canaryHooks.onCanaryFinished = async () => {};
 });
 beforeEach(async () => {
   await t.reset();
   resetJobFinishedHandler();
+  canaryHooks.onCanaryFinished = async () => {};
   RESERVE = 10_000n;
   const [u] = await t.db.insert(users).values({ address: OWNER }).returning();
   ownerUserId = u?.id as string;
@@ -84,20 +87,23 @@ beforeEach(async () => {
     })
     .returning();
   nodeId = n?.id as string;
+  // same price for both classes unless a test says otherwise; the node is unstaked, so it bills at class 0
   await t.db.insert(rateCard).values(
-    (
-      [
-        ['tokens_1m', 1_000_000n, 800_000n],
-        ['image', 40_000n, 32_000n],
-      ] as const
-    ).map(([unitKind, b, p]) => ({
-      day: utcDay(),
-      gpuClass: 2,
-      lane: 'open',
-      unitKind,
-      buyerUsdgMicrosPerUnit: b,
-      providerUsdgMicrosPerUnit: p,
-    })),
+    [0, 2].flatMap((gpuClass) =>
+      (
+        [
+          ['tokens_1m', 1_000_000n, 800_000n],
+          ['image', 40_000n, 32_000n],
+        ] as const
+      ).map(([unitKind, b, p]) => ({
+        day: utcDay(),
+        gpuClass,
+        lane: 'open',
+        unitKind,
+        buyerUsdgMicrosPerUnit: b,
+        providerUsdgMicrosPerUnit: p,
+      })),
+    ),
   );
 });
 
@@ -185,6 +191,15 @@ describe('onJobFinished: verified', () => {
     const [r] = await t.db.select().from(receipts).where(eq(receipts.jobId, id));
     expect(r).toMatchObject({ verified: true, reason: null, recountTokens: 100, nodeId });
     expect(await rep()).toBe(1001);
+  });
+
+  test('M-5: an unstaked node claiming a higher class is charged and earns at the class-0 rate', async () => {
+    await t.db.update(rateCard).set({ buyerUsdgMicrosPerUnit: 500_000n }).where(eq(rateCard.gpuClass, 0));
+    const id = await newJob();
+    await onJobFinished(id, done(id), view());
+    const [j] = await t.db.select().from(jobs).where(eq(jobs.id, id));
+    expect(j?.buyerUsdgMicros).toBe(53n); // floor(107 * 0.5), not the class-2 price of 107
+    expect(j?.providerUsdgMicros).toBe(42n);
   });
 
   test('charge never exceeds the reservation', async () => {

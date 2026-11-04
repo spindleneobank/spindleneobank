@@ -2,15 +2,18 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:tes
 import { desc, eq } from 'drizzle-orm';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
 import { nodes, probeResults, slashCases } from '../../db/schema';
-import { closeRedis } from '../../lib/redis';
+import { closeRedis, getRedis } from '../../lib/redis';
 import { CLASS_EXPECTATIONS, fitModels } from '../../shared/gpu';
 import type { ProbeResultMsg } from '../../shared/node-protocol';
 import { dbRef } from '../auth/constants';
+import { tokenizerSettings } from '../gateway/tokenizer';
 import { slashingDeps, unsuspendNode } from '../slashing/service';
 import { makeNode } from '../slashing/testkit';
 import {
   dueNodes,
   evaluateProbe,
+  type MeasuredSpeed,
+  measureSpeed,
   probeDeps,
   probeNode,
   probeRetryAt,
@@ -87,6 +90,7 @@ describe('probe flow', () => {
   let bn: ProbeResultMsg['bench'];
   const realClose = slashingDeps.closeNode;
   const realProbe = probeDeps.probe;
+  const realMeasure = probeDeps.measure;
   beforeAll(async () => {
     t = await setupTestDb();
     dbRef.db = t.db;
@@ -94,6 +98,7 @@ describe('probe flow', () => {
   afterAll(async () => {
     slashingDeps.closeNode = realClose;
     probeDeps.probe = realProbe;
+    probeDeps.measure = realMeasure;
     await t.close();
     await closeRedis();
   });
@@ -103,6 +108,8 @@ describe('probe flow', () => {
     hw = GOOD_4090;
     bn = bench(80);
     slashingDeps.closeNode = async (id) => void closed.push(id);
+    for (const k of await getRedis().keys('probe:aborts:*')) await getRedis().del(k);
+    probeDeps.measure = async () => null;
     probeDeps.probe = async (_id, kind) =>
       kind === 'hardware'
         ? { v: 1, type: 'probe.result', probeId: 'p', hardware: hw }
@@ -209,6 +216,138 @@ describe('probe flow', () => {
     expect(row?.status).toBe('online');
     expect(probeRetryAt.has(n.id)).toBe(true);
     probeRetryAt.clear();
+  });
+
+  describe('M-5: speed measured from our side', () => {
+    const fast: MeasuredSpeed = { ttftMs: 100, tokPerSec: 80, tokens: 128 };
+    const withRefModel = async () =>
+      makeNode().then(async (n) => {
+        await t.db
+          .update(nodes)
+          .set({ models: [{ id: CLASS_EXPECTATIONS[n.gpuClass as 2].refModel }] })
+          .where(eq(nodes.id, n.id));
+        return n;
+      });
+
+    test('a node that reports a fast benchmark but measures slow misses', async () => {
+      const n = await withRefModel();
+      bn = bench(500);
+      probeDeps.measure = async () => ({ ttftMs: 2000, tokPerSec: 3, tokens: 128 });
+      expect((await probeNode(n.id))?.classOk).toBe(false);
+      const [r] = await t.db.select().from(probeResults);
+      expect((r?.details as { reasons: string[] } | undefined)?.reasons[0]).toContain('measured');
+      expect(Number(r?.tokPerSec)).toBe(3);
+    });
+
+    test('the measurement decides: a slow self-report does not hurt a node that measures fast', async () => {
+      const n = await withRefModel();
+      bn = bench(1);
+      probeDeps.measure = async () => fast;
+      expect((await probeNode(n.id))?.classOk).toBe(true);
+      const [r] = await t.db.select().from(probeResults);
+      expect((r?.details as { measured: MeasuredSpeed } | undefined)?.measured.ttftMs).toBe(100);
+    });
+
+    test('a little network overhead is tolerated', async () => {
+      const n = await withRefModel();
+      probeDeps.measure = async () => ({ ...fast, tokPerSec: CLASS_EXPECTATIONS[2].minTokPerSec * 0.85 });
+      expect((await probeNode(n.id))?.classOk).toBe(true);
+    });
+
+    const abortedBench = async (_id: string, kind: string): Promise<ProbeResultMsg> =>
+      kind === 'hardware'
+        ? { v: 1, type: 'probe.result', probeId: 'p', hardware: hw }
+        : { v: 1, type: 'probe.result', probeId: 'p', aborted: true };
+
+    test('a benchmark stopped for a job is fine when the node could still be timed', async () => {
+      const n = await withRefModel();
+      probeDeps.probe = abortedBench as never;
+      probeDeps.measure = async () => fast;
+      expect((await probeNode(n.id))?.classOk).toBe(true);
+    });
+
+    test('3 aborted probes in a row are a miss, and a real result resets the count', async () => {
+      const n = await withRefModel();
+      const good = probeDeps.probe;
+      probeDeps.probe = abortedBench as never;
+      expect(await probeNode(n.id)).toBeNull();
+      expect(await probeNode(n.id)).toBeNull();
+      expect(await t.db.select().from(probeResults)).toHaveLength(0);
+      expect(await probeNode(n.id)).toEqual({ classOk: false, suspended: false });
+      const [r] = await t.db.select().from(probeResults);
+      expect((r?.details as { reasons: string[] } | undefined)?.reasons[0]).toContain('aborted');
+
+      probeDeps.probe = good;
+      expect((await probeNode(n.id))?.classOk).toBe(true);
+      probeDeps.probe = abortedBench as never;
+      expect(await probeNode(n.id)).toBeNull();
+      expect(await probeNode(n.id)).toBeNull();
+      expect(await t.db.select().from(probeResults)).toHaveLength(2);
+    });
+
+    test('a node that only ever aborts ends up suspended', async () => {
+      const n = await withRefModel();
+      probeDeps.probe = abortedBench as never;
+      let last: Awaited<ReturnType<typeof probeNode>> = null;
+      for (let i = 0; i < 6; i++) last = await probeNode(n.id);
+      expect(last?.suspended).toBe(true);
+    });
+  });
+
+  describe('measureSpeed', () => {
+    const realDispatch = probeDeps.dispatch;
+    const realNow = probeDeps.now;
+    const realLoad = tokenizerSettings.load;
+    afterAll(() => {
+      probeDeps.dispatch = realDispatch;
+      probeDeps.now = realNow;
+      tokenizerSettings.load = realLoad;
+    });
+    let clock = 0;
+    const words = (n: number) => 'abc'.repeat(n); // chars/3 estimate: n tokens
+    beforeAll(() => {
+      tokenizerSettings.load = async () => {
+        throw new Error('offline');
+      };
+      probeDeps.now = () => clock;
+    });
+    /** A node that sends `chunks` as [ms since start, tokens]. */
+    const stream = (chunks: [number, number][]) => {
+      clock = 1000;
+      probeDeps.dispatch = (async (_n: string, _j: unknown, onChunk: (d: unknown) => void) => {
+        for (const [at, n] of chunks) {
+          clock = 1000 + at;
+          onChunk({ seq: 0, delta: { content: words(n) } });
+        }
+        return {};
+      }) as never;
+    };
+
+    test('times the stream, excluding the wait for the first token', async () => {
+      stream([
+        [5000, 20],
+        [6000, 40],
+        [7000, 40],
+      ]);
+      const m = await measureSpeed('n', 'qwen2.5:0.5b', 'e');
+      expect(m?.ttftMs).toBe(5000);
+      expect(m?.tokens).toBe(100);
+      expect(m?.tokPerSec).toBe(50);
+    });
+
+    test('one late burst is timed from the start, so buffering cannot fake speed', async () => {
+      stream([[10_000, 100]]);
+      expect((await measureSpeed('n', 'qwen2.5:0.5b', 'e'))?.tokPerSec).toBe(10);
+    });
+
+    test('too little output or a failed job gives no verdict', async () => {
+      stream([[100, 3]]);
+      expect(await measureSpeed('n', 'qwen2.5:0.5b', 'e')).toBeNull();
+      probeDeps.dispatch = async () => {
+        throw new Error('BUSY');
+      };
+      expect(await measureSpeed('n', 'qwen2.5:0.5b', 'e')).toBeNull();
+    });
   });
 
   test('schedule: only registered online nodes whose last probe is older than 6h, capped per tick', async () => {

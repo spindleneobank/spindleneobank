@@ -194,17 +194,20 @@ beforeEach(async () => {
   keyId = created.id;
   const day = utcDay();
   await t.db.insert(rateCard).values(
-    [
-      ['tokens_1m', 1_000_000n, 800_000n],
-      ['image', 40_000n, 32_000n],
-    ].map(([unitKind, buyer, provider]) => ({
-      day,
-      gpuClass: 2,
-      lane: 'open',
-      unitKind: unitKind as string,
-      buyerUsdgMicrosPerUnit: buyer as bigint,
-      providerUsdgMicrosPerUnit: provider as bigint,
-    })),
+    // the same price for both classes unless a test says otherwise: most tests are not about the class
+    [0, 2].flatMap((gpuClass) =>
+      [
+        ['tokens_1m', 1_000_000n, 800_000n],
+        ['image', 40_000n, 32_000n],
+      ].map(([unitKind, buyer, provider]) => ({
+        day,
+        gpuClass,
+        lane: 'open',
+        unitKind: unitKind as string,
+        buyerUsdgMicrosPerUnit: buyer as bigint,
+        providerUsdgMicrosPerUnit: provider as bigint,
+      })),
+    ),
   );
 });
 afterEach(async () => {
@@ -511,6 +514,68 @@ describe('release on every failure path', () => {
     expect(job?.buyerUsdgMicros).toBe(13n);
     expect(await balance()).toEqual({ balance: 1_000_000n - 13n, reserved: 0n });
     await waitFor(async () => (nodeHub.getSession(job?.nodeId as string)?.inflight.size ?? 0) === 0);
+  });
+
+  describe('M-5: the price needs stake behind the claimed class', () => {
+    const setClass0Rate = () =>
+      t.db
+        .update(rateCard)
+        .set({ buyerUsdgMicrosPerUnit: 500_000n, providerUsdgMicrosPerUnit: 400_000n })
+        .where(eq(rateCard.gpuClass, 0));
+    // 5 prompt + 2 completion tokens: 7 micros at the class-2 rate, floor(3.5) at the class-0 rate
+
+    test('a CPU node claiming an RTX 4090 without stake is billed at the class-0 rate', async () => {
+      await setClass0Rate();
+      await spawnNode({ onJob: streams(['ok']) });
+      const res = await post('/v1/chat/completions', chatBody);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('x-spindle-charge-micros')).toBe('3');
+    });
+
+    test('the same claim with the class minimum staked is billed at that class', async () => {
+      await setClass0Rate();
+      await spawnNode({ onJob: streams(['ok']) }, { staked: true });
+      const res = await post('/v1/chat/completions', chatBody);
+      expect(res.headers.get('x-spindle-charge-micros')).toBe('7');
+    });
+  });
+
+  test('M-4: a node over the output limit fails the stream and the buyer pays nothing', async () => {
+    await spawnNode({
+      onJob: (node, j) => {
+        node.conn.send({ v: 1, type: 'job.accepted', jobId: j.jobId });
+        node.conn.send({ v: 1, type: 'job.chunk', jobId: j.jobId, seq: 0, delta: { content: 'ok' } });
+        node.conn.send({
+          v: 1,
+          type: 'job.chunk',
+          jobId: j.jobId,
+          seq: 1,
+          delta: { content: 'x'.repeat(100_000) },
+        });
+      },
+    });
+    const res = await fetch(`${base}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ ...chatBody, stream: true, max_tokens: 16 }),
+    });
+    const text = await res.text();
+    expect(text).toContain('The node failed');
+    expect(text).not.toContain('x'.repeat(5000));
+    await waitFor(settled);
+    const job = await lastJob();
+    expect(job?.status).toBe('failed');
+    expect(job?.buyerUsdgMicros).toBe(0n);
+    expect(await balance()).toEqual({ balance: 1_000_000n, reserved: 0n });
+  });
+
+  test('more embedding inputs than fit in one node frame are refused', async () => {
+    const res = await fetch(`${base}/v1/embeddings`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: 'nomic-embed-text', input: Array.from({ length: 49 }, () => 'x') }),
+    });
+    expect(res.status).toBe(400);
   });
 
   test('non-stream client abort -> partial charge and cancelled', async () => {

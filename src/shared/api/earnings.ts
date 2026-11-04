@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ClaimStatus, EarningKind, JobKind, JobStatus, Lane, UnitKind } from '../enums';
+import { ClaimStatus, EarningKind, JobKind, JobReportReason, JobStatus, Lane, UnitKind } from '../enums';
 import { MicrosString, SignedMicrosString } from '../money';
 import { Address, Bytes32, IsoTime, PageQuery, Paginated, TxHash } from './common';
 import { ReceiptView } from './public';
@@ -107,7 +107,15 @@ export const GetAppReceiptsReq = PageQuery.extend({
 });
 export const GetAppReceiptsRes = Paginated(ReceiptListItem);
 
+export const PostAppReceiptReportReq = z.object({
+  reason: z.enum(JobReportReason),
+  details: z.string().trim().max(2000).optional(),
+});
+export const PostAppReceiptReportRes = z.object({ id: z.string(), status: z.literal('open') });
+
 export const GetAppReceiptReq = z.void();
 export const GetAppReceiptRes = ReceiptView.extend({
+  /** The signed-in user paid for this job, can still report it and has not done so yet. */
+  canReport: z.boolean(),
   earning: z.object({ providerMicros: MicrosString, epoch: z.number().int().nullable() }).nullable(),
 });

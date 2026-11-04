@@ -1,7 +1,7 @@
 import { KNOWN } from '@spindle/shared/chain';
 import { eq } from 'drizzle-orm';
 import { db as defaultDb } from '../../db/client';
-import { stockTokens } from '../../db/schema';
+import { auditLog, stockTokens } from '../../db/schema';
 import { logger } from '../../lib/logger';
 import type { StockRow } from './quote';
 import { type VerifyResult, verifyStockToken } from './verify';
@@ -62,11 +62,15 @@ export async function listEnabled() {
 export const listAll = () => stockDb.db.select().from(stockTokens);
 
 /**
- * Admin upsert: metadata, pool and fee always come from on-chain verification, never the caller.
+ * Admin upsert: metadata, pool and fee always come from on-chain verification, never the caller. This is where
+ * a pool gets pinned. A token that already has one keeps it unless the admin names another fee tier, so
+ * re-enabling a token after a pool alert cannot switch it to the pool that raised the alert.
  * Enabling a token that fails verification is rejected (returns the failure).
  */
-export async function upsertVerified(address: string, enabled: boolean) {
-  const v = await verifyStockToken(address);
+export async function upsertVerified(address: string, enabled: boolean, opts: { poolFee?: number } = {}) {
+  const existing = await getStock(address);
+  const fee = opts.poolFee ?? existing?.poolFee ?? undefined;
+  const v = await verifyStockToken(address, fee === undefined ? {} : { fee });
   if (!v.ok) {
     if (enabled) return v;
     // Disabling a token that now fails verification is always allowed.
@@ -93,26 +97,61 @@ export async function upsertVerified(address: string, enabled: boolean) {
   return v;
 }
 
-/** Daily re-verify: refreshes pool data of passing tokens, disables failing ones. */
+/**
+ * A deeper pool only matters once it is clearly deeper: `liquidity()` moves day to day, and disabling a token on
+ * every small lead would take it offline for no reason.
+ */
+export const DEEPER_POOL_FACTOR = 2n;
+
+async function disableWithAlert(token: string, reason: string, details: Record<string, unknown>) {
+  logger.error({ token, reason, ...details }, 'stock token disabled by re-verify');
+  await stockDb.db.update(stockTokens).set({ enabled: false }).where(eq(stockTokens.address, token));
+  await stockDb.db.insert(auditLog).values({
+    actor: 'system:stocks-reverify',
+    action: 'stock.disabled',
+    subject: token,
+    details: { reason, ...details },
+  });
+}
+
+/**
+ * Daily re-verify. It only refreshes data and checks the pinned pool, and never switches pools: a permissionless
+ * factory means any pool found here may be an attacker's. A token whose pinned pool went bad, or that another
+ * pool has clearly overtaken, is disabled with an alert until an admin looks at it.
+ */
 export async function reverifyAll(): Promise<{ checked: number; disabled: string[] }> {
   const rows = await listAll();
   const disabled: string[] = [];
   for (const row of rows) {
-    const v: VerifyResult = await verifyStockToken(row.address);
-    if (v.ok) {
-      await stockDb.db
-        .update(stockTokens)
-        .set({ poolFee: v.poolFee, poolAddress: v.poolAddress, verifiedAt: new Date() })
-        .where(eq(stockTokens.address, row.address));
-    } else if (row.enabled) {
-      // A transient RPC failure must not silently delist a token: only disable on definite failures.
-      if (v.reason.startsWith('chain read failed')) continue;
-      await stockDb.db
-        .update(stockTokens)
-        .set({ enabled: false })
-        .where(eq(stockTokens.address, row.address));
+    if (row.poolFee == null || !row.poolAddress) continue; // not verified by an admin yet: nothing is pinned
+    const v: VerifyResult = await verifyStockToken(row.address, { fee: row.poolFee });
+    // A transient RPC failure must not silently delist a token: only disable on definite failures.
+    if (!v.ok && v.reason.startsWith('chain read failed')) continue;
+    if (v.ok && v.poolAddress !== row.poolAddress) {
+      if (row.enabled) {
+        await disableWithAlert(row.address, 'pool on the pinned fee tier changed', { found: v.poolAddress });
+        disabled.push(row.address);
+      }
+      continue;
+    }
+    if (!v.ok) {
+      if (row.enabled) {
+        await disableWithAlert(row.address, v.reason, {});
+        disabled.push(row.address);
+      }
+      continue;
+    }
+    await stockDb.db
+      .update(stockTokens)
+      .set({ symbol: v.symbol, name: v.name, decimals: v.decimals, verifiedAt: new Date() })
+      .where(eq(stockTokens.address, row.address));
+    if (row.enabled && v.deepest && v.deepest.liquidity > v.chosenLiquidity * DEEPER_POOL_FACTOR) {
+      await disableWithAlert(row.address, 'a different pool is deeper than the pinned one', {
+        pinned: row.poolAddress,
+        deeper: v.deepest.pool,
+        deeperFee: v.deepest.fee,
+      });
       disabled.push(row.address);
-      logger.warn({ token: row.address, reason: v.reason }, 'stock token disabled by re-verify');
     }
   }
   return { checked: rows.length, disabled };

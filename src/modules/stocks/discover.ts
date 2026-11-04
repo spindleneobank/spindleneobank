@@ -79,7 +79,7 @@ export async function liquidPools(
 }
 
 export async function propose(pools: (UsdgPool & { usdgMicros: bigint })[]) {
-  const best = new Map<Address, PoolInfo>();
+  const best = new Map<Address, Omit<PoolInfo, 'liquidity'>>();
   for (const p of pools) {
     const cur = best.get(p.token);
     if (!cur || p.usdgMicros > cur.usdgMicros)

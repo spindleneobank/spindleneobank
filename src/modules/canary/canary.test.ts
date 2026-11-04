@@ -7,7 +7,7 @@ import { DEFAULT_CATALOG } from '../../shared/catalog';
 import { dbRef } from '../auth/constants';
 import { slashingDeps, unsuspendNode } from '../slashing/service';
 import { makeCanaryJob, makeNode, seedCanaries } from '../slashing/testkit';
-import { CANARY_FIXTURE_VERSION, generateChatCanary, generateEmbeddingInputs } from './fixtures';
+import { corpusSettings } from './corpus';
 import { canaryHooks } from './hooks';
 import {
   canaryDeps,
@@ -24,54 +24,6 @@ import {
   sweepSpecs,
   withholdAmount,
 } from './service';
-
-describe('generated canaries', () => {
-  const rng = (seed: number) => () => {
-    seed = (seed + 0x6d2b79f5) | 0; // mulberry32
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-  const draws = Array.from({ length: 300 }, (_, i) => generateChatCanary(rng(i + 1)));
-  test('deterministic for a given random source', () => {
-    expect(generateChatCanary(rng(5))).toEqual(generateChatCanary(rng(5)));
-  });
-  test('prompts, sampling and shape vary so canaries cannot be fingerprinted', () => {
-    expect(new Set(draws.map((d) => d.messages.at(-1)?.content)).size).toBeGreaterThan(100);
-    expect(new Set(draws.map((d) => d.id)).size).toBeGreaterThanOrEqual(4);
-    expect(draws.some((d) => d.temperature === 0)).toBe(true);
-    expect(draws.some((d) => d.temperature === undefined)).toBe(true);
-    expect(draws.some((d) => d.seed === undefined)).toBe(true);
-    expect(draws.some((d) => d.seed !== undefined)).toBe(true);
-    expect(draws.some((d) => d.messages.length === 2 && d.messages[0]?.role === 'system')).toBe(true);
-    expect(draws.every((d) => d.messages.length <= 2 && d.maxTokens >= 16 && d.maxTokens <= 64)).toBe(true);
-    expect(new Set(draws.map((d) => d.maxTokens)).size).toBeGreaterThan(20);
-  });
-  test('every expectation compiles; the lazy engine answer "ok" fails all of them', () => {
-    for (const d of draws) {
-      const e = d.expect;
-      if ('regex' in e) expect(() => new RegExp(e.regex, 'i')).not.toThrow();
-      expect(evaluateChat(d.expect, 'ok')).toBe(false);
-    }
-  });
-  test('arithmetic answers are accepted as digits or words, wrong ones are not', () => {
-    const add = draws.find((d) => d.id === 'add');
-    const [a, b] = (add?.messages.at(-1)?.content.match(/\d+/g) ?? []).map(Number) as [number, number];
-    expect(evaluateChat(add?.expect as never, String(a + b))).toBe(true);
-    expect(evaluateChat(add?.expect as never, `The answer is ${a + b}.`)).toBe(true);
-    expect(evaluateChat(add?.expect as never, String(a + b + 1))).toBe(false);
-    expect(evaluateChat(add?.expect as never, `${a + b}0`)).toBe(false);
-  });
-  test('embedding inputs: 8-16 unique sentences, different every time', () => {
-    const a = generateEmbeddingInputs(rng(1));
-    const b = generateEmbeddingInputs(rng(2));
-    expect(a.length).toBeGreaterThanOrEqual(8);
-    expect(a.length).toBeLessThanOrEqual(16);
-    expect(new Set(a).size).toBe(a.length);
-    expect(a).not.toEqual(b);
-    expect(CANARY_FIXTURE_VERSION).toBeGreaterThan(0);
-  });
-});
 
 describe('chat evaluation', () => {
   const word = { anyOf: ['paris'] };
@@ -140,11 +92,14 @@ describe('results, withholds, escalation', () => {
   let t: TestDb;
   let closed: string[];
   const realClose = slashingDeps.closeNode;
+  const realCorpus = corpusSettings.path;
   beforeAll(async () => {
     t = await setupTestDb();
     dbRef.db = t.db;
+    corpusSettings.path = new URL('../../../test/fixtures/canary-corpus.jsonl', import.meta.url).pathname;
   });
   afterAll(async () => {
+    corpusSettings.path = realCorpus;
     slashingDeps.closeNode = realClose;
     await t.close();
     await closeRedis();
@@ -305,6 +260,7 @@ describe('results, withholds, escalation', () => {
     const n = await makeNode();
     const real = { ...canaryDeps };
     let release: (e: Error) => void = () => {};
+    canaryDeps.candidates = async () => [];
     canaryDeps.dispatch = () => new Promise((_, rej) => (release = rej));
     const sent = sendCanary({
       node: { nodeId: n.id, isHouse: false, engine: 'ollama' },

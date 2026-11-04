@@ -1,5 +1,5 @@
 import { and, desc, eq, ilike, lt, or, sql } from 'drizzle-orm';
-import { buyerLedger, buyers, earningEvents, jobs, nodes, receipts } from '../../db/schema';
+import { buyerLedger, buyers, earningEvents, jobReports, jobs, nodes, receipts } from '../../db/schema';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import type { GatewayView, OnJobFinished } from '../../shared/contracts/jobs';
@@ -11,6 +11,7 @@ import { type CanaryFinished, onCanaryFinished } from '../canary/hooks';
 import { actualCharge, buyerRate, type Usage, unitKindFor, utcDay } from '../gateway/pricing';
 import { billableMs, gpuHourMicros } from '../gateway/sealed';
 import { registerJobFinishedHandler, releaseJob, reverseCharge, settleJob } from '../gateway/service';
+import { billingClass } from '../nodes/service';
 import { type VerifyResult, verifyJobReceipt, withinTolerance } from './verify';
 
 /** Provider share of every verified charge, in basis points. */
@@ -139,7 +140,7 @@ export const onJobFinished: OnJobFinished = async (jobId, done, view) => {
     if (mayCharge && billed) {
       const sealedBilling = lane === 'sealed' && v.payload; // S1: per GPU-hour from the attested receipt
       const rate = await buyerRate(
-        node.gpuClass,
+        billingClass(node.gpuClass, BigInt(node.stakeSpdl), lane),
         lane,
         sealedBilling ? 'gpu_hour' : unitKindFor(kind),
         utcDay(job.createdAt),
@@ -287,6 +288,18 @@ export async function receiptView(jobId: string) {
   };
 }
 
+export const REPORT_WINDOW_MS = 7 * 24 * 3600_000;
+
+/** A job can be reported once, for a week after it ran, if the buyer was charged for it. */
+export async function canReportJob(jobId: string, now = Date.now()): Promise<boolean> {
+  const [job] = await dbRef.db
+    .select({ charged: jobs.buyerUsdgMicros, createdAt: jobs.createdAt, reportId: jobReports.id })
+    .from(jobs)
+    .leftJoin(jobReports, eq(jobReports.jobId, jobs.id))
+    .where(eq(jobs.id, jobId));
+  return !!job && job.charged > 0n && !job.reportId && now - job.createdAt.getTime() <= REPORT_WINDOW_MS;
+}
+
 /** Public receipt: anyone holding the (unguessable) job id. */
 export async function publicReceipt(jobId: string) {
   return (await receiptView(jobId)).view;
@@ -301,8 +314,13 @@ export async function appReceipt(address: string, jobId: string) {
     .from(buyers)
     .where(eq(buyers.id, r.buyerId));
   const isOwner = r.owner === me;
-  if (!isOwner && buyer?.address !== me) throw new AppError('NOT_FOUND', 'Receipt not found.');
-  return { ...r.view, earning: isOwner ? r.earning : null };
+  const isBuyer = buyer?.address === me;
+  if (!isOwner && !isBuyer) throw new AppError('NOT_FOUND', 'Receipt not found.');
+  return {
+    ...r.view,
+    earning: isOwner ? r.earning : null,
+    canReport: isBuyer && (await canReportJob(jobId)),
+  };
 }
 
 const encodeCursor = (createdAt: Date, id: string) =>

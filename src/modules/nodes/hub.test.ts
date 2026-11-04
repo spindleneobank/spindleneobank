@@ -333,6 +333,58 @@ describe('jobs', () => {
     expect(nodeHub.getSession(row.id)?.inflight.size).toBe(0);
   });
 
+  test('M-4: a node sending more than max_tokens allows has its job failed, cancelled and held against it', async () => {
+    const { row, n } = await enrolled({ onJob: () => {} });
+    await register(row.id);
+    const before = (await dbRef.db.select().from(nodes).where(eq(nodes.id, row.id)))[0]?.reputation as number;
+    const h = nodeHub.dispatch(row.id, { ...job('oversize'), maxTokens: 1000 });
+    n.conn.send({ v: 1, type: 'job.chunk', jobId: 'oversize', seq: 0, delta: { content: 'x'.repeat(7000) } });
+    n.conn.send({
+      v: 1,
+      type: 'job.chunk',
+      jobId: 'oversize',
+      seq: 1,
+      delta: { reasoning: 'y'.repeat(1001) },
+    });
+    const err = await h.done.catch((e) => e);
+    expect(err).toMatchObject({ code: 'OUTPUT_TOO_LARGE', requeueable: false });
+    expect(nodeHub.getSession(row.id)?.inflight.has('oversize')).toBe(false);
+    await new Promise((r) => setTimeout(r, 100));
+    const [after] = await dbRef.db.select().from(nodes).where(eq(nodes.id, row.id));
+    expect(after?.reputation).toBe(before - 25);
+  });
+
+  test('M-4: output up to the limit is fine, and small max_tokens still gets a floor', async () => {
+    const { row, n } = await enrolled({ onJob: () => {} });
+    await register(row.id);
+    const h = nodeHub.dispatch(row.id, { ...job('fits'), maxTokens: 16 });
+    n.conn.send({ v: 1, type: 'job.chunk', jobId: 'fits', seq: 0, delta: { content: 'x'.repeat(4096) } });
+    n.conn.send({
+      v: 1,
+      type: 'job.done',
+      jobId: 'fits',
+      output: {},
+      usage: { promptTokens: 1, completionTokens: 2 },
+      receipt: 'AA==',
+    });
+    expect(await h.done).toMatchObject({ usage: { completionTokens: 2 } });
+  });
+
+  test('M-4: an oversize answer sent only in job.done fails the same way', async () => {
+    const { row, n } = await enrolled({ onJob: () => {} });
+    await register(row.id);
+    const h = nodeHub.dispatch(row.id, { ...job('done-oversize'), maxTokens: 16 });
+    n.conn.send({
+      v: 1,
+      type: 'job.done',
+      jobId: 'done-oversize',
+      output: { choices: [{ message: { content: 'x'.repeat(5000) } }] },
+      usage: { promptTokens: 1, completionTokens: 2 },
+      receipt: 'AA==',
+    });
+    expect(await h.done.catch((e) => e)).toMatchObject({ code: 'OUTPUT_TOO_LARGE' });
+  });
+
   test('foreign jobId messages are dropped', async () => {
     const a = await enrolled({ onJob: () => {} });
     const b = await enrolled({ onJob: () => {} });

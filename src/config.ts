@@ -81,11 +81,16 @@ const envSchema = z.object({
   IZIPAY_WEBHOOK_URL: z.string().default(''),
   CARD_DATA_ENC_KEY: optionalHexKey32,
 
+  /** Largest gap between a pool's spot price and its 30-minute TWAP at which a swap is still quoted, in bps. */
+  STOCK_MAX_TWAP_DEVIATION_BPS: positiveInt(500),
   EPOCH_SECONDS: positiveInt(3600),
   CLAIM_MIN_USDG_MICROS: intString('10000000'),
   X402_ENABLED: boolean(true),
   X402_MIN_SURCHARGE_MICROS: intString('5000'),
   X402_MAX_UNSETTLED_MICROS: intString('20000000'),
+  /** Unsettled x402 exposure across all payers: per-payer limits alone can be farmed with fresh addresses. */
+  X402_MAX_GLOBAL_UNSETTLED_MICROS: intString('500000000'),
+  X402_MAX_OPENS_PER_IP_DAY: positiveInt(500),
   KEEPER_MIN_ETH_WEI: intString('3000000000000000'),
   KEEPER_CRITICAL_ETH_WEI: intString('1500000000000000'),
   TREES_DIR: z.string().default('data/trees'),
@@ -98,6 +103,15 @@ const envSchema = z.object({
   NODE_MODELS: z.string().optional(),
   MIN_AGENT_VERSION: z.string().default('0.1.0'),
   CANARY_RATE_BPS: nonnegativeInt(200),
+  /** Private JSONL prompt corpus, kept outside the repo. Required for a production worker. */
+  CANARY_CORPUS_PATH: z.string().default(''),
+  /** Share of paid open-lane jobs re-run on the house node and compared, in basis points. */
+  SHADOW_RATE_BPS: z.coerce.number().int().min(0).max(10_000).default(500),
+  /** false: shadow results are stored for review but have no effect on the node. */
+  SHADOW_ENFORCE: boolean(true),
+  /** Minimum embedding cosine between a node's chat answer and the house node's. */
+  SHADOW_CHAT_COSINE_MIN: z.coerce.number().min(0).max(1).default(0.65),
+  SHADOW_EMBED_MODEL: z.string().default('nomic-embed-text'),
   SEALED_LANE_ENABLED: boolean(false),
   /** Availability floor start (YYYY-MM-DD, UTC). Empty = floor disabled. */
   FLOOR_START_DATE: z

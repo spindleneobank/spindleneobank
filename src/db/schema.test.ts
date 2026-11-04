@@ -27,7 +27,7 @@ describe('schema', () => {
     await migrate(t.db, { migrationsFolder: MIGRATIONS_FOLDER });
     await migrate(t.db, { migrationsFolder: MIGRATIONS_FOLDER });
     const rows = await t.sql`select count(*)::int as n from pg_tables where schemaname='public'`;
-    expect(rows[0]?.n).toBe(31);
+    expect(rows[0]?.n).toBe(32);
   });
 
   test('earning_events is a hypertable', async () => {

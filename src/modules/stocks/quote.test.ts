@@ -2,7 +2,17 @@ import { describe, expect, test } from 'bun:test';
 import { ContractFunctionRevertedError } from 'viem';
 import { AppError } from '../../lib/errors';
 import { PINNED } from './abi';
-import { minOutFor, priceImpactBps, Q96, type QuoteDeps, quote, type StockRow } from './quote';
+import {
+  minOutFor,
+  priceImpactBps,
+  Q96,
+  type QuoteDeps,
+  quote,
+  quoteSettings,
+  type StockRow,
+  tickDeviationBps,
+  twapTickOf,
+} from './quote';
 
 const USDG = '0x5fc5360d0400a0fd4f2af552add042d716f1d168';
 const NVDA = '0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec';
@@ -108,13 +118,43 @@ function deps(over: Partial<QuoteDeps> = {}, stock: StockRow | null = row()): Qu
   return {
     getStock: async (a) => (stock && a === stock.address ? stock : undefined),
     quoteExactIn: async ({ amountIn }) => (amountIn * 10n ** 10n * 99n) / 100n,
-    readPool: async () => ({ sqrtPriceX96: SQRT_USDG_TOKEN0, token0: USDG as `0x${string}` }),
+    readPool: async () => ({ sqrtPriceX96: SQRT_USDG_TOKEN0, tick: 230000, token0: USDG as `0x${string}` }),
+    twapTick: async () => 230000,
     allowance: async () => 0n,
     now: () => Date.UTC(2026, 0, 1),
     ...over,
   };
 }
 const req = { token: NVDA, amountInMicros: '1000000000', user: USER };
+
+describe('TWAP bound (M-3, L-7)', () => {
+  test('average tick rounds towards negative infinity, like the Uniswap oracle library', () => {
+    expect(twapTickOf([0n, 1800n * 100n])).toBe(100);
+    expect(twapTickOf([0n, 1800n * 100n + 1n])).toBe(100);
+    expect(twapTickOf([0n, -1800n * 100n])).toBe(-100);
+    expect(twapTickOf([0n, -1800n * 100n - 1n])).toBe(-101);
+    expect(twapTickOf([-5000n, -5000n + 1800n * 7n])).toBe(7);
+  });
+  test('deviation is measured in bps of price, in either direction', () => {
+    expect(tickDeviationBps(100, 100)).toBe(0);
+    expect(tickDeviationBps(100, 0)).toBe(tickDeviationBps(0, 100));
+    expect(tickDeviationBps(488, 0)).toBeGreaterThanOrEqual(499);
+    expect(tickDeviationBps(488, 0)).toBeLessThanOrEqual(501);
+  });
+  test('a spot price far from the 30-minute average gets no quote', async () => {
+    const limit = quoteSettings.maxTwapDeviationBps;
+    expect(limit).toBe(500);
+    const err = await quote(deps({ twapTick: async () => 230_000 - 600 }), req).catch((e) => e);
+    expect(err.code).toBe('INSUFFICIENT_LIQUIDITY');
+    expect(err.message).toContain('30-minute average');
+    const up = await quote(deps({ twapTick: async () => 230_000 + 600 }), req).catch((e) => e);
+    expect(up.code).toBe('INSUFFICIENT_LIQUIDITY');
+  });
+  test('a spot price within the bound is quoted', async () => {
+    const q = await quote(deps({ twapTick: async () => 230_000 - 400 }), req);
+    expect(BigInt(q.amountOut)).toBeGreaterThan(0n);
+  });
+});
 
 describe('quote', () => {
   test('swap recipient is the session user; approve is to the router; expires in 60s', async () => {
@@ -196,6 +236,7 @@ describe('quote', () => {
       { quoteExactIn: boom('historical state not available') },
       { quoteExactIn: boom('request timed out') },
       { readPool: boom('fetch failed') },
+      { twapTick: boom('OLD') },
       { allowance: boom('The network is not responding') },
     ]) {
       const err = await quote(deps(over), req).catch((e) => e);

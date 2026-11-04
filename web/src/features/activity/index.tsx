@@ -9,7 +9,7 @@ import { Skeleton } from '../../components/Skeleton';
 import { StatusPill } from '../../components/StatusPill';
 import { useToast } from '../../components/Toast';
 import { env } from '../../config';
-import { useReceipt, useReceipts } from '../shell/queries';
+import { useReceipt, useReceipts, useReportJob } from '../shell/queries';
 import { fmtTime, PageHead, RowTable } from '../shell/ui';
 
 type Lane = '' | 'sealed' | 'open';
@@ -22,8 +22,75 @@ function pill(status: string, verified: boolean | null) {
   return <StatusPill tone="warn">Pending</StatusPill>;
 }
 
+const REPORT_REASONS = [
+  ['wrong_model', "It wasn't the model I paid for"],
+  ['bad_output', 'The output was wrong or unusable'],
+  ['other', 'Something else'],
+] as const;
+
+function ReportForm({
+  jobId,
+  onSent,
+  onCancel,
+}: {
+  jobId: string;
+  onSent: () => void;
+  onCancel: () => void;
+}) {
+  const report = useReportJob(jobId);
+  const { toast } = useToast();
+  const [reason, setReason] = useState<(typeof REPORT_REASONS)[number][0]>('wrong_model');
+  const [details, setDetails] = useState('');
+  return (
+    <form
+      className="sd-report"
+      onSubmit={(e) => {
+        e.preventDefault();
+        report.mutate(
+          { reason, ...(details.trim() ? { details: details.trim() } : {}) },
+          {
+            onSuccess: onSent,
+            onError: (err) => toast(err.message, 'error'),
+          },
+        );
+      }}
+    >
+      <p>We review every report, and nothing happens to the node until we have. We don't keep prompts or answers, so tell us what you saw.</p>
+      <label>
+        <span>What went wrong</span>
+        <select value={reason} onChange={(e) => setReason(e.target.value as typeof reason)}>
+          {REPORT_REASONS.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>Details (optional)</span>
+        <textarea rows={4} maxLength={2000} value={details} onChange={(e) => setDetails(e.target.value)} />
+      </label>
+      <div className="sd-actions-row">
+        <CTA type="submit" disabled={report.isPending}>
+          {report.isPending ? 'Sending…' : 'Send report'}
+        </CTA>
+        <CTA variant="secondary" icon="" type="button" onClick={onCancel}>
+          Cancel
+        </CTA>
+      </div>
+    </form>
+  );
+}
+
 function Detail({ jobId, onClose }: { jobId: string | null; onClose: () => void }) {
   const q = useReceipt(jobId);
+  const [reporting, setReporting] = useState(false);
+  const [sent, setSent] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each receipt starts with the form closed
+  useEffect(() => {
+    setReporting(false);
+    setSent(false);
+  }, [jobId]);
   const { toast } = useToast();
   const r = q.data;
   const rows: [string, React.ReactNode][] = r
@@ -78,7 +145,27 @@ function Detail({ jobId, onClose }: { jobId: string | null; onClose: () => void 
             <CTA href={`${env.apiUrl}/v1/receipts/${r.jobId}`} variant="secondary" icon="external">
               Public receipt
             </CTA>
+            {r.canReport && !reporting ? (
+              <CTA variant="secondary" icon="info" onClick={() => setReporting(true)}>
+                Report a problem
+              </CTA>
+            ) : null}
           </div>
+          {reporting ? (
+            <ReportForm
+              jobId={r.jobId}
+              onCancel={() => setReporting(false)}
+              onSent={() => {
+                setReporting(false);
+                setSent(true);
+              }}
+            />
+          ) : null}
+          {sent ? (
+            <p className="sd-report-sent" role="status">
+              Report sent. We'll review it.
+            </p>
+          ) : null}
         </>
       ) : null}
     </Dialog>

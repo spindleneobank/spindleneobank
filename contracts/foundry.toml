@@ -19,7 +19,9 @@ fs_permissions = [{ access = "read-write", path = "./deployments" }, { access = 
 runs = 512
 
 [invariant]
-runs = 128
+# 200 runs x depth 500 = 100,000 calls per suite (audit minimum).
+runs = 200
+depth = 500
 
 [rpc_endpoints]
 rhc = "${RHC_RPC_URL}"

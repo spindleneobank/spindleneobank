@@ -1,0 +1,2 @@
+ALTER TABLE "earning_events" DROP CONSTRAINT "earning_events_kind_chk";--> statement-breakpoint
+ALTER TABLE "earning_events" ADD CONSTRAINT "earning_events_kind_chk" CHECK ("earning_events"."kind" in ('job', 'floor', 'slash', 'canary_withhold', 'x402_reversal'));

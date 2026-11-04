@@ -105,16 +105,16 @@ export async function earningsSummary(owner: string, now: Date = new Date()) {
 export type SeriesRange = '7d' | '30d' | '90d';
 const RANGE_DAYS: Record<SeriesRange, number> = { '7d': 7, '30d': 30, '90d': 90 };
 
-/** Hourly buckets for 7d, daily for 30d/90d. `canary_withhold` is folded into `slashMicros`. */
+/** Hourly buckets for 7d, daily for 30d/90d. `canary_withhold` and `ban_withhold` are folded into `slashMicros`, `x402_reversal` into job earnings. */
 export async function earningsSeries(owner: string, range: SeriesRange, now: Date = new Date()) {
   const o = owner.toLowerCase();
   const from = new Date(now.getTime() - RANGE_DAYS[range] * 86_400_000);
   const interval = range === '7d' ? sql`interval '1 hour'` : sql`interval '1 day'`;
   const rows = await dbRef.db.execute<{ bucket: Date; job: string; floor: string; slash: string }>(sql`
     select time_bucket(${interval}, ts) as bucket,
-      coalesce(sum(usdg_micros) filter (where kind = 'job'), 0)::text as job,
+      coalesce(sum(usdg_micros) filter (where kind in ('job','x402_reversal')), 0)::text as job,
       coalesce(sum(usdg_micros) filter (where kind = 'floor'), 0)::text as floor,
-      coalesce(sum(usdg_micros) filter (where kind in ('slash','canary_withhold')), 0)::text as slash
+      coalesce(sum(usdg_micros) filter (where kind in ('slash','canary_withhold','ban_withhold')), 0)::text as slash
     from earning_events
     where owner = ${o} and ts >= ${from.toISOString()}::timestamptz and ts <= ${now.toISOString()}::timestamptz
     group by 1 order by 1`);
@@ -181,7 +181,7 @@ export async function earningsLedger(owner: string, q: { cursor?: string; limit:
       ts: r.ts_key.replace(/\d{3}Z$/, 'Z'),
       nodeId: r.node_id,
       jobId: r.job_id,
-      kind: r.kind as 'job' | 'floor' | 'slash' | 'canary_withhold',
+      kind: r.kind as EarningKind,
       micros: r.usdg_micros,
       epoch: r.epoch === null ? null : Number(r.epoch),
     })),

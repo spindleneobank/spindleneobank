@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Lane, SlashStatus, UnitKind } from '../enums';
+import { JobReportReason, JobReportStatus, Lane, SlashStatus, UnitKind } from '../enums';
 import { MicrosString } from '../money';
 import { Address, Hex, IsoTime, TxHash } from './common';
 import { GpuClass } from './gpu-schema';
@@ -153,6 +153,55 @@ export const GetAdminSlashCasesRes = z.array(SlashCase);
 
 export const PostAdminNodeSuspendReq = z.object({ reason: z.string().optional() });
 export const PostAdminNodeSuspendRes = z.object({ ok: z.literal(true) });
+export const PostAdminNodeBanReq = z.object({ reason: z.string().min(1).max(500) });
+export const PostAdminNodeBanRes = z.object({
+  /** Earnings stopped from being paid. */
+  withheldMicros: MicrosString,
+  /** Unposted epochs retired to take the node's earnings back out. */
+  retiredEpochs: z.array(z.number().int()),
+  /** Posted roots still inside the veto window that pay this node: veto them from the guardian Safe, then ban again. */
+  vetoableEpochs: z.array(z.number().int()),
+  /** A root being posted right now: check it, and ban again if it is vetoed. */
+  postingEpochs: z.array(z.number().int()),
+});
+export const GetAdminJobReportsReq = z.object({ status: z.enum(JobReportStatus).default('open') });
+export const JobReportCase = z.object({
+  id: z.string(),
+  status: z.enum(JobReportStatus),
+  reason: z.enum(JobReportReason),
+  details: z.string().nullable(),
+  reporter: Address,
+  createdAt: IsoTime,
+  resolution: z.string().nullable(),
+  resolvedBy: z.string().nullable(),
+  /** All reports against this node that are still open. */
+  openReportsOnNode: z.number().int(),
+  node: z.object({
+    id: z.string(),
+    name: z.string().nullable(),
+    owner: Address,
+    status: z.string(),
+    gpuModel: z.string().nullable(),
+    stakeSpdl: z.string(),
+  }),
+  job: z.object({
+    id: z.string(),
+    model: z.string(),
+    kind: z.string(),
+    lane: z.string().nullable(),
+    units: z.string(),
+    chargeMicros: MicrosString,
+    createdAt: IsoTime,
+  }),
+  receipt: z
+    .object({ verified: z.boolean(), reason: z.string().nullable(), cose: z.string(), payload: z.unknown() })
+    .nullable(),
+});
+export const GetAdminJobReportsRes = z.array(JobReportCase);
+export const PostAdminJobReportResolveReq = z.object({ resolution: z.string().min(1).max(500) });
+export const PostAdminJobReportDismissRes = z.object({ status: z.literal('dismissed') });
+export const PostAdminJobReportUpholdRes = PostAdminNodeBanRes.extend({ status: z.literal('upheld') });
+
 export const PostAdminNodeUnsuspendReq = z.void();
 export const PostAdminNodeUnsuspendRes = PostAdminNodeSuspendRes;
 

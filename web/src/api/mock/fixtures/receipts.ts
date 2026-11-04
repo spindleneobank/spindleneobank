@@ -8,6 +8,8 @@ const need = () => {
 const id = (i: number) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
 const MODELS = ['llama-3.3-70b', 'qwen3-32b', 'deepseek-r1-14b', 'gemma-3-27b'];
 
+const reported = new Set<string>();
+
 const rows = Array.from({ length: 40 }, (_, i) => {
   const failed = i % 9 === 4;
   const pending = i < 2;
@@ -44,6 +46,11 @@ export const receiptFixtures: MockFixtures = {
       nextCursor: start + limit < all.length ? String(start + limit) : null,
     };
   },
+  'POST /v1/app/receipts/:jobId/report': ({ params }) => {
+    need();
+    reported.add(params.jobId as string);
+    return { id: 'report_mock', status: 'open' };
+  },
   'GET /v1/app/receipts/:jobId': ({ params }) => {
     need();
     const r = rows.find((x) => x.jobId === params.jobId);
@@ -64,6 +71,7 @@ export const receiptFixtures: MockFixtures = {
       attestationRef: r.lane === 'sealed' ? 'att_0xab12cd34' : null,
       epoch: failed ? null : 1287,
       earning: failed ? null : { providerMicros: r.providerMicros, epoch: 1287 },
+      canReport: !reported.has(r.jobId),
     };
   },
 };

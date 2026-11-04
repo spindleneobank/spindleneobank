@@ -11,6 +11,7 @@ import { logger } from '../../lib/logger';
 import { getRedis } from '../../lib/redis';
 import { publicClient } from '../../lib/viem';
 import { dbRef } from '../auth/constants';
+import { reverseUnpaidEarnings } from '../epochs/x402-earnings';
 import { CLOSING_COUNTER, closeSession, sessionExpiresAt } from './sessions';
 import { BARRED_KEY, chainDeps } from './verify';
 
@@ -92,7 +93,7 @@ async function sweep(deps: SettleDeps): Promise<number> {
     .where(and(eq(x402Payments.scheme, 'session'), eq(x402Payments.status, 'open')));
   for (const s of open)
     if (sessionExpiresAt(s) > 0 && sessionExpiresAt(s) <= now) await closeSession(s.id, deps.redis());
-  // anything whose permit can no longer be used is a loss bounded by the exposure cap
+  // a permit that can no longer be used collects nothing, so `reverseUnpaidEarnings` drops what its jobs earned
   const expired = await dbRef.db
     .update(x402Payments)
     .set({ status: 'expired', closedAt: new Date(now * 1000) })
@@ -249,6 +250,7 @@ export async function runSettle(deps: SettleDeps = defaultSettleDeps): Promise<S
     const sum: SettleSummary = { expired: 0, settled: 0, failed: 0, requeued: 0 };
     sum.expired = await sweep(deps);
     await reconcileSettling(deps);
+    await reverseUnpaidEarnings(dbRef.db);
     await redis.set(CLOSING_COUNTER, 0);
 
     // postRoot has priority: settlement runs on a critical keeper (it is cheap) but leaves half the critical
@@ -339,6 +341,7 @@ export async function runSettle(deps: SettleDeps = defaultSettleDeps): Promise<S
       return sum;
     }
     const applied = await applyReceipt(claimed, rc, deps);
+    await reverseUnpaidEarnings(dbRef.db);
     return { ...sum, ...applied };
   } finally {
     await redis.del(SETTLE_LOCK);

@@ -138,6 +138,20 @@ export function useReceipt(jobId: string | null) {
   });
 }
 
+/** Reports a job the buyer paid for; the receipt then no longer offers it. */
+export function useReportJob(jobId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: z.infer<typeof api.PostAppReceiptReportReq>) =>
+      apiFetch(`/v1/app/receipts/${jobId}/report`, {
+        schema: api.PostAppReceiptReportRes,
+        method: 'POST',
+        body,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: dk.receipt(jobId) }),
+  });
+}
+
 type Prefs = z.infer<typeof api.Prefs>;
 
 /** Optimistic prefs save with rollback on error. */

@@ -244,6 +244,20 @@ export function isStaked(node: Pick<NodeRow, 'stakeSpdl' | 'gpuClass'>): boolean
   return stake >= min;
 }
 
+/**
+ * The class a node is paid at. GPU class comes from what the node says about itself, so a class above 0 only
+ * prices at that class with that class's minimum stake behind the claim: the highest claimed-or-lower class the
+ * stake covers, else class 0. A sealed job's hardware is proven by attestation instead.
+ */
+export function billingClass(gpuClass: number, stake: bigint, lane: string): number {
+  if (lane === 'sealed') return gpuClass;
+  for (let c = gpuClass; c >= 1; c--) {
+    const min = cachedMinStake(c);
+    if (min != null && stake > 0n && stake >= min) return c;
+  }
+  return 0;
+}
+
 // ---- views -------------------------------------------------------------------------------------
 
 export async function toNodeViews(rows: NodeRow[]) {

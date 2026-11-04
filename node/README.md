@@ -54,7 +54,6 @@ The container talks to the host through `host.docker.internal:11434`; `--gpus` i
 
 `--token --engine ollama|vllm --model --models --name --gpus auto|none --update --update-token --api --dry-run --uninstall --purge`
 (PowerShell: `-Token -Engine -Model -Models -Name -Api -Update -UpdateToken -DryRun -Uninstall -Purge`).
-
 - `--models a,b` restricts the models an Ollama node pulls (`SPINDLE_MODELS`).
 - The API URL comes from where the script was fetched; `--api <url>` overrides it. An API on `localhost` is reached with
   `--network host` on Linux (and `host.docker.internal` elsewhere).

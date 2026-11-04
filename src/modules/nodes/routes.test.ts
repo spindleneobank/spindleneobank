@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
 import { enrollments, nodes, users } from '../../db/schema';
-import { closeRedis } from '../../lib/redis';
+import { closeRedis, getRedis } from '../../lib/redis';
 import { dbRef, settings } from '../auth/constants';
 import { createTestSession } from '../auth/testing';
 import { nodeHub } from './hub';
@@ -322,7 +322,9 @@ describe('nodes routes', () => {
   describe('node distribution', () => {
     let dir: string;
     const savedDist = nodeSettings.distDir;
-    beforeAll(() => {
+    beforeAll(async () => {
+      // these limits outlive a run in Redis (30 per 10 min): repeated runs would otherwise trip them
+      for (const k of await getRedis().keys('rl:node_*')) await getRedis().del(k);
       dir = mkdtempSync(join(tmpdir(), 'node-dist-'));
       mkdirSync(join(dir, 'ollama/amd64'), { recursive: true });
       writeFileSync(join(dir, 'ollama/amd64/context.tar.gz'), 'FAKE-TARBALL');
