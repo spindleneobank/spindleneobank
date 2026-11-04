@@ -29,7 +29,14 @@ export type UnitKind = (typeof UnitKind)[number];
 export const PayMode = ['balance', 'x402', 'canary', 'probe'] as const;
 export type PayMode = (typeof PayMode)[number];
 
-export const EarningKind = ['job', 'floor', 'slash', 'canary_withhold', 'x402_reversal'] as const;
+export const EarningKind = [
+  'job',
+  'floor',
+  'slash',
+  'canary_withhold',
+  'x402_reversal',
+  'ban_withhold',
+] as const;
 export type EarningKind = (typeof EarningKind)[number];
 
 export const EpochStatus = ['built', 'posting', 'posted', 'vetoed', 'failed'] as const;
@@ -85,6 +92,11 @@ export type EnrollmentKind = (typeof EnrollmentKind)[number];
 
 export const BuyerLedgerKind = ['deposit', 'charge', 'refund', 'adjust'] as const;
 export type BuyerLedgerKind = (typeof BuyerLedgerKind)[number];
+
+export const JobReportReason = ['wrong_model', 'bad_output', 'other'] as const;
+export type JobReportReason = (typeof JobReportReason)[number];
+export const JobReportStatus = ['open', 'upheld', 'dismissed'] as const;
+export type JobReportStatus = (typeof JobReportStatus)[number];
 
 export const SlashStatus = ['open', 'submitted', 'executed', 'dismissed'] as const;
 export type SlashStatus = (typeof SlashStatus)[number];

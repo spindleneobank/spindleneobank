@@ -43,6 +43,20 @@
       "when": 1793825167087,
       "tag": "0005_x402_reversal_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793829367561,
+      "tag": "0006_ban_withhold_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793829570975,
+      "tag": "0007_job_reports",
+      "breakpoints": true
     }
   ]
 }

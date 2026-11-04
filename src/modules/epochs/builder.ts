@@ -19,7 +19,8 @@ export interface BuildOpts {
 
 const bigMax = (a: bigint, b: bigint) => (a > b ? a : b);
 const bigMin = (a: bigint, b: bigint) => (a < b ? a : b);
-const ADVISORY_KEY = 80801;
+/** Held while epochs are built, so nothing else changes which events they contain. */
+export const EPOCH_BUILD_LOCK = 80801;
 
 /**
  * Epoch number to build at `now`: max(closed hour, highest existing epoch + 1), so a post-veto rebuild
@@ -41,7 +42,7 @@ export async function buildEpoch(epoch: bigint, opts: BuildOpts = {}): Promise<B
   const now = opts.now ?? new Date();
   const boundary = epochEnd(closedEpochAt(now)); // events strictly before the closed hour's end
   return dbRef.db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(${ADVISORY_KEY})`);
+    await tx.execute(sql`select pg_advisory_xact_lock(${EPOCH_BUILD_LOCK})`);
     const [existing] = await tx.select().from(epochs).where(eq(epochs.epoch, epoch));
     if (existing) return { kind: 'exists', row: existing } as BuildResult;
 

@@ -30,6 +30,8 @@ import {
   EnrollmentStatus,
   EpochStatus,
   JobKind,
+  JobReportReason,
+  JobReportStatus,
   JobStatus,
   Lane,
   NodeStatus,
@@ -625,6 +627,36 @@ export const slashCases = pgTable(
   (t) => [
     check('slash_cases_status_chk', inList(t.status, SlashStatus)),
     uniqueIndex('slash_cases_open_uq').on(t.nodeId, t.reason).where(sql`${t.status} = 'open'`),
+  ],
+);
+
+/** A buyer's report of a job they paid for. It does nothing to the node until an admin upholds it. */
+export const jobReports = pgTable(
+  'job_reports',
+  {
+    id: id(),
+    jobId: uuid('job_id')
+      .notNull()
+      .unique()
+      .references(() => jobs.id),
+    nodeId: uuid('node_id')
+      .notNull()
+      .references(() => nodes.id),
+    reporter: text('reporter').notNull(),
+    reason: text('reason').notNull(),
+    details: text('details'),
+    status: text('status').notNull().default('open'),
+    resolution: text('resolution'),
+    resolvedBy: text('resolved_by'),
+    resolvedAt: ts('resolved_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check('job_reports_reporter_chk', isAddress(t.reporter)),
+    check('job_reports_reason_chk', inList(t.reason, JobReportReason)),
+    check('job_reports_status_chk', inList(t.status, JobReportStatus)),
+    index('job_reports_status_created_idx').on(t.status, t.createdAt.desc()),
+    index('job_reports_node_idx').on(t.nodeId),
   ],
 );
 

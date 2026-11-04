@@ -5,9 +5,19 @@
  * ready-made Safe transaction (`to` = staking, `data` = slash(nodeId, bps, evidenceHash)) that the
  * owner's slasher Safe executes by hand. The only on-chain call built here is `encodeFunctionData`.
  */
-import { and, desc, eq, gte, inArray } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { type Address, encodeFunctionData, type Hex, keccak256, stringToBytes } from 'viem';
-import { auditLog, canaryResults, kv, nodes, probeResults, receipts, slashCases } from '../../db/schema';
+import {
+  auditLog,
+  canaryResults,
+  earningEvents,
+  epochs,
+  kv,
+  nodes,
+  probeResults,
+  receipts,
+  slashCases,
+} from '../../db/schema';
 import { addresses } from '../../lib/contracts';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
@@ -16,6 +26,7 @@ import { canonicalJson } from '../../shared/canonical-json';
 import { CLOSE_CODES } from '../../shared/node-protocol';
 import { receiptToBase64 } from '../../shared/receipt';
 import { dbRef } from '../auth/constants';
+import { EPOCH_BUILD_LOCK } from '../epochs/builder';
 import { requestFromWorker } from '../nodes/jobs';
 
 export type SlashReason = 'canary_fraud' | 'probe_misrepresentation' | 'receipt_fraud';
@@ -303,6 +314,75 @@ export async function suspendNode(
     .closeNode(nodeId)
     .catch((err) => logger.warn({ err: String(err), nodeId }, 'close failed'));
   return true;
+}
+
+/** SpindleClaims.claimDelay: how long after posting a root can still be vetoed. */
+const VETO_WINDOW_MS = 3600_000;
+
+/**
+ * Bans a node for cheating: suspends it and stops its unposted earnings being paid. Earnings in a built but
+ * unposted root would survive a withhold (a later cumulative cannot drop below its base), so those roots are
+ * retired first and rebuilt without them. Money in a posted root is out of reach here: the result names the
+ * roots a guardian veto can still stop, which puts their earnings back in the pool, so ban again after a veto.
+ * Safe to repeat. Unsuspending does not give withheld earnings back.
+ */
+export async function banNode(nodeId: string, reason: string, actor: string) {
+  await suspendNode(nodeId, reason, { actor }); // first, so nothing new is earned; 404s on an unknown node
+  return dbRef.db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${EPOCH_BUILD_LOCK})`);
+    const [node] = await tx.select().from(nodes).where(eq(nodes.id, nodeId)).for('update');
+    if (!node) throw new AppError('NOT_FOUND', 'Node not found.');
+
+    const touched = await tx.execute<{ epoch: string; status: string; posted_at: Date | null }>(sql`
+      select distinct e.epoch, e.status, e.posted_at from epochs e
+      join earning_events ev on ev.epoch = e.epoch
+      where ev.node_id = ${nodeId} and ev.usdg_micros > 0`);
+    const has = (...statuses: string[]) => touched.some((e) => statuses.includes(e.status));
+    // later unposted roots carry the same cumulatives forward, so all of them go
+    const retired = has('built', 'failed')
+      ? await tx
+          .update(epochs)
+          .set({ status: 'vetoed' })
+          .where(inArray(epochs.status, ['built', 'failed']))
+          .returning({ epoch: epochs.epoch })
+      : [];
+
+    // what can still be stopped: not in any root, or in a root that will not be paid
+    const [sum] = await tx.execute<{ net: string; first: Date | null }>(sql`
+      select coalesce(sum(usdg_micros), 0)::text as net, min(ts) as first from earning_events
+      where node_id = ${nodeId} and kind <> 'slash'
+        and (epoch is null or epoch in (select epoch from epochs where status = 'vetoed'))`);
+    const net = BigInt(sum?.net ?? '0');
+    const withheld = net > 0n ? net : 0n;
+    if (withheld > 0n) {
+      await tx.insert(earningEvents).values({
+        // the earliest earning's time: a build then takes the withhold with the earnings it cancels
+        ts: new Date(sum?.first as Date),
+        nodeId,
+        owner: node.owner,
+        kind: 'ban_withhold',
+        usdgMicros: -withheld,
+      });
+    }
+
+    const vetoableAfter = Date.now() - VETO_WINDOW_MS;
+    const toNumbers = (rows: { epoch: string }[]) => rows.map((r) => Number(r.epoch));
+    const result = {
+      withheldMicros: withheld.toString(),
+      retiredEpochs: retired.map((r) => Number(r.epoch)),
+      vetoableEpochs: toNumbers(
+        touched.filter(
+          (e) => e.status === 'posted' && e.posted_at && new Date(e.posted_at).getTime() > vetoableAfter,
+        ),
+      ),
+      postingEpochs: toNumbers(touched.filter((e) => e.status === 'posting')),
+    };
+    await tx
+      .insert(auditLog)
+      .values({ actor, action: 'node.ban', subject: nodeId, details: { reason, ...result } });
+    logger.warn({ nodeId, ...result }, 'node banned');
+    return result;
+  });
 }
 
 export async function unsuspendNode(nodeId: string, actor: string): Promise<boolean> {
