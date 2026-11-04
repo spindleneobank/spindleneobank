@@ -11,6 +11,7 @@ const EnvSchema = z.object({
   SPINDLE_API_URL: z
     .string()
     .url()
+    // nosemgrep: detect-insecure-websocket -- validates a scheme, opens nothing; local dev uses ws://
     .refine((u) => /^wss?:\/\//.test(u), 'must be a ws:// or wss:// URL'),
   SPINDLE_TOKEN: z.string().min(1).optional(),
   SPINDLE_DATA_DIR: z.string().default('/data'),

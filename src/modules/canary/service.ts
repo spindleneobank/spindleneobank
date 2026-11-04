@@ -77,6 +77,7 @@ export const CANARY_BUYER_ADDRESS = '0x000000000000000000000000000000000000c4a4'
 
 export function evaluateChat(expect: ChatExpect, text: string): boolean {
   const t = text.toLowerCase();
+  // nosemgrep: detect-non-literal-regexp -- the pattern comes from the operator's private corpus, not a user
   if ('regex' in expect) return new RegExp(expect.regex, 'i').test(text);
   return expect.anyOf.some((w) => t.includes(w.toLowerCase()));
 }

@@ -97,7 +97,7 @@ function key(): Buffer {
 /** AES-256-GCM, base64(iv | tag | ciphertext), bound to `context` through the associated data. */
 export function encryptCardData(plain: string, context: string): string {
   const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', key(), iv);
+  const cipher = createCipheriv('aes-256-gcm', key(), iv, { authTagLength: 16 });
   cipher.setAAD(Buffer.from(context));
   const ciphertext = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
   return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]).toString('base64');
@@ -107,7 +107,7 @@ export function decryptCardData(blob: string, context: string): string {
   try {
     const bytes = Buffer.from(blob, 'base64');
     if (bytes.length < 28 || bytes.toString('base64') !== blob) throw new Error('shape');
-    const decipher = createDecipheriv('aes-256-gcm', key(), bytes.subarray(0, 12));
+    const decipher = createDecipheriv('aes-256-gcm', key(), bytes.subarray(0, 12), { authTagLength: 16 });
     decipher.setAAD(Buffer.from(context));
     decipher.setAuthTag(bytes.subarray(12, 28));
     return Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]).toString('utf8');
