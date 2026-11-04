@@ -11,6 +11,7 @@ import { type CanaryFinished, onCanaryFinished } from '../canary/hooks';
 import { actualCharge, buyerRate, type Usage, unitKindFor, utcDay } from '../gateway/pricing';
 import { billableMs, gpuHourMicros } from '../gateway/sealed';
 import { registerJobFinishedHandler, releaseJob, reverseCharge, settleJob } from '../gateway/service';
+import { billingClass } from '../nodes/service';
 import { type VerifyResult, verifyJobReceipt, withinTolerance } from './verify';
 
 /** Provider share of every verified charge, in basis points. */
@@ -139,7 +140,7 @@ export const onJobFinished: OnJobFinished = async (jobId, done, view) => {
     if (mayCharge && billed) {
       const sealedBilling = lane === 'sealed' && v.payload; // S1: per GPU-hour from the attested receipt
       const rate = await buyerRate(
-        node.gpuClass,
+        billingClass(node.gpuClass, BigInt(node.stakeSpdl), lane),
         lane,
         sealedBilling ? 'gpu_hour' : unitKindFor(kind),
         utcDay(job.createdAt),

@@ -12,7 +12,7 @@ import { dbRef } from '../auth/constants';
 import { maybeEnqueueShadow } from '../canary/shadow';
 import { nodeHub } from '../nodes/hub';
 import { type Delta, type JobDone, JobFailure, type JobHandle, type JobStartInput } from '../nodes/jobs';
-import { loadCatalog, nodeSettings } from '../nodes/service';
+import { billingClass, loadCatalog, nodeSettings } from '../nodes/service';
 import { type Authorization, getPaymentProvider, parseAuth, serializeAuth } from './payment';
 import { actualCharge, buyerRate, type MaxChargeEstimate, type Rate, unitKindFor, utcDay } from './pricing';
 import { type Candidate, rank, recordTtft, type ScheduleRequest } from './scheduler';
@@ -239,6 +239,8 @@ export interface RunInit {
   rates: Map<number, Rate>;
 }
 
+const candidateClass = (c: Candidate, lane: Lane): number => billingClass(c.gpuClass, c.stake, lane);
+
 export class JobRun {
   readonly jobId: string;
   readonly req: GatewayRequest;
@@ -268,7 +270,7 @@ export class JobRun {
   }
 
   rate(): Rate | undefined {
-    return this.node ? this.rates.get(this.node.gpuClass) : undefined;
+    return this.node ? this.rates.get(candidateClass(this.node, this.req.lane)) : undefined;
   }
 
   private startInput(node: Candidate): JobStartInput {
@@ -304,7 +306,7 @@ export class JobRun {
           ...(this.req.contextNeeded ? { minContext: this.req.contextNeeded } : {}),
           exclude: tried,
         })
-      ).filter((c) => this.rates.has(c.gpuClass));
+      ).filter((c) => this.rates.has(candidateClass(c, this.req.lane)));
       const node = ranked[0];
       if (!node) throw new AppError('NO_CAPACITY', 'No node is available for this model right now.');
       let handle: JobHandle;
@@ -385,11 +387,11 @@ export async function checkCapacity(
   const unit = unitKindFor(req.kind);
   const day = utcDay();
   const rates = new Map<number, Rate>();
-  for (const cls of new Set(ranked.map((c) => c.gpuClass))) {
+  for (const cls of new Set(ranked.map((c) => candidateClass(c, req.lane)))) {
     const r = await buyerRate(cls, req.lane, unit, day);
     if (r) rates.set(cls, r);
   }
-  let usable = ranked.filter((c) => rates.has(c.gpuClass));
+  let usable = ranked.filter((c) => rates.has(candidateClass(c, req.lane)));
   if (usable.length === 0)
     throw new AppError('NO_CAPACITY', 'No node is available for this model right now.');
   if (req.contextNeeded) {
