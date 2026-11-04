@@ -80,7 +80,9 @@ describe.skipIf(!healthy)('stocks routes', () => {
     expect(BigInt(q.amountOut)).toBeGreaterThan(0n);
     expect(q.feeBps).toBeGreaterThan(0);
     const inner = decodeFunctionData({ abi: swapRouter02Abi, data: q.swap.args[1][0] as `0x${string}` });
-    expect((inner.args?.[0] as { recipient: string }).recipient.toLowerCase()).toBe(USER);
+    expect(((inner.args as readonly unknown[])[0] as { recipient: string }).recipient.toLowerCase()).toBe(
+      USER,
+    );
   }, 30_000);
 
   test('non-curated token is a 400', async () => {

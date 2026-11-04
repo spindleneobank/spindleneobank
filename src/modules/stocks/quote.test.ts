@@ -212,7 +212,9 @@ describe('quote', () => {
     const q = await quote(deps(), { ...req, token: NVDA.toUpperCase().replace('0X', '0x') });
     const [, calls] = q.swap.args as [string, `0x${string}`[]];
     const inner = decodeFunctionData({ abi: swapRouter02Abi, data: calls[0] as `0x${string}` });
-    expect((inner.args?.[0] as { tokenOut: string }).tokenOut.toLowerCase()).toBe(NVDA.toLowerCase());
+    expect(((inner.args as readonly unknown[])[0] as { tokenOut: string }).tokenOut.toLowerCase()).toBe(
+      NVDA.toLowerCase(),
+    );
     const err = await quote(deps(), { ...req, token: USDG }).catch((e) => e);
     expect(err.status).toBe(400);
   });

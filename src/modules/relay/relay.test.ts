@@ -480,6 +480,7 @@ describe('relay orders', () => {
 });
 
 describe('L-6: a live quote is checked before the user signs it', () => {
+  const DEAD = '0x000000000000000000000000000000000000dEaD';
   const dest = ['10000000', 6] as const; // a $10 invoice
   const base = () => RelayQuoteResponse.parse(relayQuoteBody());
   const refused = (mutate: (q: RelayQuote) => void) => {
@@ -500,17 +501,33 @@ describe('L-6: a live quote is checked before the user signs it', () => {
     expect(() => assertQuoteIsSafe(base(), ...dest)).not.toThrow();
   });
   test('call to an unknown contract', () =>
-    refused((q) => void (dep(q).to = '0x000000000000000000000000000000000000dEaD')));
-  test('native value', () => refused((q) => void (dep(q).value = '1')));
-  test('another chain', () => refused((q) => void (dep(q).chainId = 1)));
+    refused((q) => {
+      dep(q).to = DEAD;
+    }));
+  test('native value', () =>
+    refused((q) => {
+      dep(q).value = '1';
+    }));
+  test('another chain', () =>
+    refused((q) => {
+      dep(q).chainId = 1;
+    }));
   test('approve for an unknown spender', () =>
-    refused(
-      (q) => void (app(q).data = approveData('10715531', '0x000000000000000000000000000000000000dEaD')),
-    ));
-  test('approve above the quoted amount', () => refused((q) => void (app(q).data = approveData('10715532'))));
-  test('a USDG call that is not approve', () => refused((q) => void (app(q).data = '0xaaaa')));
+    refused((q) => {
+      app(q).data = approveData('10715531', DEAD);
+    }));
+  test('approve above the quoted amount', () =>
+    refused((q) => {
+      app(q).data = approveData('10715532');
+    }));
+  test('a USDG call that is not approve', () =>
+    refused((q) => {
+      app(q).data = '0xaaaa';
+    }));
   test('asks far more than the invoice', () =>
-    refused((q) => void (q.details.currencyIn.amount = '20000000')));
+    refused((q) => {
+      q.details.currencyIn.amount = '20000000';
+    }));
   test('checkEndpoint cannot leave the Relay host', () => {
     expect(isRelayPath('/intents/status/v3?requestId=0x1')).toBe(true);
     for (const bad of [

@@ -59,7 +59,12 @@ export function mutantsOf(file: string, source: string): (Mutant & { source: str
   return out;
 }
 
-const ENV = { ...process.env, FOUNDRY_INVARIANT_RUNS: '10', FOUNDRY_INVARIANT_DEPTH: '50', FOUNDRY_FUZZ_RUNS: '64' };
+const ENV = {
+  ...process.env,
+  FOUNDRY_INVARIANT_RUNS: '10',
+  FOUNDRY_INVARIANT_DEPTH: '50',
+  FOUNDRY_FUZZ_RUNS: '64',
+};
 
 async function run(cwd: string, args: string[]): Promise<{ code: number; out: string }> {
   const p = Bun.spawn(['forge', ...args], { cwd, env: ENV, stdout: 'pipe', stderr: 'pipe' });
@@ -69,7 +74,8 @@ async function run(cwd: string, args: string[]): Promise<{ code: number; out: st
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
-  const opt = (n: string, d: string) => (argv.includes(`--${n}`) ? (argv[argv.indexOf(`--${n}`) + 1] as string) : d);
+  const opt = (n: string, d: string) =>
+    argv.includes(`--${n}`) ? (argv[argv.indexOf(`--${n}`) + 1] as string) : d;
   const workers = Number(opt('workers', '4'));
   const outFile = opt('out', 'mutation-report.json');
   const root = new URL('..', import.meta.url).pathname;
@@ -81,7 +87,10 @@ async function main(): Promise<void> {
   await Promise.all(
     Array.from({ length: workers }, async () => {
       const dir = mkdtempSync(join(process.env.MUTATE_TMP ?? tmpdir(), 'mutate-'));
-      cpSync(root, dir, { recursive: true, filter: (s) => !/\/(cache|out|broadcast)(\/|$)/.test(s.slice(root.length)) });
+      cpSync(root, dir, {
+        recursive: true,
+        filter: (s) => !/\/(cache|out|broadcast)(\/|$)/.test(s.slice(root.length)),
+      });
       if ((await run(dir, ['build'])).code !== 0) throw new Error('baseline does not build');
       for (let m = queue.shift(); m; m = queue.shift()) {
         const path = join(dir, 'src', m.file);
@@ -94,14 +103,20 @@ async function main(): Promise<void> {
         else killed.push(info);
         writeFileSync(path, original);
         const done = total - queue.length;
-        if (done % 10 === 0) console.log(`${done}/${total} killed=${killed.length} survived=${survived.length} invalid=${invalid}`);
+        if (done % 10 === 0)
+          console.log(
+            `${done}/${total} killed=${killed.length} survived=${survived.length} invalid=${invalid}`,
+          );
       }
       rmSync(dir, { recursive: true, force: true });
     }),
   );
   const counted = killed.length + survived.length;
   const score = counted ? (killed.length / counted) * 100 : 0;
-  writeFileSync(outFile, JSON.stringify({ total, counted, killed: killed.length, invalid, score, survived }, null, 2));
+  writeFileSync(
+    outFile,
+    JSON.stringify({ total, counted, killed: killed.length, invalid, score, survived }, null, 2),
+  );
   console.log(`score ${score.toFixed(1)}%: ${killed.length}/${counted} killed, ${invalid} did not compile`);
 }
 
