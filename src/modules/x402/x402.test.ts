@@ -351,7 +351,7 @@ describe('exact scheme', () => {
     const failed = res
       .filter((r) => r.status === 'rejected')
       .map((r) => String((r as PromiseRejectedResult).reason.message));
-    expect(failed.every((m) => m.includes('exposure'))).toBe(true);
+    expect(failed.every((m) => m.includes('credit limit'))).toBe(true);
     expect(await rows()).toHaveLength(3);
   });
 
@@ -360,7 +360,7 @@ describe('exact scheme', () => {
       (await authorizeWith(await pay((await challengeFor(max)).body), max)) as Authorization;
     const a1 = await mk(9_000_000n);
     const a2 = await mk(9_000_000n);
-    expect(await code(mk(9_000_000n))).toContain('exposure');
+    expect(await code(mk(9_000_000n))).toContain('credit limit');
     await x402Provider.finalize(a1, 1000n);
     await x402Provider.finalize(a2, 1000n);
     await mk(9_000_000n);

@@ -24,13 +24,14 @@ import { buildChallenge } from './challenge';
 import { DISABLED_MESSAGE, x402State } from './guard';
 import {
   CLOSING_COUNTER,
+  closeSession,
   reserveSession,
   sessionByToken,
   sessionExpiresAt,
   settleSessionUse,
 } from './sessions';
 import { currentSurchargeMicros } from './surcharge';
-import { ChallengeStale, enforceOpenIpCap, verifyExactPayment } from './verify';
+import { ChallengeStale, enforceOpenIpCap, isNewPayer, verifyExactPayment } from './verify';
 
 export const SETTLE_TRIGGER = 20;
 export const CHALLENGE_IP_LIMIT = { points: 60, windowSec: 60 } as const;
@@ -47,17 +48,24 @@ const refusal = (code: string, message: string, headers?: Record<string, string>
 
 type Ref = { scheme: 'exact' | 'session'; paymentId: string; surcharge: string };
 
-/** Counts a payment that became `closing`; kicks the settle job once 20 are waiting. */
-export async function noteClosing(): Promise<void> {
+/**
+ * Counts a payment that became `closing`; kicks the settle job once 20 are waiting. A wallet with no settled
+ * payments settles within a minute instead of waiting for the batch: that shortens the time its credit is at
+ * risk and is what lets an honest new buyer's limit grow.
+ */
+export async function noteClosing(payer?: string): Promise<void> {
   try {
     const n = await getRedis().incr(CLOSING_COUNTER);
+    const minute = Math.floor(Date.now() / 60_000);
     if (n >= SETTLE_TRIGGER)
       await enqueue(
         'x402',
         'x402-settle',
         { reason: 'closing-threshold' },
-        { jobId: `x402-settle-now-${Math.floor(Date.now() / 60_000)}` },
+        { jobId: `x402-settle-now-${minute}` },
       );
+    else if (payer && (await isNewPayer(payer)))
+      await enqueue('x402', 'x402-settle', { reason: 'new-payer' }, { jobId: `x402-settle-new-${minute}` });
   } catch (err) {
     logger.warn({ err: String(err) }, 'x402: could not signal settlement trigger');
   }
@@ -91,7 +99,7 @@ export class X402Provider implements PaymentProvider {
     if (payment) {
       await enforceOpenIpCap(c);
       try {
-        return await this.authorizeExact(payment, ctx);
+        return await this.authorizeExact(payment, ctx, clientIp(c));
       } catch (err) {
         if (err instanceof ChallengeStale) return this.challenge(c, ctx);
         throw err;
@@ -118,8 +126,8 @@ export class X402Provider implements PaymentProvider {
     return { challenge: true, status: 402, headers: { 'PAYMENT-REQUIRED': header }, body };
   }
 
-  private async authorizeExact(header: string, ctx: AuthorizeCtx): Promise<Authorization> {
-    const v = await verifyExactPayment(header, ctx.maxChargeMicros);
+  private async authorizeExact(header: string, ctx: AuthorizeCtx, ip: string): Promise<Authorization> {
+    const v = await verifyExactPayment(header, ctx.maxChargeMicros, undefined, ip);
     const buyerId = await buyerIdForAddress(v.payer);
     return {
       provider: this.name,
@@ -147,6 +155,20 @@ export class X402Provider implements PaymentProvider {
       return refusal('SESSION_EXHAUSTED', 'The x402 session has no spendable balance left for this request.');
     if ('closed' in r)
       return refusal('SESSION_CLOSED', 'This x402 session is closed or expired. Open a new session.');
+    if ('refused' in r) {
+      if (r.refused === 'capacity') {
+        return refusal(
+          'X402_AT_CAPACITY',
+          'x402 is at capacity while earlier payments settle. Use an API key or try again shortly.',
+        );
+      }
+      // a session settles only once it closes, so what it has used must close before the wallet's limit can grow
+      if (row.usedMicros > 0n && (await closeSession(row.id)) === 'closing') await noteClosing(row.payer);
+      return refusal(
+        'SESSION_EXHAUSTED',
+        'This wallet reached its x402 credit limit, which starts small and grows as payments settle. Open a new session in a minute, request fewer tokens, or use an API key.',
+      );
+    }
     const buyerId = await buyerIdForAddress(row.payer);
     return {
       provider: this.name,
@@ -176,7 +198,7 @@ export class X402Provider implements PaymentProvider {
     const charge = chargeMicros > auth.reservedMicros ? auth.reservedMicros : chargeMicros;
     if (ref.scheme === 'session') {
       const r = await settleSessionUse(id, auth.reservedMicros, charge);
-      if (r.closing) await noteClosing();
+      if (r.closing) await noteClosing(r.payer);
       return charge;
     }
     if (charge === 0n) {
@@ -187,8 +209,8 @@ export class X402Provider implements PaymentProvider {
       .update(x402Payments)
       .set({ usedMicros: charge, status: 'closing', closedAt: new Date() })
       .where(and(eq(x402Payments.id, id), eq(x402Payments.status, 'open')))
-      .returning({ id: x402Payments.id });
-    if (upd.length > 0) await noteClosing();
+      .returning({ payer: x402Payments.payer });
+    if (upd[0]) await noteClosing(upd[0].payer);
     return charge;
   }
 

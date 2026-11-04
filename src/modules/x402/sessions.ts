@@ -13,7 +13,7 @@ import { spindlePaymentTypedData } from '../../shared/x402';
 import { dbRef } from '../auth/constants';
 import { randomNonce, randomPaymentId, x402Addresses } from './challenge';
 import { currentSurchargeMicros } from './surcharge';
-import { verifyAndOpen } from './verify';
+import { reserveCredit, verifyAndOpen } from './verify';
 
 export const SESSION_MAX_CAP_MICROS = SESSION_MAX_CAP_MICROS_DEFAULT;
 export const PENDING_TTL_SEC = 600;
@@ -46,12 +46,16 @@ redis.call('hincrby', KEYS[1], 'reserved', -tonumber(ARGV[1]))
 redis.call('hincrby', KEYS[1], 'used', tonumber(ARGV[2]))
 return tonumber(redis.call('hget', KEYS[1], 'used'))`;
 
-export type Reservation = { remaining: bigint } | { exhausted: true } | { closed: true };
+export type Reservation =
+  | { remaining: bigint }
+  | { exhausted: true }
+  | { closed: true }
+  | { refused: 'credit' | 'capacity' };
 
 export async function reserveSession(
   row: Pick<
     X402Payment,
-    'id' | 'paymentId' | 'capMicros' | 'surchargeMicros' | 'usedMicros' | 'reservedMicros'
+    'id' | 'payer' | 'paymentId' | 'capMicros' | 'surchargeMicros' | 'usedMicros' | 'reservedMicros'
   >,
   amount: bigint,
   ttlMs: number,
@@ -72,13 +76,16 @@ export async function reserveSession(
   );
   if (r === -1) return { exhausted: true };
   if (r === -2) return { closed: true };
+  const undo = () =>
+    redis.eval(FINALIZE_LUA, 1, sessionKey(row.paymentId), amount.toString(), '0').catch(() => {});
   try {
-    await dbRef.db
-      .update(x402Payments)
-      .set({ reservedMicros: sql`${x402Payments.reservedMicros} + ${amount}` })
-      .where(eq(x402Payments.id, row.id));
+    const refused = await reserveCredit(row.id, row.payer, amount);
+    if (refused) {
+      await undo();
+      return { refused };
+    }
   } catch (err) {
-    await redis.eval(FINALIZE_LUA, 1, sessionKey(row.paymentId), amount.toString(), '0').catch(() => {});
+    await undo();
     throw err;
   }
   return { remaining: BigInt(r) };
@@ -90,7 +97,7 @@ export async function settleSessionUse(
   reserved: bigint,
   charge: bigint,
   redis: Redis = getRedis(),
-): Promise<{ used: bigint; closing: boolean }> {
+): Promise<{ used: bigint; closing: boolean; payer: string }> {
   const [row] = await dbRef.db.select().from(x402Payments).where(eq(x402Payments.id, paymentRowId));
   if (!row) throw new AppError('NOT_FOUND', 'x402 session not found.');
   const spendable = (row.capMicros ?? 0n) - (row.surchargeMicros ?? 0n);
@@ -111,7 +118,7 @@ export async function settleSessionUse(
   const used = upd?.used ?? row.usedMicros + c;
   const exhausted = used >= spendable;
   if (exhausted) await closeSession(paymentRowId, redis);
-  return { used, closing: exhausted };
+  return { used, closing: exhausted, payer: row.payer };
 }
 
 /**
@@ -219,6 +226,7 @@ export async function openSession(
   signature: Hex,
   redis: Redis = getRedis(),
   nowSec = Math.floor(Date.now() / 1000),
+  clientIp?: string,
 ) {
   const raw = await redis.get(pendingKey(sessionId));
   if (!raw) throw new AppError('NOT_FOUND', 'Unknown or expired session request.');
@@ -239,6 +247,7 @@ export async function openSession(
     signature,
     permitExtra: { expiresAt: expiresAtSec, ttlSec: p.ttlSec },
     sessionTokenHash: hashToken(token),
+    ...(clientIp ? { clientIp } : {}),
     consume: async () => (await redis.getdel(pendingKey(sessionId))) !== null,
     nowSec,
   });

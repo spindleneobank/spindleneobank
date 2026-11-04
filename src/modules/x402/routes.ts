@@ -2,7 +2,7 @@ import type { Context, Hono } from 'hono';
 import type { Hex } from 'viem';
 import { AppError } from '../../lib/errors';
 import type { Env } from '../../lib/http';
-import { ipKey, rateLimit } from '../../lib/ratelimit';
+import { clientIp, ipKey, rateLimit } from '../../lib/ratelimit';
 import { HEADER_SESSION, PostX402SessionOpenReq, PostX402SessionsReq } from '../../shared/api/x402';
 import { x402State } from './guard';
 import './provider';
@@ -56,7 +56,9 @@ export default function x402Routes(app: Hono<Env>): void {
     if (!(await x402State()).enabled) throw new AppError('PAYMENT_REQUIRED', DISABLED_MESSAGE);
     await enforceOpenIpCap(c);
     const req = await body(c, PostX402SessionOpenReq);
-    return c.json(await openSession(c.req.param('id'), req.signature as Hex));
+    return c.json(
+      await openSession(c.req.param('id'), req.signature as Hex, undefined, undefined, clientIp(c)),
+    );
   });
 
   app.get('/v1/x402/sessions/:id', async (c) => {
@@ -72,7 +74,7 @@ export default function x402Routes(app: Hono<Env>): void {
   app.post('/v1/x402/sessions/:id/close', async (c) => {
     const row = await ownSession(c, c.req.param('id'));
     const r = await closeSession(row.id);
-    if (r === 'closing') await noteClosing();
+    if (r === 'closing') await noteClosing(row.payer);
     return c.json({ status: 'closing' as const });
   });
 }

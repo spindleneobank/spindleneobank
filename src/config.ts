@@ -91,6 +91,11 @@ const envSchema = z.object({
   /** Unsettled x402 exposure across all payers: per-payer limits alone can be farmed with fresh addresses. */
   X402_MAX_GLOBAL_UNSETTLED_MICROS: intString('500000000'),
   X402_MAX_OPENS_PER_IP_DAY: positiveInt(500),
+  /** Unsettled credit for a wallet that has settled nothing yet. About what it costs to fund a fresh address. */
+  X402_NEW_PAYER_CREDIT_MICROS: intString('50000'),
+  /** Extra credit per settled micro, in bps. Keep it well below 10000: a default must never beat paying. */
+  X402_CREDIT_PER_SETTLED_BPS: z.coerce.number().int().min(0).max(10_000).default(2500),
+  X402_MAX_NEW_PAYERS_PER_IP_DAY: positiveInt(5),
   KEEPER_MIN_ETH_WEI: intString('3000000000000000'),
   KEEPER_CRITICAL_ETH_WEI: intString('1500000000000000'),
   TREES_DIR: z.string().default('data/trees'),

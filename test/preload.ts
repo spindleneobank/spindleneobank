@@ -3,3 +3,5 @@
 process.env.SPINDLE_CHANNEL_PREFIX ??= `test:${process.pid}:`;
 // Sampling real jobs for re-execution is off in tests unless a test turns it on.
 process.env.SHADOW_RATE_BPS ??= '0';
+// Most suites are not about the new-wallet credit limit (credit.test.ts is). Tests set it where they need it.
+process.env.X402_NEW_PAYER_CREDIT_MICROS ??= '20000000';

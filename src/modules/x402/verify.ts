@@ -22,6 +22,11 @@ export const BARRED_KEY = 'x402:barred';
 export const x402Limits = {
   maxGlobalUnsettled: BigInt(config.X402_MAX_GLOBAL_UNSETTLED_MICROS),
   maxOpensPerIpDay: config.X402_MAX_OPENS_PER_IP_DAY,
+  /** Credit a wallet with no settled payments gets. Small enough that a fresh address is not worth funding. */
+  newPayerCredit: BigInt(config.X402_NEW_PAYER_CREDIT_MICROS),
+  /** Extra credit per settled micro, in basis points. Below 100%, so defaulting never beats paying. */
+  creditPerSettledBps: BigInt(config.X402_CREDIT_PER_SETTLED_BPS),
+  maxNewPayersPerIpDay: config.X402_MAX_NEW_PAYERS_PER_IP_DAY,
 };
 
 const DAY_SEC = 86_400;
@@ -114,21 +119,98 @@ export type OpenInput = {
   /** extra fields merged into `permit` jsonb */
   permitExtra?: Record<string, unknown>;
   sessionTokenHash?: string;
+  clientIp?: string;
   /** Marks the challenge/pending session as used; false means someone else already consumed it. */
   consume: () => Promise<boolean>;
   nowSec?: number;
 };
 
-/** Sum of what unsettled payments may still cost: the whole cap while open, the used amount after that. */
-const exposureSum = sql<string>`coalesce(sum(case when ${x402Payments.status} = 'open' then ${x402Payments.capMicros}
+/** What the payer has signed for and may still be charged: the balance and allowance must cover this. */
+const signedSum = sql<string>`coalesce(sum(case when ${x402Payments.status} = 'open' then ${x402Payments.capMicros}
   else ${x402Payments.usedMicros} + ${x402Payments.surchargeMicros} end), 0)`;
+/**
+ * Credit actually in use: served or reserved work not yet paid for. An unused session costs nobody anything, so it
+ * counts only its surcharge. Counting its whole cap would let a few idle sessions lock everyone else out.
+ */
+const creditInUse = sql<string>`coalesce(sum(case
+  when ${x402Payments.status} = 'open' and ${x402Payments.scheme} = 'session'
+    then ${x402Payments.usedMicros} + ${x402Payments.reservedMicros} + coalesce(${x402Payments.surchargeMicros}, 0)
+  when ${x402Payments.status} = 'open' then ${x402Payments.capMicros}
+  else ${x402Payments.usedMicros} + coalesce(${x402Payments.surchargeMicros}, 0) end), 0)`;
 const unsettled = sql`${x402Payments.status} in ('open','closing','settling')`;
+
+type Tx = Parameters<Parameters<typeof dbRef.db.transaction>[0]>[0];
+export type CreditRefusal = 'credit' | 'capacity';
+
+/** Serialises credit checks, so parallel requests cannot jointly pass a limit. */
+const lockCredit = (tx: Tx) => tx.execute(sql`select pg_advisory_xact_lock(hashtext('x402:global'))`);
+
+async function settledBy(db: Pick<Tx, 'select'>, payer: string): Promise<bigint> {
+  const [row] = await db
+    .select({ v: sql<string>`coalesce(sum(${x402Payments.usedMicros}), 0)` })
+    .from(x402Payments)
+    .where(sql`${x402Payments.payer} = ${payer} and ${x402Payments.status} = 'settled'`);
+  return BigInt(row?.v ?? '0');
+}
+
+/** A wallet's unsettled credit limit: small until it has paid, growing with what it has settled. */
+export function creditLimit(settled: bigint): bigint {
+  const earned = x402Limits.newPayerCredit + (settled * x402Limits.creditPerSettledBps) / 10_000n;
+  const max = BigInt(config.X402_MAX_UNSETTLED_MICROS);
+  return earned < max ? earned : max;
+}
+
+async function checkCredit(tx: Tx, payer: string, added: bigint): Promise<CreditRefusal | null> {
+  const [all] = await tx.select({ v: creditInUse }).from(x402Payments).where(unsettled);
+  if (BigInt(all?.v ?? '0') + added > x402Limits.maxGlobalUnsettled) return 'capacity';
+  const [mine] = await tx
+    .select({ v: creditInUse })
+    .from(x402Payments)
+    .where(sql`${x402Payments.payer} = ${payer} and ${unsettled}`);
+  return BigInt(mine?.v ?? '0') + added > creditLimit(await settledBy(tx, payer)) ? 'credit' : null;
+}
+
+/** Takes `amount` of a session's credit for a request. Null on success. */
+export async function reserveCredit(
+  paymentRowId: string,
+  payer: string,
+  amount: bigint,
+): Promise<CreditRefusal | null> {
+  return dbRef.db.transaction(async (tx) => {
+    await lockCredit(tx);
+    const refused = await checkCredit(tx, payer, amount);
+    if (refused) return refused;
+    await tx
+      .update(x402Payments)
+      .set({ reservedMicros: sql`${x402Payments.reservedMicros} + ${amount}` })
+      .where(sql`${x402Payments.id} = ${paymentRowId}`);
+    return null;
+  });
+}
+
+export const isNewPayer = async (payer: string): Promise<boolean> =>
+  (await settledBy(dbRef.db, payer.toLowerCase())) === 0n;
+
+/** Limits how many unproven wallets one IP can bring per day. A wallet already seen today is not counted twice. */
+async function enforceNewPayerIpCap(ip: string, payer: string): Promise<void> {
+  if (ip === 'unknown' || !(await isNewPayer(payer))) return;
+  const redis = getRedis();
+  const key = `x402:newpayers:${hashIp(ip)}`;
+  const added = await redis.sadd(key, payer);
+  await redis.expire(key, DAY_SEC);
+  if (added === 1 && (await redis.scard(key)) > x402Limits.maxNewPayersPerIpDay) {
+    await redis.srem(key, payer);
+    throw new AppError('RATE_LIMITED', 'Too many new x402 wallets from this address today. Use an API key.');
+  }
+}
+
+const CAPACITY_MESSAGE =
+  'x402 is at capacity while earlier payments settle. Use an API key or try again shortly.';
 
 /**
  * Steps 2-6 of "Gateway checks before dispatch": signature, deadline margin, on-chain nonce/balance/allowance,
- * global and per-payer exposure caps, then the `open` row. The checks and the insert run under one advisory
- * lock, so parallel requests cannot jointly exceed X402_MAX_UNSETTLED_MICROS or
- * X402_MAX_GLOBAL_UNSETTLED_MICROS.
+ * credit limits and the per-payer signed cap, then the `open` row. The checks and the insert run under one
+ * advisory lock, so parallel requests cannot jointly pass a limit.
  */
 export async function verifyAndOpen(i: OpenInput): Promise<{ id: string }> {
   const now = BigInt(i.nowSec ?? Math.floor(Date.now() / 1000));
@@ -161,17 +243,22 @@ export async function verifyAndOpen(i: OpenInput): Promise<{ id: string }> {
     throw refuse('Invalid payment signature.');
   }
   if (await chainDeps.nonceUsed(payer, i.nonce)) throw refuse('Payment nonce was already used on-chain.');
+  if (i.clientIp) await enforceNewPayerIpCap(i.clientIp, payer);
   const chain = await chainDeps.payerState(payer);
   const max = BigInt(config.X402_MAX_UNSETTLED_MICROS);
 
   const id = await dbRef.db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('x402:global'))`);
-    const [all] = await tx.select({ v: exposureSum }).from(x402Payments).where(unsettled);
-    if (BigInt(all?.v ?? '0') + i.cap > x402Limits.maxGlobalUnsettled) {
-      throw refuse('x402 is at capacity while earlier payments settle. Use an API key or try again shortly.');
+    await lockCredit(tx);
+    // an exact payment is reserved in full for its one job; a session reserves per request (`reserveCredit`)
+    const refused = await checkCredit(tx, payer, i.scheme === 'session' ? i.surcharge : i.cap);
+    if (refused === 'capacity') throw refuse(CAPACITY_MESSAGE);
+    if (refused === 'credit') {
+      throw refuse(
+        'This payment is above the x402 credit limit for this wallet, which starts small and grows as payments settle. Wait for settlement, request fewer tokens, or use an API key.',
+      );
     }
     const [row] = await tx
-      .select({ v: exposureSum })
+      .select({ v: signedSum })
       .from(x402Payments)
       .where(sql`${x402Payments.payer} = ${payer} and ${unsettled}`);
     const exposure = BigInt(row?.v ?? '0');
@@ -235,6 +322,7 @@ export async function verifyExactPayment(
   headerValue: string | undefined,
   requiredMicros: bigint,
   redis: Redis = getRedis(),
+  clientIp?: string,
 ): Promise<ExactVerified> {
   let parsed: X402PaymentHeader;
   try {
@@ -268,6 +356,7 @@ export async function verifyExactPayment(
     deadline: BigInt(challenge.deadline),
     validAfter: BigInt(challenge.validAfter),
     signature: p.signature as Hex,
+    ...(clientIp ? { clientIp } : {}),
     consume: async () => (await redis.getdel(challengeKey(paymentId))) !== null,
   });
   return { id, payer: p.payer.toLowerCase() as Address, paymentId, cap, surcharge };
