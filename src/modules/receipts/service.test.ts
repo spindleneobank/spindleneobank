@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
@@ -200,6 +200,26 @@ describe('onJobFinished: verified', () => {
     const [j] = await t.db.select().from(jobs).where(eq(jobs.id, id));
     expect(j?.buyerUsdgMicros).toBe(53n); // floor(107 * 0.5), not the class-2 price of 107
     expect(j?.providerUsdgMicros).toBe(42n);
+  });
+
+  test('L-10: if the receipt cannot be recorded, the charge is taken back', async () => {
+    const id = await newJob();
+    // the earning insert fails after the charge has gone through
+    await t.db.execute(sql`create function l10_fail() returns trigger language plpgsql as
+      $$ begin raise exception 'l10'; end $$`);
+    await t.db.execute(
+      sql`create trigger l10 before insert on earning_events for each row execute function l10_fail()`,
+    );
+    try {
+      await expect(onJobFinished(id, done(id), view())).rejects.toThrow();
+    } finally {
+      await t.db.execute(sql`drop trigger l10 on earning_events`);
+      await t.db.execute(sql`drop function l10_fail`);
+    }
+    expect(await balance()).toEqual({ balance: 1_000_000n, reserved: 0n });
+    expect(await t.db.select().from(earningEvents)).toHaveLength(0);
+    const refunds = await t.db.select().from(buyerLedger).where(eq(buyerLedger.jobId, id));
+    expect(refunds.map((r) => r.kind).sort()).toEqual(['charge', 'refund']);
   });
 
   test('charge never exceeds the reservation', async () => {

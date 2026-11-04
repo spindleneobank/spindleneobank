@@ -78,8 +78,8 @@ export function billedUsage(
  * nor double-earn.
  */
 export const onJobFinished: OnJobFinished = async (jobId, done, view) => {
-  const pending: { canary?: CanaryFinished } = {};
-  await dbRef.db.transaction(async (tx) => {
+  const pending: { canary?: CanaryFinished; applied?: boolean } = {};
+  const recorded = dbRef.db.transaction(async (tx) => {
     const locked = await tx.execute(sql`select id from jobs where id = ${jobId} for update`);
     if (locked.length === 0) {
       logger.warn({ jobId }, 'onJobFinished: unknown job');
@@ -152,6 +152,7 @@ export const onJobFinished: OnJobFinished = async (jobId, done, view) => {
           : actualCharge(billed.usage, rate);
       // finalize clamps to the reservation and returns what was actually charged; null = already settled elsewhere
       const settled = await settleJob(jobId, wanted);
+      pending.applied = settled !== null && settled > 0n;
       if (settled !== null) charged = settled;
       else {
         // already settled elsewhere (reaper): keep what was really charged, else the gateway's provisional charge
@@ -227,6 +228,12 @@ export const onJobFinished: OnJobFinished = async (jobId, done, view) => {
         .where(eq(nodes.id, node.id));
     }
     if (!v.verified) logger.warn({ jobId, nodeId: node.id, reason: v.reason }, 'receipt rejected');
+  });
+  // The charge goes through the payment provider, outside this transaction. If the receipt and earning then fail
+  // to commit, the buyer must not stay charged for a job the node earns nothing from.
+  await recorded.catch(async (err) => {
+    if (pending.applied) await reverseCharge(jobId);
+    throw err;
   });
   if (pending.canary) {
     try {
