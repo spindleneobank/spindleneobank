@@ -13,6 +13,8 @@ solc = "0.8.28"
 evm_version = "cancun"
 optimizer = true
 optimizer_runs = 10_000
+# Reproducible builds: no metadata hash in the bytecode, so VerifyDeploy compares like with like.
+bytecode_hash = "none"
 fs_permissions = [{ access = "read-write", path = "./deployments" }, { access = "read", path = "./test/fixtures" }]
 
 [fuzz]
