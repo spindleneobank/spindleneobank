@@ -31,4 +31,30 @@ Host ports (127.0.0.1 only): api 7200, postgres 7232, redis 7279, anvil 7245 (fo
 
 ## Commands
 
-`bun install`, `bun run typecheck`, `bun run lint`, `bun test`, `cd contracts && forge build`.
+```sh
+bun install --frozen-lockfile --ignore-scripts
+bun run typecheck && bun run lint
+bun run test:host                                    # backend unit suite, against the dev stack's Postgres and Redis
+(cd node && bun test)
+(cd contracts && forge build && forge test --no-match-path 'test/fork/*')
+RHC_RPC_URL=<archive rpc> bun run contracts:fork     # fork tests
+bun run test:int                                     # integration, needs the anvil fork
+bun run contracts/script/mutate.ts                   # contract mutation test, about 15 minutes
+```
+
+`.github/workflows/ci.yml` runs the same checks plus Slither, Semgrep and gitleaks.
+
+## Deploy
+
+The owner deploys. The full steps are in `docs/deploy/RUNBOOK.md`: contracts first, then the backend on this VPS (ports 3XXX), and the frontend on Vercel (Root Directory `web`). After deploying contracts, confirm they match this commit:
+
+```sh
+(cd contracts && forge build)
+bun run scripts/verify-deploy.ts --rpc https://rpc.mainnet.chain.robinhood.com
+```
+
+It exits non-zero on any difference in bytecode, roles or parameters.
+
+## Security
+
+`SECURITY.md` lists reporting, privileged roles and accepted risks. `docs/plan/threat-model.md` covers what the system doesn't protect against.
