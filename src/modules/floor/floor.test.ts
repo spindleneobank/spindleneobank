@@ -4,11 +4,22 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
-import { auditLog, canaryResults, earningEvents, floorPayments, kv, nodes, users } from '../../db/schema';
+import {
+  auditLog,
+  buyers,
+  canaryResults,
+  earningEvents,
+  floorPayments,
+  jobs,
+  kv,
+  nodes,
+  users,
+} from '../../db/schema';
 import { closeRedis, getRedis } from '../../lib/redis';
 import { dbRef } from '../auth/constants';
 import { buildEpoch } from '../epochs/builder';
 import { epochSettings } from '../epochs/service';
+import { setStakingParamsForTest } from '../nodes/service';
 import {
   ALERT_KEY,
   applyFloor,
@@ -39,11 +50,11 @@ const deps = (): FloorDeps => ({
   now: () => new Date(),
 });
 
-async function mkNode(o: Partial<typeof nodes.$inferInsert> & { minutes?: number } = {}) {
+async function mkNode(o: Partial<typeof nodes.$inferInsert> & { minutes?: number; proven?: boolean } = {}) {
   const addr = o.owner ?? owner();
   const [u] = await t.db.insert(users).values({ address: addr }).onConflictDoNothing().returning();
   const userId = u?.id ?? (await t.db.select().from(users).where(eq(users.address, addr)))[0]?.id;
-  const { minutes, ...rest } = o;
+  const { minutes, proven = true, ...rest } = o;
   const [row] = await t.db
     .insert(nodes)
     .values({
@@ -59,9 +70,17 @@ async function mkNode(o: Partial<typeof nodes.$inferInsert> & { minutes?: number
       onchainId: BigInt(++n),
       status: 'online',
       createdAt: new Date(0),
+      stakeSpdl: '1000',
       ...rest,
     })
     .returning();
+  if (proven) {
+    await t.db.insert(canaryResults).values({
+      nodeId: row?.id as string,
+      pass: true,
+      createdAt: new Date(Number(EPOCH) * S * 1000),
+    });
+  }
   minutesByNode.set(row?.id as string, minutes ?? 60);
   return row as typeof nodes.$inferSelect;
 }
@@ -69,6 +88,9 @@ async function mkNode(o: Partial<typeof nodes.$inferInsert> & { minutes?: number
 beforeAll(async () => {
   t = await setupTestDb();
   dbRef.db = t.db;
+  setStakingParamsForTest({
+    minStakeByClass: { '0': '1000', '1': '1000', '2': '1000', '3': '1000', '4': '1000' },
+  } as never);
 });
 afterAll(async () => {
   await t.close();
@@ -169,6 +191,44 @@ describe('applyFloor', () => {
     floorSettings.startDate = undefined;
     expect(await applyFloor(EPOCH, deps())).toMatchObject({ kind: 'skipped', reason: 'disabled' });
     expect(await t.db.select().from(floorPayments)).toHaveLength(0);
+  });
+
+  test('L-8: registered and online is not enough: it takes stake and shown work', async () => {
+    const staked = await mkNode();
+    await mkNode({ stakeSpdl: '0' });
+    await mkNode({ stakeSpdl: '999' }); // below the class minimum
+    await mkNode({ proven: false });
+    const stale = await mkNode({ proven: false });
+    await t.db.insert(canaryResults).values({
+      nodeId: stale.id,
+      pass: true,
+      createdAt: new Date((Number(EPOCH) * S - 2 * 86_400) * 1000),
+    });
+    const shadowOnly = await mkNode({ proven: false });
+    await t.db.insert(canaryResults).values({
+      nodeId: shadowOnly.id,
+      kind: 'shadow',
+      pass: true,
+      createdAt: new Date(Number(EPOCH) * S * 1000),
+    });
+    const paidWork = await mkNode({ proven: false });
+    const [b] = await t.db.insert(buyers).values({ address: owner() }).returning();
+    await t.db.insert(jobs).values({
+      id: crypto.randomUUID(),
+      buyerId: b?.id as string,
+      nodeId: paidWork.id,
+      lane: 'open',
+      model: 'm',
+      kind: 'chat',
+      unitKind: 'tokens_1m',
+      payMode: 'balance',
+      status: 'completed',
+      buyerUsdgMicros: 5n,
+      createdAt: new Date(Number(EPOCH) * S * 1000),
+    });
+    expect((await applyFloor(EPOCH, deps())).kind).toBe('paid');
+    const paid = new Set((await t.db.select().from(floorPayments)).map((p) => p.nodeId));
+    expect(paid).toEqual(new Set([staked.id, paidWork.id]));
   });
 
   test('eligibility: suspended, unregistered, house, house owner, canary failure, short uptime, sealed w/o attestation', async () => {

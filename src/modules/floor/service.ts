@@ -1,5 +1,5 @@
 import { erc20Abi, spindleClaimsAbi } from '@spindle/shared/abi';
-import { and, desc, eq, gte, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import { config } from '../../config';
 import {
@@ -8,6 +8,7 @@ import {
   earningEvents,
   epochs,
   floorPayments,
+  jobs,
   kv,
   nodeAttestations,
   nodes,
@@ -18,8 +19,10 @@ import { getRedis } from '../../lib/redis';
 import { publicClient } from '../../lib/viem';
 import { dbRef } from '../auth/constants';
 import { closedEpochAt, epochEnd, epochSettings } from '../epochs/service';
+import { isStakedAsync } from '../nodes/service';
 import { onlineMinutes } from './availability';
 
+const PROOF_OF_WORK_WINDOW_MS = 24 * 3600_000;
 const DAY_MS = 86_400_000;
 const BPS = 10_000n;
 
@@ -162,7 +165,14 @@ export async function eligibleNodes(epoch: bigint, minutes: FloorDeps['minutes']
   const db = dbRef.db;
   const houseOwner = config.HOUSE_OWNER_ADDRESS?.toLowerCase();
   const rows = await db
-    .select({ id: nodes.id, owner: nodes.owner, lane: nodes.lane, attestAt: nodes.lastAttestAt })
+    .select({
+      id: nodes.id,
+      owner: nodes.owner,
+      lane: nodes.lane,
+      attestAt: nodes.lastAttestAt,
+      stakeSpdl: nodes.stakeSpdl,
+      gpuClass: nodes.gpuClass,
+    })
     .from(nodes)
     .where(
       and(
@@ -187,6 +197,30 @@ export async function eligibleNodes(epoch: bigint, minutes: FloorDeps['minutes']
         )
     ).map((r) => r.id),
   );
+  // Being online proves little, and registering is free: only a node that put up stake and has shown it serves
+  // real work shares the floor. A passed canary or a paid job in the last day counts as showing it.
+  const since = new Date(end.getTime() - PROOF_OF_WORK_WINDOW_MS);
+  const proven = new Set(
+    (
+      await db
+        .selectDistinct({ id: canaryResults.nodeId })
+        .from(canaryResults)
+        .where(
+          and(
+            eq(canaryResults.pass, true),
+            sql`coalesce(${canaryResults.kind}, '') <> 'shadow'`,
+            gte(canaryResults.createdAt, since),
+            lt(canaryResults.createdAt, end),
+          ),
+        )
+    ).map((r) => r.id),
+  );
+  for (const r of await db
+    .selectDistinct({ id: jobs.nodeId })
+    .from(jobs)
+    .where(and(gt(jobs.buyerUsdgMicros, 0n), gte(jobs.createdAt, since), lt(jobs.createdAt, end)))) {
+    if (r.id) proven.add(r.id);
+  }
   const verifiedAttest = new Map(
     (
       await db
@@ -200,7 +234,7 @@ export async function eligibleNodes(epoch: bigint, minutes: FloorDeps['minutes']
   const out: { id: string; owner: string }[] = [];
   for (const n of rows.sort((a, b) => a.id.localeCompare(b.id))) {
     if (houseOwner && n.owner === houseOwner) continue;
-    if (failed.has(n.id)) continue;
+    if (failed.has(n.id) || !proven.has(n.id) || !(await isStakedAsync(n))) continue;
     if (n.lane === 'sealed') {
       const at = Math.max(n.attestAt?.getTime() ?? 0, verifiedAttest.get(n.id) ?? 0);
       if (at < end.getTime() - SEALED_ATTEST_MAX_AGE_MS) continue;
