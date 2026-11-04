@@ -22,7 +22,7 @@ export const BARRED_KEY = 'x402:barred';
 export const x402Limits = {
   maxGlobalUnsettled: BigInt(config.X402_MAX_GLOBAL_UNSETTLED_MICROS),
   maxOpensPerIpDay: config.X402_MAX_OPENS_PER_IP_DAY,
-  /** Credit a wallet with no settled payments gets. Small enough that a fresh address is not worth funding. */
+  /** Credit a wallet with no settled payments gets, which is also the most it can default on. */
   newPayerCredit: BigInt(config.X402_NEW_PAYER_CREDIT_MICROS),
   /** Extra credit per settled micro, in basis points. Below 100%, so defaulting never beats paying. */
   creditPerSettledBps: BigInt(config.X402_CREDIT_PER_SETTLED_BPS),
