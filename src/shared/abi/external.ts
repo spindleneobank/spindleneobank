@@ -10,6 +10,7 @@ export const permit2Abi = parseAbi([
 export const uniswapV3PoolAbi = parseAbi([
   'function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)',
   'function liquidity() view returns (uint128)',
+  'function observe(uint32[] secondsAgos) view returns (int56[] tickCumulatives, uint160[] secondsPerLiquidityCumulativeX128s)',
   'function token0() view returns (address)',
   'function token1() view returns (address)',
   'function fee() view returns (uint24)',

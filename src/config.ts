@@ -81,6 +81,8 @@ const envSchema = z.object({
   IZIPAY_WEBHOOK_URL: z.string().default(''),
   CARD_DATA_ENC_KEY: optionalHexKey32,
 
+  /** Largest gap between a pool's spot price and its 30-minute TWAP at which a swap is still quoted, in bps. */
+  STOCK_MAX_TWAP_DEVIATION_BPS: positiveInt(500),
   EPOCH_SECONDS: positiveInt(3600),
   CLAIM_MIN_USDG_MICROS: intString('10000000'),
   X402_ENABLED: boolean(true),

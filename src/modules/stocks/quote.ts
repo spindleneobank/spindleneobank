@@ -1,4 +1,5 @@
 import { type Address, BaseError, ContractFunctionRevertedError } from 'viem';
+import { config } from '../../config';
 import { AppError } from '../../lib/errors';
 import { publicClient } from '../../lib/viem';
 import { erc20Abi, quoterV2Abi, stockAddresses, uniswapV3PoolAbi } from './abi';
@@ -6,6 +7,22 @@ import { erc20Abi, quoterV2Abi, stockAddresses, uniswapV3PoolAbi } from './abi';
 export const Q96 = 2n ** 96n;
 export const WARN_IMPACT_BPS = 200;
 export const QUOTE_TTL_MS = 60_000;
+export const TWAP_WINDOW_SEC = 1800;
+/** Mutable so tests can lower it. */
+export const quoteSettings = { maxTwapDeviationBps: config.STOCK_MAX_TWAP_DEVIATION_BPS };
+
+/** Average tick from two `tickCumulative` readings, rounded towards negative infinity like Uniswap's oracle. */
+export function twapTickOf(cumulatives: readonly [bigint, bigint], windowSec = TWAP_WINDOW_SEC): number {
+  const delta = cumulatives[1] - cumulatives[0];
+  const w = BigInt(windowSec);
+  const q = delta / w;
+  return Number(delta < 0n && delta % w !== 0n ? q - 1n : q);
+}
+
+/** How far the spot tick is from the TWAP tick, in bps of price (each tick is a factor of 1.0001). */
+export function tickDeviationBps(spotTick: number, twapTick: number): number {
+  return Math.round((1.0001 ** Math.abs(spotTick - twapTick) - 1) * 10_000);
+}
 
 /**
  * Price impact in bps of `amountOut` against the pool mid price (from slot0.sqrtPriceX96),
@@ -57,7 +74,9 @@ export type QuoteDeps = {
   /** Resolve a curated row by lowercase address; undefined when absent. */
   getStock: (address: string) => Promise<StockRow | undefined>;
   quoteExactIn: (p: { tokenOut: Address; amountIn: bigint; fee: number }) => Promise<bigint>;
-  readPool: (pool: Address) => Promise<{ sqrtPriceX96: bigint; token0: Address }>;
+  readPool: (pool: Address) => Promise<{ sqrtPriceX96: bigint; tick: number; token0: Address }>;
+  /** Average tick over the last `TWAP_WINDOW_SEC`. Rejects if the pool's oracle does not reach back that far. */
+  twapTick: (pool: Address) => Promise<number>;
   allowance: (owner: Address, spender: Address) => Promise<bigint>;
   now: () => number;
 };
@@ -80,7 +99,16 @@ export const chainQuoteDeps = (getStock: QuoteDeps['getStock']): QuoteDeps => ({
       publicClient.readContract({ address: pool, abi: uniswapV3PoolAbi, functionName: 'slot0' }),
       publicClient.readContract({ address: pool, abi: uniswapV3PoolAbi, functionName: 'token0' }),
     ]);
-    return { sqrtPriceX96: slot0[0], token0: token0.toLowerCase() as Address };
+    return { sqrtPriceX96: slot0[0], tick: slot0[1], token0: token0.toLowerCase() as Address };
+  },
+  async twapTick(pool) {
+    const [cumulatives] = await publicClient.readContract({
+      address: pool,
+      abi: uniswapV3PoolAbi,
+      functionName: 'observe',
+      args: [[TWAP_WINDOW_SEC, 0]],
+    });
+    return twapTickOf(cumulatives as unknown as [bigint, bigint]);
   },
   allowance: (owner, spender) =>
     publicClient.readContract({
@@ -122,7 +150,7 @@ export async function quote(
       if (err instanceof AppError) throw err;
       throw new AppError('UPSTREAM_UNAVAILABLE', `${what} unavailable, try again shortly`);
     };
-  const [amountOut, poolState, allowance] = await Promise.all([
+  const [amountOut, poolState, twapTick, allowance] = await Promise.all([
     deps.quoteExactIn({ tokenOut, amountIn, fee: row.poolFee }).catch((err: unknown) => {
       // Only a quoter revert means the pool cannot fill this size; anything else is an RPC problem.
       if (isRevert(err)) {
@@ -134,9 +162,19 @@ export async function quote(
       return upstream('quote')(err);
     }),
     deps.readPool(pool).catch(upstream('pool state')),
+    deps.twapTick(pool).catch(upstream('price oracle')),
     deps.allowance(user, a.router).catch(upstream('allowance read')),
   ]);
   if (amountOut <= 0n) throw new AppError('INSUFFICIENT_LIQUIDITY', 'quote returned zero output');
+  const deviationBps = tickDeviationBps(poolState.tick, twapTick);
+  if (deviationBps > quoteSettings.maxTwapDeviationBps) {
+    throw new AppError(
+      'INSUFFICIENT_LIQUIDITY',
+      'quote unavailable: the pool price moved too far from its 30-minute average, try again shortly',
+      undefined,
+      { deviationBps },
+    );
+  }
 
   const impact = priceImpactBps({
     amountIn,

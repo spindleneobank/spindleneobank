@@ -22,6 +22,8 @@ const sessionAddress = (c: Context<Env>): string => {
 const PutBody = z.object({
   address: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
   enabled: z.boolean().default(true),
+  /** Pins this fee tier's pool instead of keeping the current pin (or, for a new token, the deepest pool). */
+  poolFee: z.union([z.literal(100), z.literal(500), z.literal(3000), z.literal(10000)]).optional(),
 });
 
 export function stockRoutes(auth: StockAuth) {
@@ -46,9 +48,12 @@ export function stockRoutes(auth: StockAuth) {
     app.put('/v1/admin/stock-tokens', auth.admin, async (c) => {
       const parsed = PutBody.safeParse(await c.req.json().catch(() => null));
       if (!parsed.success) throw new AppError('VALIDATION', 'invalid body', 400, parsed.error.flatten());
-      const result = await upsertVerified(parsed.data.address, parsed.data.enabled);
+      const result = await upsertVerified(parsed.data.address, parsed.data.enabled, {
+        ...(parsed.data.poolFee ? { poolFee: parsed.data.poolFee } : {}),
+      });
       if (!result.ok) throw new AppError('VALIDATION', `verification failed: ${result.reason}`);
-      return c.json(result);
+      const { deepest, chosenLiquidity, ...body } = result;
+      return c.json(body);
     });
   };
 }
