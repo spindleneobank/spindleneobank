@@ -48,7 +48,8 @@ export const liveWritesBlocked = () => cardSettings.mode === 'live' && !cardSett
 
 export const cardsEnabled = () =>
   Boolean(cardSettings.apiKey && cardSettings.apiSecret && cardSettings.encKey) &&
-  (cardSettings.mode === 'mock' || cardSettings.apiKey.startsWith('izpk_live_'));
+  // a live key only ever runs in live mode: mock mode must not be able to issue real cards
+  (cardSettings.mode === 'mock') !== cardSettings.apiKey.startsWith('izpk_live_');
 
 let modeLogged = false;
 /** One startup line per process (api and worker each initialise the card provider once). */
