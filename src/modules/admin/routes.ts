@@ -3,7 +3,7 @@ import type { Context, Hono } from 'hono';
 import { z } from 'zod';
 import { AppError } from '../../lib/errors';
 import type { Env } from '../../lib/http';
-import { requireAdmin } from '../auth/middleware';
+import { requireAdmin, requireFreshAuth } from '../auth/middleware';
 import { floorStatus } from '../floor/service';
 import { defaultRunDeps, type RunDeps, runAdminJob } from './registry';
 import {
@@ -35,13 +35,13 @@ export const createAdminRoutes =
     app.get('/v1/admin/overview', requireAdmin, async (c) => c.json(await overview(deps)));
 
     app.get('/v1/admin/rate-card', requireAdmin, async (c) => c.json(await getRateCard()));
-    app.put('/v1/admin/rate-card', requireAdmin, async (c) => {
+    app.put('/v1/admin/rate-card', requireAdmin, requireFreshAuth, async (c) => {
       const { rows } = await body(c, PutAdminRateCardReq);
       return c.json(await putRateCard(rows, actor(c)));
     });
 
     app.get('/v1/admin/models', requireAdmin, async (c) => c.json(await getModels()));
-    app.put('/v1/admin/models', requireAdmin, async (c) => {
+    app.put('/v1/admin/models', requireAdmin, requireFreshAuth, async (c) => {
       const { models } = await body(c, PutAdminModelsReq);
       return c.json(await putModels(models, actor(c), deps));
     });
@@ -53,12 +53,12 @@ export const createAdminRoutes =
       );
     });
 
-    app.post('/v1/admin/nodes/:id/house', requireAdmin, async (c) => {
+    app.post('/v1/admin/nodes/:id/house', requireAdmin, requireFreshAuth, async (c) => {
       const { isHouse } = await body(c, z.object({ isHouse: z.boolean() }));
       return c.json(await setNodeHouse(c.req.param('id'), isHouse, actor(c), deps));
     });
 
-    app.post('/v1/admin/jobs/:name/run', requireAdmin, async (c) => {
+    app.post('/v1/admin/jobs/:name/run', requireAdmin, requireFreshAuth, async (c) => {
       const name = c.req.param('name');
       const out = await runAdminJob(name, actor(c), run);
       await audit(actor(c), 'admin.job.run', name, { mode: out.mode });

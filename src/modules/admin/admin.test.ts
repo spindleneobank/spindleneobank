@@ -14,6 +14,7 @@ import {
   models,
   nodes,
   rateCard,
+  sessions,
   users,
   x402Payments,
 } from '../../db/schema';
@@ -123,6 +124,21 @@ describe('auth', () => {
       expect((await call(m, p, userH, b)).status).toBe(403);
     });
   }
+});
+
+describe('L-3: fresh signature', () => {
+  for (const [m, p, b] of routes.filter(([m]) => m !== 'GET')) {
+    test(`${m} ${p}: a stale session has to sign again`, async () => {
+      await t.db.update(sessions).set({ freshUntil: new Date(Date.now() - 1000) });
+      const r = await call(m, p, adminH, b);
+      expect(r.status).toBe(403);
+      expect(((await r.json()) as { error: { code: string } }).error.code).toBe('REAUTH_REQUIRED');
+    });
+  }
+  test('reading stays possible on a stale session', async () => {
+    await t.db.update(sessions).set({ freshUntil: new Date(Date.now() - 1000) });
+    expect((await call('GET', '/v1/admin/rate-card', adminH)).status).toBe(200);
+  });
 });
 
 describe('rate card', () => {
