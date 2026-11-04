@@ -1,13 +1,15 @@
-import { type Address, BaseError, ContractFunctionRevertedError } from 'viem';
+import { type Address, BaseError, ContractFunctionRevertedError, encodeFunctionData } from 'viem';
 import { config } from '../../config';
 import { AppError } from '../../lib/errors';
 import { publicClient } from '../../lib/viem';
-import { erc20Abi, quoterV2Abi, stockAddresses, uniswapV3PoolAbi } from './abi';
+import { erc20Abi, quoterV2Abi, stockAddresses, swapRouter02Abi, uniswapV3PoolAbi } from './abi';
 
 export const Q96 = 2n ** 96n;
 export const WARN_IMPACT_BPS = 200;
 export const QUOTE_TTL_MS = 60_000;
 export const TWAP_WINDOW_SEC = 1800;
+/** How long a signed swap stays valid on-chain. */
+export const SWAP_DEADLINE_SEC = 300;
 /** Mutable so tests can lower it. */
 export const quoteSettings = { maxTwapDeviationBps: config.STOCK_MAX_TWAP_DEVIATION_BPS };
 
@@ -204,17 +206,27 @@ export async function quote(
       : {}),
     swap: {
       to: a.router,
-      functionName: 'exactInputSingle',
+      // `exactInputSingle` has no deadline of its own on SwapRouter02; this multicall overload carries one
+      functionName: 'multicall',
       args: [
-        {
-          tokenIn: a.usdg,
-          tokenOut,
-          fee: row.poolFee,
-          recipient: user,
-          amountIn: amountIn.toString(),
-          amountOutMinimum: minOut.toString(),
-          sqrtPriceLimitX96: '0',
-        },
+        String(Math.floor(quotedMs / 1000) + SWAP_DEADLINE_SEC),
+        [
+          encodeFunctionData({
+            abi: swapRouter02Abi,
+            functionName: 'exactInputSingle',
+            args: [
+              {
+                tokenIn: a.usdg,
+                tokenOut,
+                fee: row.poolFee,
+                recipient: user,
+                amountIn,
+                amountOutMinimum: minOut,
+                sqrtPriceLimitX96: 0n,
+              },
+            ],
+          }),
+        ],
       ],
       value: '0' as const,
     },

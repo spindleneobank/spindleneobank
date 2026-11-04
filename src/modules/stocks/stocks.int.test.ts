@@ -101,22 +101,11 @@ describe.skipIf(!healthy)('stocks on the RHC fork', () => {
     });
     await test_.waitForTransactionReceipt({ hash: approveHash });
 
-    const sp = q.swap.args[0] as Record<string, string | number>;
     const swapHash = await wallet.writeContract({
       address: q.swap.to as Address,
       abi: swapRouter02Abi,
-      functionName: 'exactInputSingle',
-      args: [
-        {
-          tokenIn: sp.tokenIn as Address,
-          tokenOut: sp.tokenOut as Address,
-          fee: Number(sp.fee),
-          recipient: sp.recipient as Address,
-          amountIn: BigInt(sp.amountIn as string),
-          amountOutMinimum: BigInt(sp.amountOutMinimum as string),
-          sqrtPriceLimitX96: 0n,
-        },
-      ],
+      functionName: 'multicall',
+      args: [BigInt(q.swap.args[0] as string), q.swap.args[1] as `0x${string}`[]],
     });
     const receipt = await test_.waitForTransactionReceipt({ hash: swapHash });
     expect(receipt.status).toBe('success');
