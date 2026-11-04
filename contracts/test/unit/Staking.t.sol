@@ -219,4 +219,17 @@ contract StakingTest is Test {
         assertEq(spdl.balanceOf(alice), before);
         assertEq(spdl.balanceOf(address(st)), 0);
     }
+
+    // Found by mutation testing: zero amounts were never tried.
+    function test_stake_revertsZero() public {
+        vm.prank(alice);
+        vm.expectRevert(ISpindleStaking.ZeroAmount.selector);
+        st.stake(nid, 0);
+    }
+
+    function test_beginUnstake_revertsZero() public {
+        vm.prank(alice);
+        vm.expectRevert(ISpindleStaking.ZeroAmount.selector);
+        st.beginUnstake(nid, 0);
+    }
 }
