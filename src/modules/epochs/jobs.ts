@@ -4,7 +4,7 @@ import type { JobModule } from '../../lib/modules';
 import { getRedis } from '../../lib/redis';
 import { dbRef } from '../auth/constants';
 import { buildEpoch, nextEpochNumber } from './builder';
-import { type PostOutcome, postPending } from './poster';
+import { buildHeadroom, defaultPosterDeps, type PosterDeps, type PostOutcome, postPending } from './poster';
 import { closedEpochAt, epochSettings } from './service';
 
 export const LOCK_KEY = 'lock:epoch';
@@ -23,14 +23,22 @@ export type EpochRunResult = {
 };
 
 /** One pass: build the closed hour (minute 2+), then post whatever is pending. Idempotent. */
-export async function runEpochOnce(now = new Date()): Promise<EpochRunResult> {
+export async function runEpochOnce(now = new Date(), posterDeps?: PosterDeps): Promise<EpochRunResult> {
+  let deps: PosterDeps;
+  try {
+    deps = posterDeps ?? defaultPosterDeps();
+  } catch (err) {
+    return { post: { kind: 'error', error: err instanceof Error ? err.message : String(err) } };
+  }
   const redis = getRedis();
   const token = crypto.randomUUID();
   if ((await redis.set(LOCK_KEY, token, 'EX', LOCK_TTL_S, 'NX')) !== 'OK') return { skipped: 'locked' };
   try {
     const out: EpochRunResult = {};
     const secIntoHour = Math.floor(now.getTime() / 1000) % epochSettings.epochSeconds;
-    if (secIntoHour >= BUILD_DELAY_S) {
+    // retires unpostable epochs first, so a veto they cause is seen below; null retries next minute
+    const maxIncrease = secIntoHour >= BUILD_DELAY_S ? await buildHeadroom(deps) : null;
+    if (maxIncrease !== null) {
       const [v] = await dbRef.db
         .select({ e: epochs.epoch })
         .from(epochs)
@@ -44,7 +52,7 @@ export async function runEpochOnce(now = new Date()): Promise<EpochRunResult> {
       if ((att?.value as { epoch?: string } | undefined)?.epoch === marker) {
         out.build = 'attempted';
       } else {
-        const r = await buildEpoch(target, { now });
+        const r = await buildEpoch(target, { now, maxIncrease });
         out.build = r.kind === 'skipped' ? `skipped:${r.reason}` : r.kind;
         const value = { epoch: marker };
         await dbRef.db
@@ -54,7 +62,7 @@ export async function runEpochOnce(now = new Date()): Promise<EpochRunResult> {
       }
     }
     try {
-      out.post = await postPending();
+      out.post = await postPending(deps);
     } catch (err) {
       out.post = { kind: 'error', error: err instanceof Error ? err.message : String(err) };
     }
@@ -89,7 +97,9 @@ export default epochJobs;
 export const adminJobs = {
   'epoch-build': async () => {
     const now = new Date();
-    return jsonSafe(await buildEpoch(await nextEpochNumber(now), { now }));
+    const maxIncrease = await buildHeadroom();
+    if (maxIncrease === null) throw new Error('cannot read the chain to size the epoch');
+    return jsonSafe(await buildEpoch(await nextEpochNumber(now), { now, maxIncrease }));
   },
   'post-root': async () => jsonSafe(await postPending()),
 } as const;

@@ -1,5 +1,5 @@
 import { erc20Abi, spindleClaimsAbi } from '@spindle/shared/abi';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, ne } from 'drizzle-orm';
 import { type Address, encodeFunctionData, type Hex } from 'viem';
 import { config } from '../../config';
 import { auditLog, epochs, kv } from '../../db/schema';
@@ -80,6 +80,51 @@ export function defaultPosterDeps(): PosterDeps {
       },
     },
   };
+}
+
+/**
+ * How much the next build may add to the newest unvetoed epoch so that its root can be posted: the contract
+ * accepts `onchainPrevTotal + maxEpochIncrease` at most, so this is `cap - (dbBaseTotal - onchainPrevTotal)`.
+ * Passed to `buildEpoch` as `maxIncrease`, it makes a backlog post in steps instead of freezing payouts.
+ *
+ * Unposted epochs already over that limit can never be posted, and cumulatives cannot shrink below their base,
+ * so they are retired as vetoed and their events go back into the pool. Null when the chain cannot be read: no
+ * build then, since one could not be known to fit.
+ */
+export async function buildHeadroom(deps: PosterDeps = defaultPosterDeps()): Promise<bigint | null> {
+  let limit: bigint;
+  try {
+    const [last, cap] = await Promise.all([deps.chain.lastEpoch(), deps.chain.maxEpochIncrease()]);
+    limit = (last === 0n ? 0n : (await deps.chain.root(last)).totalEarned) + cap;
+  } catch (err) {
+    logger.error({ err: err instanceof Error ? err.message : String(err) }, 'epoch headroom read failed');
+    return null;
+  }
+  const retired = await dbRef.db
+    .update(epochs)
+    .set({ status: 'vetoed' })
+    .where(and(inArray(epochs.status, ['built', 'failed']), gt(epochs.totalEarnedUsdgMicros, limit)))
+    .returning({ epoch: epochs.epoch });
+  for (const { epoch } of retired) {
+    logger.warn(
+      { epoch: epoch.toString() },
+      'unposted epoch over maxEpochIncrease retired; re-posting in steps',
+    );
+    await dbRef.db.insert(auditLog).values({
+      actor: 'system:epoch-poster',
+      action: 'epoch.retired',
+      subject: epoch.toString(),
+      details: { reason: 'over maxEpochIncrease', limit: limit.toString() },
+    });
+  }
+  const [base] = await dbRef.db
+    .select({ total: epochs.totalEarnedUsdgMicros })
+    .from(epochs)
+    .where(ne(epochs.status, 'vetoed'))
+    .orderBy(desc(epochs.epoch))
+    .limit(1);
+  const headroom = limit - (base?.total ?? 0n);
+  return headroom > 0n ? headroom : 0n;
 }
 
 export type PostOutcome =
