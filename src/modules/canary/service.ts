@@ -1,15 +1,17 @@
 /**
- * Canary jobs: known-answer chat prompts and house-referenced embeddings, sent to registered non-house
- * nodes as ordinary jobs (same message shape, same model ids, no flag). They run in the worker, so the
- * dispatch goes through the Redis bridge; the finished job is handed to B7's `onJobFinished` exactly like
- * a buyer job, which calls `onCanaryFinished` -> `handleCanaryFinished` below. Canaries are free: no
- * buyer charge, no provider earning.
+ * Canary jobs: prompts from a private corpus (`corpus.ts`), judged by a known answer or against the house
+ * node, plus house-referenced embeddings. They go to registered non-house nodes as ordinary jobs (same
+ * message shape, same model ids, no flag) and take their sampling and length from observed buyer traffic.
+ * They run in the worker, so the dispatch goes through the Redis bridge; the finished job is handed to B7's
+ * `onJobFinished` exactly like a buyer job, which calls `onCanaryFinished` -> `handleCanaryFinished` below.
+ * Canaries are free: no buyer charge, no provider earning.
  */
 import { randomUUID } from 'node:crypto';
 import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 import { config } from '../../config';
 import { buyers, canaryResults, earningEvents, jobs, kv, nodes, receipts } from '../../db/schema';
 import { logger } from '../../lib/logger';
+import { getRedis } from '../../lib/redis';
 import { canonicalJson, sha256Hex } from '../../shared/canonical-json';
 import type { CatalogModel } from '../../shared/catalog';
 import type { JobKind } from '../../shared/enums';
@@ -19,18 +21,32 @@ import { buyerIdForAddress } from '../buyers/service';
 import { unitKindFor } from '../gateway/pricing';
 import { updateJob } from '../gateway/service';
 import { countChatPrompt, countTokens } from '../gateway/tokenizer';
-import { type Delta, type JobDone, type JobStartInput, requestFromWorker } from '../nodes/jobs';
+import type { JobDone } from '../nodes/jobs';
 import { loadCatalog, nodeSettings } from '../nodes/service';
 import { onJobFinished } from '../receipts/service';
 import { openCase, sinceUnsuspend, suspendNode } from '../slashing/service';
 import {
-  CANARY_FIXTURE_VERSION,
+  type CandidateLite,
+  canaryDeps,
+  compareChatWithHouse,
+  compareSettings,
+  cosine,
+  embeddingsOf,
+  houseFor,
+} from './compare';
+import {
+  activeCorpus,
+  type BuyerShape,
   type ChatExpect,
-  EMBEDDING_COSINE_MIN,
-  generateChatCanary,
-  generateEmbeddingInputs,
-} from './fixtures';
+  drawChatCanary,
+  drawEmbeddingInputs,
+  priorShape,
+} from './corpus';
 import type { CanaryFinished } from './hooks';
+import { SHAPES_KEY } from './shadow';
+
+export { type CandidateLite, canaryDeps, cosine } from './compare';
+export const EMBEDDING_COSINE_MIN = 0.98;
 
 export const canarySettings = {
   /** Share of a node's last-hour traffic that is canaries, in basis points. */
@@ -57,51 +73,12 @@ export const canarySettings = {
 /** Internal buyer address; canary jobs belong to it. */
 export const CANARY_BUYER_ADDRESS = '0x000000000000000000000000000000000000c4a4';
 
-export interface CandidateLite {
-  nodeId: string;
-  isHouse: boolean;
-  engine: string;
-}
-
-export const canaryDeps = {
-  candidates: (filter: {
-    model: string;
-    lane: 'open';
-    kind: 'chat' | 'embeddings';
-    includeUnregistered?: boolean;
-  }): Promise<CandidateLite[]> => requestFromWorker<CandidateLite[]>({ type: 'candidates', filter }),
-  dispatch: (nodeId: string, job: JobStartInput, onChunk: (d: Delta) => void): Promise<JobDone> =>
-    requestFromWorker<JobDone>(
-      { type: 'dispatch', nodeId, job },
-      { onChunk, timeoutMs: nodeSettings.jobTimeoutMs + 10_000 },
-    ),
-  random: (): number => Math.random(),
-  now: (): number => Date.now(),
-};
-
 // ---- evaluation -------------------------------------------------------------------------------------
 
 export function evaluateChat(expect: ChatExpect, text: string): boolean {
   const t = text.toLowerCase();
   if ('regex' in expect) return new RegExp(expect.regex, 'i').test(text);
   return expect.anyOf.some((w) => t.includes(w.toLowerCase()));
-}
-
-export function cosine(a: readonly number[], b: readonly number[]): number {
-  if (a.length === 0 || a.length !== b.length) return 0;
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (let i = 0; i < a.length; i++) {
-    const x = a[i] as number;
-    const y = b[i] as number;
-    dot += x * y;
-    na += x * x;
-    nb += y * y;
-  }
-  if (na === 0 || nb === 0) return 0;
-  const c = dot / Math.sqrt(na * nb);
-  return Number.isFinite(c) ? c : 0;
 }
 
 export function evaluateEmbeddings(
@@ -138,8 +115,16 @@ export function canaryProbability(jobsLastHour: number, rateBps = canarySettings
 // ---- pending specs ---------------------------------------------------------------------------------------
 
 type Spec =
-  | { kind: 'chat'; model: string; template: string; expect: ChatExpect; attempt: 1 | 2 }
-  | { kind: 'embeddings'; model: string; refs: number[][]; attempt: 1 | 2 };
+  | { kind: 'chat'; model: string; prompt: string; corpus: string; expect: ChatExpect; attempt: 1 | 2 }
+  | {
+      kind: 'chat-house';
+      model: CatalogModel;
+      prompt: string;
+      corpus: string;
+      body: Record<string, unknown>;
+      attempt: 1 | 2;
+    }
+  | { kind: 'embeddings'; model: string; corpus: string; refs: number[][]; attempt: 1 | 2 };
 const specs = new Map<string, { spec: Spec; at: number }>();
 
 /** Drops specs of canaries that never finished (worker restart, lost callback). */
@@ -171,9 +156,6 @@ export const modelDigestOf = (done: JobDone): string => {
     return 'unknown';
   }
 };
-
-const embeddingsOf = (output: unknown): number[][] =>
-  ((output as { data?: { embedding?: number[] }[] } | null)?.data ?? []).map((d) => d.embedding ?? []);
 
 /**
  * Reference vectors for exactly these inputs, computed per input on the house node and cached in `kv`
@@ -249,13 +231,35 @@ export interface CanaryTarget {
   model: CatalogModel;
 }
 
+let shapesCache: { at: number; shapes: BuyerShape[] } | null = null;
+const SHAPES_TTL_MS = 5 * 60_000;
+const SHAPES_MIN = 20;
+
+/** The shape of a random recent buyer request, or a prior until enough have been seen. */
+async function nextShape(): Promise<BuyerShape> {
+  const now = canaryDeps.now();
+  if (!shapesCache || now - shapesCache.at > SHAPES_TTL_MS) {
+    const raw = await getRedis()
+      .lrange(SHAPES_KEY, 0, -1)
+      .catch(() => [] as string[]);
+    shapesCache = { at: now, shapes: raw.map((r) => JSON.parse(r) as BuyerShape) };
+  }
+  const { shapes } = shapesCache;
+  if (shapes.length < SHAPES_MIN) return priorShape(canaryDeps.random);
+  return shapes[Math.floor(canaryDeps.random() * shapes.length)] as BuyerShape;
+}
+
+export const resetShapeCacheForTest = (): void => {
+  shapesCache = null;
+};
+
 /**
  * Sends one canary and feeds the finished job to B7. Returns the job id, or null if it could not run.
- * `attempt` 2 is the immediate retry after a failed first attempt (a different template / inputs).
+ * `attempt` 2 is the immediate retry after a failed first attempt (a different prompt / inputs).
  */
 export async function sendCanary(
   target: CanaryTarget,
-  opts: { attempt?: 1 | 2; avoidTemplate?: string } = {},
+  opts: { attempt?: 1 | 2; avoidPrompt?: string } = {},
 ): Promise<string | null> {
   const { node, model } = target;
   const attempt = opts.attempt ?? 1;
@@ -267,28 +271,47 @@ export async function sendCanary(
   let spec: Spec;
   let messages: { role: string; content: unknown }[] | undefined;
   let inputs: string[] | undefined;
+  const corpus = activeCorpus();
+  if (!corpus) return null;
   if (model.kind === 'embeddings') {
-    inputs = generateEmbeddingInputs(canaryDeps.random);
+    if (corpus.embeddings.length === 0) return null;
+    inputs = drawEmbeddingInputs(corpus.embeddings, canaryDeps.random);
     const refs = await referencesFor(model, inputs);
     if (!refs) return null;
-    body = { model: model.id, input: inputs };
-    spec = { kind: 'embeddings', model: model.id, refs, attempt };
+    const [only] = inputs;
+    body = { model: model.id, input: inputs.length === 1 && canaryDeps.random() < 0.5 ? only : inputs };
+    spec = { kind: 'embeddings', model: model.id, corpus: corpus.id, refs, attempt };
   } else {
-    let c = generateChatCanary(canaryDeps.random);
-    for (let i = 0; i < 10 && opts.avoidTemplate && c.id === opts.avoidTemplate; i++)
-      c = generateChatCanary(canaryDeps.random);
+    const shape = await nextShape();
+    const known = corpus.prompts.filter((p) => p.expect);
+    // Most prompts are judged against the house node; without it only known answers can be judged.
+    const usable = (await houseFor(model).catch(() => null)) ? corpus.prompts : known;
+    const draw = () => drawChatCanary(usable, corpus.systems, shape, canaryDeps.random);
+    let c = draw();
+    for (let i = 0; i < 10 && c && opts.avoidPrompt && c.promptId === opts.avoidPrompt; i++) c = draw();
+    if (!c) return null;
     messages = c.messages;
     maxTokens = c.maxTokens;
-    // the fields and order the gateway forwards for a buyer request; sampling knobs vary per canary
+    // the fields and order the gateway forwards for a buyer request
     body = {
       model: model.id,
       messages,
       stream: true,
       max_tokens: maxTokens,
       ...(c.temperature !== undefined ? { temperature: c.temperature } : {}),
+      ...(c.topP !== undefined ? { top_p: c.topP } : {}),
       ...(c.seed !== undefined ? { seed: c.seed } : {}),
     };
-    spec = { kind: 'chat', model: model.id, template: c.id, expect: c.expect, attempt };
+    spec = c.expect
+      ? {
+          kind: 'chat',
+          model: model.id,
+          prompt: c.promptId,
+          corpus: corpus.id,
+          expect: c.expect,
+          attempt,
+        }
+      : { kind: 'chat-house', model, prompt: c.promptId, corpus: corpus.id, body, attempt };
   }
   const kind = model.kind as JobKind;
   await dbRef.db.insert(jobs).values({
@@ -395,6 +418,10 @@ export async function canaryTargets(): Promise<Map<string, { node: CandidateLite
 /** One scheduler tick (every minute). Returns the ids of nodes that got a canary. */
 export async function scheduleCanaries(): Promise<string[]> {
   sweepSpecs();
+  if (!activeCorpus()) {
+    logger.error('no canary corpus (CANARY_CORPUS_PATH): nodes are not being checked');
+    return [];
+  }
   const targets = await canaryTargets();
   if (targets.size === 0) return [];
   const now = canaryDeps.now();
@@ -454,18 +481,39 @@ export async function handleCanaryFinished(e: CanaryFinished): Promise<void> {
     kind = 'chat';
     expected = {
       model: spec.model,
-      template: spec.template,
-      fixtureVersion: CANARY_FIXTURE_VERSION,
+      prompt: spec.prompt,
+      corpus: spec.corpus,
       expect: spec.expect,
     };
     const text = e.outputText ?? '';
     pass = e.verified && evaluateChat(spec.expect, text);
     observed = { text: text.slice(0, 200), receiptVerified: e.verified, receiptReason: e.reason };
+  } else if (spec.kind === 'chat-house') {
+    kind = 'chat';
+    expected = {
+      model: spec.model.id,
+      prompt: spec.prompt,
+      corpus: spec.corpus,
+      minCosine: compareSettings.chatCosineMin,
+    };
+    const text = e.outputText ?? '';
+    const r = e.verified ? await compareChatWithHouse(spec.model, spec.body, text) : null;
+    if (r?.verdict === 'inconclusive') {
+      logger.info({ jobId: e.jobId, reason: r.reason }, 'canary inconclusive; not counted');
+      return;
+    }
+    pass = r?.verdict === 'match';
+    observed = {
+      text: text.slice(0, 200),
+      receiptVerified: e.verified,
+      receiptReason: e.reason,
+      ...(r ? { cosine: r.cosine, houseSelf: r.houseSelf } : {}),
+    };
   } else {
     kind = 'embeddings';
     expected = {
       model: spec.model,
-      fixtureVersion: CANARY_FIXTURE_VERSION,
+      corpus: spec.corpus,
       minCosine: EMBEDDING_COSINE_MIN,
       n: spec.refs.length,
     };
@@ -473,7 +521,7 @@ export async function handleCanaryFinished(e: CanaryFinished): Promise<void> {
     pass = e.verified && r.pass;
     observed = { ...r, receiptVerified: e.verified, receiptReason: e.reason };
   }
-  // a first failure does not count: it is retried at once with a different template / inputs
+  // a first failure does not count: it is retried at once with a different prompt / inputs
   const retry = !pass && spec !== undefined && spec.attempt === 1;
   await recordCanaryResult({
     nodeId: e.nodeId,
@@ -490,11 +538,12 @@ export async function handleCanaryFinished(e: CanaryFinished): Promise<void> {
 async function retryCanary(nodeId: string, spec: Spec): Promise<void> {
   try {
     const [node] = await dbRef.db.select().from(nodes).where(eq(nodes.id, nodeId));
-    const model = (await loadCatalog()).find((m) => m.id === spec.model);
+    const modelId = spec.kind === 'chat-house' ? spec.model.id : spec.model;
+    const model = (await loadCatalog()).find((m) => m.id === modelId);
     if (!node || !model || node.status === 'suspended' || node.isHouse) return;
     await sendCanary(
       { node: { nodeId, isHouse: false, engine: node.engine }, model },
-      { attempt: 2, avoidTemplate: spec.kind === 'chat' ? spec.template : undefined },
+      { attempt: 2, avoidPrompt: spec.kind === 'embeddings' ? undefined : spec.prompt },
     );
   } catch (err) {
     logger.warn({ err: String(err), nodeId }, 'canary retry failed to run');

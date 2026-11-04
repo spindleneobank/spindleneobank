@@ -13,6 +13,7 @@ import {
   PostImagesGenerationsReq,
 } from '../../shared/api/openai';
 import type { Lane } from '../../shared/enums';
+import { recordBuyerShape } from '../canary/shadow';
 import type { Delta } from '../nodes/jobs';
 import { type JobDone, JobFailure } from '../nodes/jobs';
 import { getPaymentProvider, isChallenge, selectProvider } from './payment';
@@ -99,6 +100,17 @@ async function begin(c: Context<Env>, req: GatewayRequest): Promise<Started> {
   } catch (err) {
     await failRun(jobId, err); // releases the reservation (job row may not exist)
     throw err;
+  }
+  if (req.kind === 'chat') {
+    const messages = req.messages ?? [];
+    void recordBuyerShape({
+      maxTokens: req.maxTokens,
+      ...(typeof req.body.temperature === 'number' ? { temperature: req.body.temperature } : {}),
+      ...(typeof req.body.top_p === 'number' ? { topP: req.body.top_p } : {}),
+      seed: req.body.seed !== undefined,
+      system: messages[0]?.role === 'system',
+      promptChars: messages.reduce((a, m) => a + (typeof m.content === 'string' ? m.content.length : 0), 0),
+    });
   }
   return { run: new JobRun(init) };
 }

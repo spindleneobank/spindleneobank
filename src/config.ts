@@ -98,6 +98,13 @@ const envSchema = z.object({
   NODE_MODELS: z.string().optional(),
   MIN_AGENT_VERSION: z.string().default('0.1.0'),
   CANARY_RATE_BPS: nonnegativeInt(200),
+  /** Private JSONL prompt corpus, kept outside the repo. Required for a production worker. */
+  CANARY_CORPUS_PATH: z.string().default(''),
+  /** Share of paid open-lane jobs re-run on the house node and compared, in basis points. */
+  SHADOW_RATE_BPS: z.coerce.number().int().min(0).max(10_000).default(100),
+  /** Minimum embedding cosine between a node's chat answer and the house node's. */
+  SHADOW_CHAT_COSINE_MIN: z.coerce.number().min(0).max(1).default(0.7),
+  SHADOW_EMBED_MODEL: z.string().default('nomic-embed-text'),
   SEALED_LANE_ENABLED: boolean(false),
   /** Availability floor start (YYYY-MM-DD, UTC). Empty = floor disabled. */
   FLOOR_START_DATE: z

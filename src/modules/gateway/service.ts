@@ -9,6 +9,7 @@ import type { CatalogModel } from '../../shared/catalog';
 import type { GatewayView, OnJobFinished } from '../../shared/contracts/jobs';
 import type { JobKind, Lane } from '../../shared/enums';
 import { dbRef } from '../auth/constants';
+import { maybeEnqueueShadow } from '../canary/shadow';
 import { nodeHub } from '../nodes/hub';
 import { type Delta, type JobDone, JobFailure, type JobHandle, type JobStartInput } from '../nodes/jobs';
 import { loadCatalog, nodeSettings } from '../nodes/service';
@@ -614,6 +615,21 @@ export async function finishJob(run: JobRun, done: JobDone): Promise<void> {
       }
     }
     await finishedHandler(run.jobId, { v: 1, type: 'job.done', jobId: run.jobId, ...done }, view);
+    if (run.req.kind === 'chat' || run.req.kind === 'embeddings') {
+      await maybeEnqueueShadow(
+        {
+          jobId: run.jobId,
+          nodeId: run.node?.nodeId ?? '',
+          model: run.req.model.id,
+          kind: run.req.kind,
+          body: run.req.body,
+          ...(view.outputText !== undefined ? { outputText: view.outputText } : {}),
+          ...(view.embeddings ? { embeddings: view.embeddings } : {}),
+        },
+        run.req.lane,
+        run.node?.isHouse ?? false,
+      );
+    }
   } catch (err) {
     logger.error({ err: String(err), jobId: run.jobId }, 'onJobFinished failed; releasing reservation');
     await releaseJob(run.jobId).catch(() => {});

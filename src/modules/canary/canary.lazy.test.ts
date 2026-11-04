@@ -20,6 +20,7 @@ import { nodeSettings, setStakingParamsForTest } from '../nodes/service';
 import { type FakeNode, fakeNode, startTestServer } from '../nodes/testing';
 import { slashingDeps } from '../slashing/service';
 import { addr } from '../slashing/testkit';
+import { corpusSettings, parseCorpus } from './corpus';
 import { canaryDeps, pendingSpecCount, sendCanary } from './service';
 
 const MODEL = DEFAULT_CATALOG.find((m) => m.id === 'qwen2.5:7b') as (typeof DEFAULT_CATALOG)[number];
@@ -31,10 +32,19 @@ const OWNER = addr();
 const toStop: FakeNode[] = [];
 const real = { ...canaryDeps };
 const realClose = slashingDeps.closeNode;
+const realCorpus = corpusSettings.path;
+const corpusFile = new URL('../../../test/fixtures/canary-corpus.jsonl', import.meta.url).pathname;
+const answers = new Map(
+  parseCorpus(await Bun.file(corpusFile).text()).prompts.map((p) => [
+    p.messages.at(-1)?.content,
+    p.expect && 'anyOf' in p.expect ? p.expect.anyOf[0] : '',
+  ]),
+);
 
 beforeAll(async () => {
   t = await setupTestDb();
   dbRef.db = t.db;
+  corpusSettings.path = corpusFile;
   srv = startTestServer();
   nodeSettings.registry = '0x00000000000000000000000000000000000000b2';
   setStakingParamsForTest({
@@ -58,6 +68,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   Object.assign(canaryDeps, real);
+  corpusSettings.path = realCorpus;
   slashingDeps.closeNode = realClose;
   setStakingParamsForTest(null);
   await nodeHub.stop();
@@ -132,15 +143,7 @@ async function agent(lazy: boolean) {
   return { n, id, owner: (row as typeof nodes.$inferSelect).owner };
 }
 
-const CAPS: Record<string, string> = { France: 'Paris', Japan: 'Tokyo', Spain: 'Madrid', Germany: 'Berlin' };
-function solve(prompt: string): string {
-  const echo = prompt.match(/nothing else: (\w+)/);
-  if (echo) return echo[1] as string;
-  const cap = prompt.match(/capital of (\w+)/);
-  if (cap) return CAPS[cap[1] as string] ?? '';
-  const [a, b] = (prompt.match(/\d+/g) ?? []).map(Number) as [number, number];
-  return String(/times/.test(prompt) ? a * b : a + b);
-}
+const solve = (prompt: string): string => answers.get(prompt) ?? '';
 
 const target = (id: string) => ({ node: { nodeId: id, isHouse: false, engine: 'ollama' }, model: MODEL });
 
@@ -203,7 +206,7 @@ describe('canaries against real N1 job runners', () => {
       expect(m.model).toBe('qwen2.5:7b');
       const reqBody = m.request as Record<string, unknown>;
       for (const k of Object.keys(reqBody))
-        expect(['model', 'messages', 'stream', 'max_tokens', 'temperature', 'seed']).toContain(k);
+        expect(['model', 'messages', 'stream', 'max_tokens', 'temperature', 'top_p', 'seed']).toContain(k);
       expect(reqBody.stream).toBe(true);
       expect(JSON.stringify(m)).not.toMatch(/canary/i);
     }
