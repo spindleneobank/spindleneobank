@@ -23,6 +23,8 @@ import {
   users,
   x402Payments,
 } from '../../db/schema';
+import { getRedis } from '../../lib/redis';
+import { BARRED_KEY } from '../x402/verify';
 import { buyerAbis } from './abis';
 import { readCursor, writeCursor } from './cursor';
 import { type IndexerClient, type IndexerDeps, runIndexOnce } from './indexer';
@@ -337,9 +339,11 @@ describe('indexer', () => {
     expect(a?.settleTx).toBe(hash(110, 7));
     expect(b?.status).toBe('failed');
     expect(b?.failReason).toBe('0xdeadbeef');
+    expect(await getRedis().sismember(BARRED_KEY, BUYER.toLowerCase())).toBe(1);
   });
 
   test('SettleFailed never overwrites a settled payment', async () => {
+    await getRedis().del(BARRED_KEY);
     await t.db
       .insert(x402Payments)
       .values({ paymentId: hash(3), payer: BUYER.toLowerCase(), scheme: 'exact', status: 'settling' });
@@ -364,6 +368,7 @@ describe('indexer', () => {
     const r = (await t.db.select().from(x402Payments)).find((x) => x.paymentId === hash(3));
     expect(r?.status).toBe('settled');
     expect(r?.failReason).toBeNull();
+    expect(await getRedis().sismember(BARRED_KEY, BUYER.toLowerCase())).toBe(0);
     expect(r?.usedMicros).toBe(5n);
   });
 

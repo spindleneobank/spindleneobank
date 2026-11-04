@@ -14,6 +14,8 @@ import {
 } from '../../db/schema';
 import type { Tx } from '../../db/types';
 import { sendAlert } from '../../lib/alerts';
+import { getRedis } from '../../lib/redis';
+import { BARRED_KEY } from '../x402/verify';
 import { dec, enc } from './codec';
 
 export type Stake = { active: bigint; pending: bigint };
@@ -342,6 +344,9 @@ export async function applyLog(tx: Tx, log: IndexedLog, ctx: HandlerCtx): Promis
           : { status: 'failed', settleTx: txHash, failReason: lower(String(a.reason)), closedAt };
       await mutate(tx, undo, 'x402', row, set);
       await journal(tx, log, undo);
+      // the settle run may never see this outcome, so a failure bars the wallet from here too. Its sessions check the
+      // bar on each request. A bar survives a reorg on purpose: it only asks for a review.
+      if (log.eventName === 'SettleFailed') await getRedis().sadd(BARRED_KEY, row.payer.toLowerCase());
       return {};
     }
     default:
