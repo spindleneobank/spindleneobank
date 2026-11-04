@@ -45,22 +45,25 @@ let buyerId: string;
 let nodeId: string;
 const request = { model: 'qwen2.5:7b', messages: [{ role: 'user', content: 'hi' }] };
 let RESERVE = 10_000n;
+const defaultCanaryHook = canaryHooks.onCanaryFinished;
 
 beforeAll(async () => {
   t = await setupTestDb();
   dbRef.db = t.db;
 });
 afterAll(async () => {
+  // this module object is shared by every test file in the bun process: leave it as it was found
+  canaryHooks.onCanaryFinished = defaultCanaryHook;
   await t.close();
   await closeRedis();
 });
 afterEach(() => {
   receiptSettings.chargeOnFailure = false;
-  canaryHooks.onCanaryFinished = async () => {};
 });
 beforeEach(async () => {
   await t.reset();
   resetJobFinishedHandler();
+  canaryHooks.onCanaryFinished = async () => {};
   RESERVE = 10_000n;
   const [u] = await t.db.insert(users).values({ address: OWNER }).returning();
   ownerUserId = u?.id as string;
