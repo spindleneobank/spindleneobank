@@ -13,6 +13,7 @@ Pre-launch, so entries follow audits rather than releases. Reports are in the se
 - The availability floor needs stake and shown work. Node agents pin their first binding's owner, chain and registry.
 - A charge is taken back if its receipt can't be recorded, and a reversal after settlement has claimed a payment becomes a refund.
 - Canary withholds are dated at the earliest earning they cancel, and speed probes no longer send canary prompts.
+- x402 credit defaults are an accepted risk, with their limits in `SECURITY.md` (owner decision, 2026-11-05).
 
 **Operations**
 - Push alerts through `ALERT_WEBHOOK_URL`, including a watch for on-chain roots the database didn't build.
