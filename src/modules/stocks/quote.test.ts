@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { ContractFunctionRevertedError } from 'viem';
+import { ContractFunctionRevertedError, decodeFunctionData } from 'viem';
 import { AppError } from '../../lib/errors';
-import { PINNED } from './abi';
+import { PINNED, swapRouter02Abi } from './abi';
 import {
   minOutFor,
   priceImpactBps,
@@ -10,6 +10,7 @@ import {
   quote,
   quoteSettings,
   type StockRow,
+  SWAP_DEADLINE_SEC,
   tickDeviationBps,
   twapTickOf,
 } from './quote';
@@ -160,13 +161,22 @@ describe('quote', () => {
   test('swap recipient is the session user; approve is to the router; expires in 60s', async () => {
     const q = await quote(deps(), req);
     expect(q.swap.to).toBe(PINNED.ROUTER);
-    expect(q.swap.functionName).toBe('exactInputSingle');
+    expect(q.swap.functionName).toBe('multicall');
     expect(q.swap.value).toBe('0');
-    const p = q.swap.args[0] as Record<string, unknown>;
-    expect(p.recipient).toBe(USER);
-    expect(p.tokenIn).toBe(USDG);
-    expect(p.tokenOut).toBe(NVDA);
-    expect(p.amountOutMinimum).toBe(q.minOut);
+    const [deadline, calls] = q.swap.args as [string, `0x${string}`[]];
+    expect(Number(deadline)).toBe(Math.floor(deps().now() / 1000) + SWAP_DEADLINE_SEC); // L-7
+    const inner = decodeFunctionData({ abi: swapRouter02Abi, data: calls[0] as `0x${string}` });
+    expect(inner.functionName).toBe('exactInputSingle');
+    const p = inner.args?.[0] as {
+      recipient: string;
+      tokenIn: string;
+      tokenOut: string;
+      amountOutMinimum: bigint;
+    };
+    expect(p.recipient.toLowerCase()).toBe(USER.toLowerCase());
+    expect(p.tokenIn.toLowerCase()).toBe(USDG.toLowerCase());
+    expect(p.tokenOut.toLowerCase()).toBe(NVDA.toLowerCase());
+    expect(p.amountOutMinimum.toString()).toBe(q.minOut);
     expect(q.approve?.to).toBe(USDG);
     expect(q.approve?.args).toEqual([PINNED.ROUTER, '1000000000']);
     expect(Date.parse(q.expiresAt) - Date.parse(q.quotedAt)).toBe(60_000);
@@ -200,7 +210,11 @@ describe('quote', () => {
 
   test('token address is case-insensitive but only curated addresses resolve', async () => {
     const q = await quote(deps(), { ...req, token: NVDA.toUpperCase().replace('0X', '0x') });
-    expect((q.swap.args[0] as Record<string, unknown>).tokenOut).toBe(NVDA);
+    const [, calls] = q.swap.args as [string, `0x${string}`[]];
+    const inner = decodeFunctionData({ abi: swapRouter02Abi, data: calls[0] as `0x${string}` });
+    expect(((inner.args as readonly unknown[])[0] as { tokenOut: string }).tokenOut.toLowerCase()).toBe(
+      NVDA.toLowerCase(),
+    );
     const err = await quote(deps(), { ...req, token: USDG }).catch((e) => e);
     expect(err.status).toBe(400);
   });

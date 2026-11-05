@@ -3,7 +3,7 @@ import type { Context, Hono, MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 import { AppError } from '../../lib/errors';
 import type { Env } from '../../lib/http';
-import { requireAdmin, requireSession } from '../auth/middleware';
+import { requireAdmin, requireFreshAuth, requireSession } from '../auth/middleware';
 import { chainQuoteDeps, quote } from './quote';
 import { getStock, listAll, listEnabled, upsertVerified } from './service';
 
@@ -11,6 +11,8 @@ export type StockAuth = {
   /** Session required; also enforces CSRF on unsafe methods. */
   session: MiddlewareHandler<Env>;
   admin: MiddlewareHandler<Env>;
+  /** Recent wallet signature, for admin changes. */
+  fresh: MiddlewareHandler<Env>;
 };
 
 const sessionAddress = (c: Context<Env>): string => {
@@ -45,7 +47,7 @@ export function stockRoutes(auth: StockAuth) {
 
     app.get('/v1/admin/stock-tokens', auth.admin, async (c) => c.json(await listAll()));
 
-    app.put('/v1/admin/stock-tokens', auth.admin, async (c) => {
+    app.put('/v1/admin/stock-tokens', auth.admin, auth.fresh, async (c) => {
       const parsed = PutBody.safeParse(await c.req.json().catch(() => null));
       if (!parsed.success) throw new AppError('VALIDATION', 'invalid body', 400, parsed.error.flatten());
       const result = await upsertVerified(parsed.data.address, parsed.data.enabled, {
@@ -58,4 +60,4 @@ export function stockRoutes(auth: StockAuth) {
   };
 }
 
-export default stockRoutes({ session: requireSession, admin: requireAdmin });
+export default stockRoutes({ session: requireSession, admin: requireAdmin, fresh: requireFreshAuth });

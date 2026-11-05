@@ -82,32 +82,31 @@ describe('pool selection', () => {
 });
 
 describe('re-verify never switches pools', () => {
-  test('M-3: a deeper new pool leaves poolAddress unchanged, disables the token and alerts', async () => {
+  test('M-3, M-8: a deeper new pool changes nothing and raises an alert', async () => {
     await upsertVerified(TOKEN, true);
     expect((await stored())?.poolAddress).toBe(LEGIT);
-    pools[100] = { address: EVIL, usdg: USDG_1M * 2n, liquidity: 5000n };
+    // a dust pool with a large liquidity(), which a narrow position gives for very little
+    pools[100] = { address: EVIL, usdg: 1n, liquidity: 5000n };
 
     const r = await reverifyAll();
 
-    expect(r.disabled).toEqual([TOKEN]);
+    expect(r.disabled).toEqual([]);
+    expect(r.alerts).toEqual([TOKEN]);
     const row = await stored();
     expect(row?.poolAddress).toBe(LEGIT);
     expect(row?.poolFee).toBe(3000);
-    expect(row?.enabled).toBe(false);
-    expect(await listEnabled()).toHaveLength(0);
-    const [alert] = await t.db.select().from(auditLog).where(eq(auditLog.action, 'stock.disabled'));
+    expect(row?.enabled).toBe(true);
+    const [alert] = await t.db.select().from(auditLog).where(eq(auditLog.action, 'stock.deeper_pool'));
     expect(alert?.subject).toBe(TOKEN);
     expect(alert?.details).toMatchObject({ pinned: LEGIT, deeper: EVIL });
   });
 
-  test('re-enabling after an alert keeps the pin unless the admin names another fee tier', async () => {
+  test('a pin moves only when an admin names another fee tier', async () => {
     await upsertVerified(TOKEN, true);
     pools[100] = { address: EVIL, usdg: USDG_1M * 2n, liquidity: 5000n };
     await reverifyAll();
     await upsertVerified(TOKEN, true);
     expect((await stored())?.poolAddress).toBe(LEGIT);
-    expect((await stored())?.enabled).toBe(true);
-    // an explicit admin decision is the one way a pin moves
     await upsertVerified(TOKEN, true, { poolFee: 100 });
     expect((await stored())?.poolAddress).toBe(EVIL);
   });

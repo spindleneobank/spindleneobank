@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { nodeBindingTypedData } from '@spindle/shared/binding';
 import { canonicalJson, sha256Hex } from '@spindle/shared/canonical-json';
 import { CLOSE_CODES, type HelloBody, HelloMsg, helloSigningMessage } from '@spindle/shared/node-protocol';
@@ -261,5 +264,45 @@ describe('connection', () => {
     conn = mk(h.url);
     conn.start();
     await waitFor(() => h.connections() >= 3);
+  });
+});
+
+describe('L-11: binding pin', () => {
+  test('the first binding fixes owner, chain and registry; anything else is refused', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pin-'));
+    const pinFile = join(dir, 'binding-pin.json');
+    const other = '0x00000000000000000000000000000000000000c3';
+    const stolen = { ...binding(), message: { ...binding().message, owner: other } };
+    const moved = {
+      ...binding(),
+      domain: { ...binding().domain, verifyingContract: other },
+    };
+    const logs: string[] = [];
+    const conn = new NodeConnection({
+      url: 'ws://127.0.0.1:1',
+      key,
+      log: { ...createLogger(), error: (m: string) => void logs.push(m), info: () => {} } as never,
+      bindingPinFile: pinFile,
+      buildHello: async () => hello,
+      getStatus: async () => ({}) as never,
+    } as never);
+    const signed: unknown[] = [];
+    (conn as unknown as { send: (m: unknown) => void }).send = (m) => void signed.push(m);
+    const sign = (b: unknown) =>
+      (conn as unknown as { signBinding: (b: unknown) => Promise<void> }).signBinding(b);
+
+    await sign(binding());
+    expect(signed).toHaveLength(1);
+    expect(JSON.parse(readFileSync(pinFile, 'utf8'))).toEqual({
+      owner: OWNER,
+      chainId: 31337,
+      registry: REG,
+    });
+    await sign(binding()); // same again, e.g. a fresh deadline
+    expect(signed).toHaveLength(2);
+    await sign(stolen);
+    await sign(moved);
+    expect(signed).toHaveLength(2);
+    expect(logs.filter((l) => l.startsWith('refusing to sign'))).toHaveLength(2);
   });
 });

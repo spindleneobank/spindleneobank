@@ -1,4 +1,5 @@
 import { config } from '../../config';
+import { sendAlert } from '../../lib/alerts';
 import { keeperBalance } from '../../lib/keeper';
 import { logger } from '../../lib/logger';
 import { type KeeperLevel, type KvStore, keeperLevel, keeperState, pgKv } from '../chain/service';
@@ -44,6 +45,16 @@ export async function runKeeperGuard(
       'keeper ETH critical: x402 disabled until the owner refills',
     );
   else if (level === 'low') log.warn({ balanceWei: status.balanceWei }, 'keeper ETH low: please refill');
+  if (level !== 'ok') {
+    await sendAlert(
+      `keeper:${level}`,
+      level === 'critical' ? 'critical' : 'warning',
+      `Keeper ETH is ${level}`,
+      {
+        balanceWei: status.balanceWei,
+      },
+    );
+  }
   await kv.set(KEEPER_STATUS_KEY, status);
   memo = undefined;
   return status;

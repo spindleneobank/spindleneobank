@@ -1,3 +1,4 @@
+import { sendAlert } from '../../lib/alerts';
 import type { JobModule } from '../../lib/modules';
 import { runKeeperGuard } from './guard';
 import './provider';
@@ -17,7 +18,9 @@ export const x402Jobs: JobModule = async (ctx) => {
   ctx.process('x402', 'x402-guard', () => runKeeperGuard());
   ctx.process('x402', 'x402-surcharge', async () => {
     const r = await refreshSurcharge();
-    if (r.surchargeMicros === null) ctx.logger.warn({}, 'x402 surcharge unknown: ETH price unavailable');
+    if (r.surchargeMicros === null) {
+      await sendAlert('oracle:eth-price', 'warning', 'ETH price unavailable: x402 surcharge unknown');
+    }
     return r;
   });
   await ctx.schedule('x402', 'x402-settle', SETTLE_EVERY_MS);

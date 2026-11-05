@@ -351,7 +351,7 @@ describe('exact scheme', () => {
     const failed = res
       .filter((r) => r.status === 'rejected')
       .map((r) => String((r as PromiseRejectedResult).reason.message));
-    expect(failed.every((m) => m.includes('exposure'))).toBe(true);
+    expect(failed.every((m) => m.includes('credit limit'))).toBe(true);
     expect(await rows()).toHaveLength(3);
   });
 
@@ -360,7 +360,7 @@ describe('exact scheme', () => {
       (await authorizeWith(await pay((await challengeFor(max)).body), max)) as Authorization;
     const a1 = await mk(9_000_000n);
     const a2 = await mk(9_000_000n);
-    expect(await code(mk(9_000_000n))).toContain('exposure');
+    expect(await code(mk(9_000_000n))).toContain('credit limit');
     await x402Provider.finalize(a1, 1000n);
     await x402Provider.finalize(a2, 1000n);
     await mk(9_000_000n);
@@ -482,6 +482,32 @@ describe('sessions', () => {
     await x402Provider.reverse(a, 123_000n); // idempotent per job
     expect(await dbRef.db.select().from(buyerLedger).where(eq(buyerLedger.jobId, a.jobId))).toHaveLength(1);
     expect((await rows())[0]?.usedMicros).toBe(0n);
+  });
+
+  test('a barred wallet cannot keep spending through a session it already holds', async () => {
+    const { o } = await open();
+    const a = (await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(100_000n))) as Authorization;
+    await x402Provider.finalize(a, 50_000n);
+    const [row] = await rows();
+    await getRedis().sadd(BARRED_KEY, row?.payer as string);
+    const next = await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(100_000n));
+    expect(JSON.stringify((next as { body: unknown }).body)).toContain('SESSION_CLOSED');
+    expect((await rows())[0]).toMatchObject({ status: 'closing', reservedMicros: 0n });
+  });
+
+  test('L-9: once settlement claims a session, a reversal refunds instead of lowering `used`', async () => {
+    const { o } = await open();
+    const a = (await x402Provider.authorize(sessionCtx(o.sessionToken), ctx(500_000n))) as Authorization;
+    await x402Provider.finalize(a, 123_000n);
+    // the settle run claimed it after this request last read the row
+    await dbRef.db
+      .update(x402Payments)
+      .set({ status: 'settling' })
+      .where(eq(x402Payments.id, a.x402PaymentId as string));
+    await x402Provider.reverse(a, 123_000n);
+    expect((await rows())[0]?.usedMicros).toBe(123_000n); // this is what the chain will collect
+    const [led] = await dbRef.db.select().from(buyerLedger).where(eq(buyerLedger.jobId, a.jobId));
+    expect(led).toMatchObject({ kind: 'refund', usdgMicros: 123_000n });
   });
 
   test('redis counters rebuild from the DB when the key is lost', async () => {

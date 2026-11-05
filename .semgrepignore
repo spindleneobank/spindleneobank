@@ -1,0 +1,3 @@
+# Test fixtures use fixed keys and local URLs on purpose.
+*.test.ts
+test/

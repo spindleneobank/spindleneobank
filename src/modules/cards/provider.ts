@@ -51,7 +51,8 @@ function endpoint(path: string): { url: string; signedPath: string } {
   const configured = cardSettings.baseUrl || 'https://izipay.me/api/v1';
   const base = new URL(configured);
   const prefix = base.pathname.replace(/\/+$/, '') || '/api/v1';
-  if (cardSettings.mode === 'live' && base.origin !== 'https://izipay.me') {
+  // live mode talks only to izipay, and mock mode never does
+  if ((cardSettings.mode === 'live') !== (base.origin === 'https://izipay.me')) {
     throw new ProviderError('not_sent', 'invalid_response');
   }
   return { url: `${base.origin}${prefix}${path}`, signedPath: `${prefix}${path}` };

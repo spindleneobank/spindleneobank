@@ -14,7 +14,6 @@ import { getRedis } from '../../lib/redis';
 import { CLASS_EXPECTATIONS, classifyGpu, type GpuClass } from '../../shared/gpu';
 import type { ProbeResultMsg } from '../../shared/node-protocol';
 import { dbRef } from '../auth/constants';
-import { activeCorpus } from '../canary/corpus';
 import { countTokens } from '../gateway/tokenizer';
 import { type Delta, type JobDone, type JobStartInput, requestFromWorker } from '../nodes/jobs';
 import { loadCatalog, nodeSettings } from '../nodes/service';
@@ -81,12 +80,12 @@ export interface MeasuredSpeed {
   tokens: number;
 }
 
-/** A prompt the node cannot have prepared for: from the private corpus, or else with a random subject. */
-function probePrompt(): string {
-  const prompts = activeCorpus()?.prompts ?? [];
-  const pick = prompts[Math.floor(Math.random() * prompts.length)];
-  const text = pick?.messages.at(-1)?.content;
-  return text ?? `Write one short paragraph about the code name ${randomBytes(6).toString('hex')}.`;
+/**
+ * A prompt the node cannot have prepared for. Never from the canary corpus: this job follows a `bench` probe, so a
+ * node can tell what it is, and would learn one canary prompt per probe.
+ */
+export function probePrompt(): string {
+  return `Write one short paragraph about the code name ${randomBytes(6).toString('hex')}.`;
 }
 
 /** Times a real job on the node from this side of the connection. Null when it cannot give a verdict. */

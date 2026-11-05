@@ -15,7 +15,7 @@ import {
   syncOneCard,
 } from './reconcile';
 import { invoiceOf } from './service';
-import { cardSettings, providerScope } from './settings';
+import { cardSettings, cardsEnabled, providerScope } from './settings';
 import { bootCards, HOOK_SECRET, type Kit } from './testkit';
 
 let kit: Kit;
@@ -264,6 +264,27 @@ describe('limits and guards', () => {
         return realFetch(input, init);
       }) as typeof fetch;
       Object.assign(cardSettings, prev);
+    }
+  });
+
+  test('L-5: mock mode refuses a live key and never reaches izipay', async () => {
+    const saved = { mode: cardSettings.mode, apiKey: cardSettings.apiKey, baseUrl: cardSettings.baseUrl };
+    const realFetch = globalThis.fetch;
+    let sent = 0;
+    globalThis.fetch = (async () => {
+      sent++;
+      return new Response('{}');
+    }) as unknown as typeof fetch;
+    try {
+      Object.assign(cardSettings, { mode: 'mock', apiKey: 'izpk_live_x' });
+      expect(cardsEnabled()).toBe(false);
+      // even with a harmless key, an unset base URL must not fall through to the real API
+      Object.assign(cardSettings, { apiKey: 'test-key', baseUrl: '' });
+      await expect(provider.pricing()).rejects.toThrow();
+      expect(sent).toBe(0);
+    } finally {
+      globalThis.fetch = realFetch;
+      Object.assign(cardSettings, saved);
     }
   });
 

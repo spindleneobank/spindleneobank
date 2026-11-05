@@ -156,6 +156,10 @@ describe('results, withholds, escalation', () => {
     expect(w).toHaveLength(1);
     expect(w[0]?.usdgMicros).toBe(-5_000_000n);
     expect(w[0]?.epoch).toBeNull();
+    // L-12: dated with the earliest earning it cancels, so no build can take the earning without the withhold
+    const earned = (await t.db.select().from(earningEvents)).filter((e) => e.kind === 'job' && !e.epoch);
+    const earliest = Math.min(...earned.map((e) => e.ts.getTime()));
+    expect(w[0]?.ts.getTime()).toBe(earliest);
   });
 
   test('a node is not judged on fewer than 5 canaries', async () => {

@@ -2,7 +2,7 @@
  * Regression test for audit finding M-2 (PoC chain/zz_poc_cap): once unposted earnings exceeded
  * maxEpochIncrease every later epoch was over the cap too, and payouts froze for good.
  */
-import { afterAll, beforeAll, beforeEach, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,11 +11,12 @@ import { eq } from 'drizzle-orm';
 import { decodeFunctionData, type Hex } from 'viem';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
 import { auditLog, earningEvents, epochs } from '../../db/schema';
+import { alertSettings } from '../../lib/alerts';
 import { closeRedis, getRedis } from '../../lib/redis';
 import { dbRef } from '../auth/constants';
 import { buildEpoch } from './builder';
 import { ATTEMPT_KEY, LOCK_KEY, runEpochOnce } from './jobs';
-import { buildHeadroom, type OnchainRoot, type PosterDeps, postPending } from './poster';
+import { buildHeadroom, checkLatestRoot, type OnchainRoot, type PosterDeps, postPending } from './poster';
 import { epochSettings } from './service';
 
 let t: TestDb;
@@ -147,4 +148,40 @@ test('a chain read failure builds nothing and retries the next minute', async ()
   expect(await t.db.select().from(epochs)).toHaveLength(0);
   const kvRows = await t.sql`select 1 from kv where key = ${ATTEMPT_KEY}`;
   expect(kvRows).toHaveLength(0);
+});
+
+describe('D: veto watch', () => {
+  const sent: string[] = [];
+  const saved = { ...alertSettings };
+  const watch = (lastRoot: string) =>
+    checkLatestRoot({
+      chain: {
+        lastEpoch: async () => 9n,
+        root: async () => ({ root: lastRoot as `0x${string}`, totalEarned: 1n, postedAt: 1n }),
+      },
+    } as never);
+  beforeEach(() => {
+    sent.length = 0;
+    alertSettings.url = 'https://hooks.test/x';
+    alertSettings.fetch = async (_u, init) => {
+      sent.push(String(init.body));
+      return new Response('ok');
+    };
+  });
+  afterEach(() => Object.assign(alertSettings, saved));
+
+  test('a root the database did not build raises a critical alert', async () => {
+    await getRedis().del('alert:root-mismatch:9');
+    expect(await watch(`0x${'a'.repeat(64)}`)).toBe('mismatch');
+    expect(sent[0]).toContain('veto it now');
+  });
+
+  test('the root we built is fine', async () => {
+    const root = `0x${'b'.repeat(64)}`;
+    await t.db
+      .insert(epochs)
+      .values({ epoch: 9n, root, totalEarnedUsdgMicros: 1n, owners: 1, treePath: 'x', status: 'posted' });
+    expect(await watch(root.toUpperCase().replace('0X', '0x'))).toBe('ok');
+    expect(sent).toHaveLength(0);
+  });
 });

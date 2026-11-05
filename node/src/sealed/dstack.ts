@@ -15,6 +15,7 @@ export type DstackFetch = (
 ) => Promise<{ quote: string; event_log: string | unknown[] }>;
 
 export const dstackGetQuote: DstackFetch = async (reportData) => {
+  // nosemgrep: react-insecure-request -- this fetch goes over the local dstack unix socket, not a network
   const res = await fetch('http://dstack/GetQuote', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

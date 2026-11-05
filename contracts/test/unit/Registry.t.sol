@@ -196,4 +196,54 @@ contract RegistryTest is Test {
         reg.linkIdentity(nid, aliceAgent);
         assertEq(reg.getNode(nid).agentId, aliceAgent);
     }
+
+    // Found by mutation testing: boundaries and refusals nothing exercised.
+    function test_register_highestClassAllowed() public {
+        uint256 dl = block.timestamp + 1 hours;
+        bytes memory sig = _sig(nodePk, alice, nodeKey, 4, false, dl);
+        vm.prank(alice);
+        uint256 nid = reg.registerNode(nodeKey, 4, false, bytes32(0), dl, sig);
+        assertEq(reg.getNode(nid).gpuClass, 4);
+    }
+
+    function test_register_validUntilItsDeadline() public {
+        uint256 dl = block.timestamp;
+        bytes memory sig = _sig(nodePk, alice, nodeKey, 2, false, dl);
+        vm.prank(alice);
+        assertEq(reg.registerNode(nodeKey, 2, false, bytes32(0), dl, sig), 1);
+    }
+
+    function test_register_revertsWrongSigLength() public {
+        uint256 dl = block.timestamp + 1 hours;
+        bytes memory sig = abi.encodePacked(_sig(nodePk, alice, nodeKey, 2, false, dl), uint8(0));
+        vm.prank(alice);
+        vm.expectRevert(ISpindleRegistry.BadNodeSignature.selector);
+        reg.registerNode(nodeKey, 2, false, bytes32(0), dl, sig);
+    }
+
+    function test_update_revertsInvalidClassAndAllowsHighest() public {
+        uint256 nid = _register(alice);
+        uint256 dl = block.timestamp + 1 hours;
+        bytes memory five = _sig(nodePk, alice, nodeKey, 5, false, dl);
+        bytes memory four = _sig(nodePk, alice, nodeKey, 4, false, dl);
+        vm.startPrank(alice);
+        vm.expectRevert(ISpindleRegistry.InvalidClass.selector);
+        reg.updateNode(nid, 5, false, bytes32(0), dl, five);
+        reg.updateNode(nid, 4, false, bytes32(0), dl, four);
+        vm.stopPrank();
+        assertEq(reg.getNode(nid).gpuClass, 4);
+    }
+
+    function test_deactivated_cannotUpdateOrLink() public {
+        uint256 nid = _register(alice);
+        uint256 dl = block.timestamp + 1 hours;
+        bytes memory sig = _sig(nodePk, alice, nodeKey, 3, false, dl);
+        vm.startPrank(alice);
+        reg.deactivate(nid);
+        vm.expectRevert(ISpindleRegistry.NotActive.selector);
+        reg.updateNode(nid, 3, false, bytes32(0), dl, sig);
+        vm.expectRevert(ISpindleRegistry.NotActive.selector);
+        reg.linkIdentity(nid, 1);
+        vm.stopPrank();
+    }
 }

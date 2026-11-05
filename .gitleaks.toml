@@ -1,0 +1,8 @@
+# Upstream test vectors in vendored libraries and the documentation placeholder are not secrets.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "vendored upstream code and example placeholders"
+paths = ['''^contracts/lib/''']
+regexes = ['''sk-spdl-YOUR''', '''\$\{base\}/chat/completions''']

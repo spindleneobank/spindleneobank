@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import type { Address, Hex } from 'viem';
 import { config } from '../../config';
@@ -13,7 +13,7 @@ import { spindlePaymentTypedData } from '../../shared/x402';
 import { dbRef } from '../auth/constants';
 import { randomNonce, randomPaymentId, x402Addresses } from './challenge';
 import { currentSurchargeMicros } from './surcharge';
-import { verifyAndOpen } from './verify';
+import { reserveCredit, verifyAndOpen } from './verify';
 
 export const SESSION_MAX_CAP_MICROS = SESSION_MAX_CAP_MICROS_DEFAULT;
 export const PENDING_TTL_SEC = 600;
@@ -46,12 +46,16 @@ redis.call('hincrby', KEYS[1], 'reserved', -tonumber(ARGV[1]))
 redis.call('hincrby', KEYS[1], 'used', tonumber(ARGV[2]))
 return tonumber(redis.call('hget', KEYS[1], 'used'))`;
 
-export type Reservation = { remaining: bigint } | { exhausted: true } | { closed: true };
+export type Reservation =
+  | { remaining: bigint }
+  | { exhausted: true }
+  | { closed: true }
+  | { refused: 'credit' | 'capacity' };
 
 export async function reserveSession(
   row: Pick<
     X402Payment,
-    'id' | 'paymentId' | 'capMicros' | 'surchargeMicros' | 'usedMicros' | 'reservedMicros'
+    'id' | 'payer' | 'paymentId' | 'capMicros' | 'surchargeMicros' | 'usedMicros' | 'reservedMicros'
   >,
   amount: bigint,
   ttlMs: number,
@@ -72,13 +76,16 @@ export async function reserveSession(
   );
   if (r === -1) return { exhausted: true };
   if (r === -2) return { closed: true };
+  const undo = () =>
+    redis.eval(FINALIZE_LUA, 1, sessionKey(row.paymentId), amount.toString(), '0').catch(() => {});
   try {
-    await dbRef.db
-      .update(x402Payments)
-      .set({ reservedMicros: sql`${x402Payments.reservedMicros} + ${amount}` })
-      .where(eq(x402Payments.id, row.id));
+    const refused = await reserveCredit(row.id, row.payer, amount);
+    if (refused) {
+      await undo();
+      return refused === 'closed' ? { closed: true } : { refused };
+    }
   } catch (err) {
-    await redis.eval(FINALIZE_LUA, 1, sessionKey(row.paymentId), amount.toString(), '0').catch(() => {});
+    await undo();
     throw err;
   }
   return { remaining: BigInt(r) };
@@ -90,7 +97,7 @@ export async function settleSessionUse(
   reserved: bigint,
   charge: bigint,
   redis: Redis = getRedis(),
-): Promise<{ used: bigint; closing: boolean }> {
+): Promise<{ used: bigint; closing: boolean; settleable: boolean; payer: string }> {
   const [row] = await dbRef.db.select().from(x402Payments).where(eq(x402Payments.id, paymentRowId));
   if (!row) throw new AppError('NOT_FOUND', 'x402 session not found.');
   const spendable = (row.capMicros ?? 0n) - (row.surchargeMicros ?? 0n);
@@ -107,11 +114,33 @@ export async function settleSessionUse(
       reservedMicros: sql`greatest(${x402Payments.reservedMicros} - ${reserved}, 0)`,
     })
     .where(eq(x402Payments.id, paymentRowId))
-    .returning({ used: x402Payments.usedMicros });
+    .returning({ used: x402Payments.usedMicros, reserved: x402Payments.reservedMicros });
   const used = upd?.used ?? row.usedMicros + c;
   const exhausted = used >= spendable;
   if (exhausted) await closeSession(paymentRowId, redis);
-  return { used, closing: exhausted };
+  // a closed session waits for its last job before it can settle
+  const settleable = row.status === 'closing' && upd?.reserved === 0n;
+  return { used, closing: exhausted, settleable, payer: row.payer };
+}
+
+/** Takes a charge back off a session that has not been claimed for settlement. False once it has been. */
+export async function reverseSessionUse(
+  paymentRowId: string,
+  charged: bigint,
+  redis: Redis = getRedis(),
+): Promise<boolean> {
+  const [row] = await dbRef.db
+    .update(x402Payments)
+    .set({ usedMicros: sql`greatest(${x402Payments.usedMicros} - ${charged}, 0)` })
+    .where(and(eq(x402Payments.id, paymentRowId), inArray(x402Payments.status, ['open', 'closing'])))
+    .returning({ paymentId: x402Payments.paymentId });
+  if (!row) return false;
+  await redis
+    .eval(FINALIZE_LUA, 1, sessionKey(row.paymentId), '0', (-charged).toString())
+    .catch((err) =>
+      logger.warn({ err: String(err) }, 'x402: session counter update failed (DB is authoritative)'),
+    );
+  return true;
 }
 
 /**
@@ -125,14 +154,17 @@ export async function closeSession(
   const [row] = await dbRef.db.select().from(x402Payments).where(eq(x402Payments.id, paymentRowId));
   if (!row) return null;
   await redis.hset(sessionKey(row.paymentId), 'closed', 1).catch(() => {});
-  const next = row.usedMicros > 0n || row.reservedMicros > 0n ? 'closing' : 'expired';
-  const upd = await dbRef.db
+  // decided in the update itself, so a reservation that landed since the read above is seen
+  const [upd] = await dbRef.db
     .update(x402Payments)
-    .set({ status: next, closedAt: new Date() })
+    .set({
+      status: sql`case when ${x402Payments.usedMicros} > 0 or ${x402Payments.reservedMicros} > 0 then 'closing' else 'expired' end`,
+      closedAt: new Date(),
+    })
     .where(and(eq(x402Payments.id, paymentRowId), eq(x402Payments.status, 'open')))
-    .returning({ id: x402Payments.id });
-  if (upd.length > 0 && next === 'closing') await redis.incr(CLOSING_COUNTER).catch(() => {});
-  return upd.length > 0 ? next : null;
+    .returning({ status: x402Payments.status });
+  if (upd?.status === 'closing') await redis.incr(CLOSING_COUNTER).catch(() => {});
+  return (upd?.status as 'closing' | 'expired' | undefined) ?? null;
 }
 export const CLOSING_COUNTER = 'x402:closing-count';
 
@@ -219,6 +251,7 @@ export async function openSession(
   signature: Hex,
   redis: Redis = getRedis(),
   nowSec = Math.floor(Date.now() / 1000),
+  clientIp?: string,
 ) {
   const raw = await redis.get(pendingKey(sessionId));
   if (!raw) throw new AppError('NOT_FOUND', 'Unknown or expired session request.');
@@ -239,6 +272,7 @@ export async function openSession(
     signature,
     permitExtra: { expiresAt: expiresAtSec, ttlSec: p.ttlSec },
     sessionTokenHash: hashToken(token),
+    ...(clientIp ? { clientIp } : {}),
     consume: async () => (await redis.getdel(pendingKey(sessionId))) !== null,
     nowSec,
   });

@@ -1,6 +1,13 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { eq } from 'drizzle-orm';
-import { decodeFunctionData, encodeAbiParameters, encodeEventTopics, type TransactionReceipt } from 'viem';
+import {
+  decodeFunctionData,
+  encodeAbiParameters,
+  encodeEventTopics,
+  encodeFunctionData,
+  parseAbi,
+  type TransactionReceipt,
+} from 'viem';
 import { cardOperations, relayOrders } from '../../db/schema';
 import { closeQueues } from '../../lib/queue';
 import { closeRedis } from '../../lib/redis';
@@ -10,8 +17,8 @@ import { processOneEvent, submitOne } from '../cards/reconcile';
 import { invoiceOf } from '../cards/service';
 import { cardSettings } from '../cards/settings';
 import { bootCards, type Kit } from '../cards/testkit';
-import { quote, relayDeps } from './client';
-import { chainDeps, createRelayQuote, markSubmitted, pollRelayOrders } from './orders';
+import { isRelayPath, quote, type RelayQuote, RelayQuoteResponse, relayDeps } from './client';
+import { assertQuoteIsSafe, chainDeps, createRelayQuote, markSubmitted, pollRelayOrders } from './orders';
 import { stubAbi } from './stub';
 
 const STUB = '0x11dc91d71c05d82f0232493d814a6af41a229b4c';
@@ -28,6 +35,14 @@ let relayReply: (path: string) => { status: number; body: unknown } = () => ({
 });
 let statusReply = 'success';
 
+const DEPOSITORY = '0x4cd00e387622c35bddb9b4c962c136462338bc31';
+const approveData = (amount: string, spender = DEPOSITORY) =>
+  encodeFunctionData({
+    abi: parseAbi(['function approve(address, uint256)']),
+    functionName: 'approve',
+    args: [spender as `0x${string}`, BigInt(amount)],
+  });
+
 function relayQuoteBody(amountIn = '10715531') {
   seq += 1;
   REQ = `0x${seq.toString(16).padStart(64, '0')}`;
@@ -37,7 +52,7 @@ function relayQuoteBody(amountIn = '10715531') {
       {
         id: 'approve',
         kind: 'transaction',
-        items: [{ data: { to: USDG, data: '0xaaaa', value: '0', chainId: 4663 } }],
+        items: [{ data: { to: USDG, data: approveData(amountIn), value: '0', chainId: 4663 } }],
       },
       {
         id: 'deposit',
@@ -461,5 +476,67 @@ describe('relay orders', () => {
       await dbRef.db.select().from(relayOrders).where(eq(relayOrders.cardOperationId, opId))
     ).map((o) => o.status);
     expect(states.filter((s) => s === 'quoted')).toHaveLength(1);
+  });
+});
+
+describe('L-6: a live quote is checked before the user signs it', () => {
+  const DEAD = '0x000000000000000000000000000000000000dEaD';
+  const dest = ['10000000', 6] as const; // a $10 invoice
+  const base = () => RelayQuoteResponse.parse(relayQuoteBody());
+  const refused = (mutate: (q: RelayQuote) => void) => {
+    const q = base();
+    mutate(q);
+    expect(() => assertQuoteIsSafe(q, ...dest)).toThrow('invalid quote');
+  };
+  const dep = (q: RelayQuote) =>
+    (q.steps[1] as RelayQuote['steps'][number]).items[0]?.data as {
+      to: string;
+      value: string;
+      chainId: number;
+    };
+  const app = (q: RelayQuote) =>
+    (q.steps[0] as RelayQuote['steps'][number]).items[0]?.data as { to: string; data: string };
+
+  test('control: a normal quote passes', () => {
+    expect(() => assertQuoteIsSafe(base(), ...dest)).not.toThrow();
+  });
+  test('call to an unknown contract', () =>
+    refused((q) => {
+      dep(q).to = DEAD;
+    }));
+  test('native value', () =>
+    refused((q) => {
+      dep(q).value = '1';
+    }));
+  test('another chain', () =>
+    refused((q) => {
+      dep(q).chainId = 1;
+    }));
+  test('approve for an unknown spender', () =>
+    refused((q) => {
+      app(q).data = approveData('10715531', DEAD);
+    }));
+  test('approve above the quoted amount', () =>
+    refused((q) => {
+      app(q).data = approveData('10715532');
+    }));
+  test('a USDG call that is not approve', () =>
+    refused((q) => {
+      app(q).data = '0xaaaa';
+    }));
+  test('asks far more than the invoice', () =>
+    refused((q) => {
+      q.details.currencyIn.amount = '20000000';
+    }));
+  test('checkEndpoint cannot leave the Relay host', () => {
+    expect(isRelayPath('/intents/status/v3?requestId=0x1')).toBe(true);
+    for (const bad of [
+      'https://evil.test/x',
+      '//evil.test/x',
+      '/\\evil.test',
+      '@evil.test/x',
+      '.evil.test/x',
+    ])
+      expect(isRelayPath(bad)).toBe(false);
   });
 });

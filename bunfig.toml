@@ -1,3 +1,7 @@
+# Three days, in seconds: a poisoned release is usually caught and pulled sooner than that.
+[install]
+minimumReleaseAge = 259200
+
 [test]
 preload = ["./test/preload.ts"]
 pathIgnorePatterns = ["contracts/lib/**", "node_modules/**", "**/*.int.test.ts"]

@@ -1,7 +1,8 @@
+import { join } from 'node:path';
 import type { HelloBody } from '@spindle/shared/node-protocol';
 import pkg from '../package.json';
 import { type Config, loadConfig } from './config';
-import { NodeConnection } from './connection';
+import { BINDING_PIN_FILE, NodeConnection } from './connection';
 import { inferenceThreads } from './cpu';
 import { createEngine, type Engine } from './engine';
 import { detectHardware, readGpuStats } from './hardware';
@@ -139,6 +140,7 @@ async function main(): Promise<void> {
     url: `${config.apiUrl.replace(/\/$/, '')}/v1/node/ws`,
     key,
     log,
+    bindingPinFile: join(config.dataDir, BINDING_PIN_FILE),
     buildHello,
     getStatus: async () => ({
       state: runner.busy ? 'busy' : sync.loading ? 'loading' : 'idle',

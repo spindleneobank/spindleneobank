@@ -3,6 +3,7 @@ import { and, desc, eq, gt, inArray, ne } from 'drizzle-orm';
 import { type Address, encodeFunctionData, type Hex } from 'viem';
 import { config } from '../../config';
 import { auditLog, epochs, kv } from '../../db/schema';
+import { sendAlert } from '../../lib/alerts';
 import { requireAddress } from '../../lib/contracts';
 import { type KeeperTxInput, type KeeperTxResult, keeperAccount, sendKeeperTx } from '../../lib/keeper';
 import { logger } from '../../lib/logger';
@@ -127,6 +128,30 @@ export async function buildHeadroom(deps: PosterDeps = defaultPosterDeps()): Pro
   return headroom > 0n ? headroom : 0n;
 }
 
+/**
+ * Compares the newest root on-chain with what this database built. A root we did not build means the keeper key is
+ * being used by someone else, and only a guardian veto inside the claim delay can stop it being paid.
+ */
+export async function checkLatestRoot(deps: PosterDeps): Promise<'ok' | 'mismatch' | 'none'> {
+  const last = await deps.chain.lastEpoch();
+  if (last === 0n) return 'none';
+  const onchain = await deps.chain.root(last);
+  const [row] = await dbRef.db.select({ root: epochs.root }).from(epochs).where(eq(epochs.epoch, last));
+  if (row?.root.toLowerCase() === onchain.root.toLowerCase()) return 'ok';
+  await sendAlert(
+    `root-mismatch:${last}`,
+    'critical',
+    'On-chain root differs from the database: veto it now',
+    {
+      epoch: last.toString(),
+      onchain: onchain.root,
+      built: row?.root ?? null,
+      postedAt: onchain.postedAt.toString(),
+    },
+  );
+  return 'mismatch';
+}
+
 export type PostOutcome =
   | { kind: 'posted'; epoch: bigint; txHash: Hex; gasUsed?: bigint }
   | { kind: 'posting'; epoch: bigint; txHash: Hex | null }
@@ -140,6 +165,7 @@ export type PostOutcome =
 export async function raiseEpochAlert(epoch: bigint, reason: string, extra: Record<string, unknown> = {}) {
   const details = { epoch: epoch.toString(), reason, ...extra };
   logger.error(details, 'epoch post blocked');
+  await sendAlert(`epoch:${details.epoch}:${reason}`, 'critical', `Epoch post blocked: ${reason}`, details);
   const db = dbRef.db;
   const [cur] = await db.select().from(kv).where(eq(kv.key, ALERT_KEY));
   const prev = cur?.value as { epoch?: string; reason?: string } | undefined;

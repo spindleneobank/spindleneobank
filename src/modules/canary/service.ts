@@ -77,6 +77,7 @@ export const CANARY_BUYER_ADDRESS = '0x000000000000000000000000000000000000c4a4'
 
 export function evaluateChat(expect: ChatExpect, text: string): boolean {
   const t = text.toLowerCase();
+  // nosemgrep: detect-non-literal-regexp -- the pattern comes from the operator's private corpus, not a user
   if ('regex' in expect) return new RegExp(expect.regex, 'i').test(text);
   return expect.anyOf.some((w) => t.includes(w.toLowerCase()));
 }
@@ -634,7 +635,10 @@ export async function recordCanaryResult(r: CanaryRecord): Promise<{ withheld: b
       })
       .where(eq(nodes.id, r.nodeId));
     const [sum] = await tx
-      .select({ n: sql<string>`coalesce(sum(${earningEvents.usdgMicros}), 0)::text` })
+      .select({
+        n: sql<string>`coalesce(sum(${earningEvents.usdgMicros}), 0)::text`,
+        first: sql<string | null>`min(${earningEvents.ts})`,
+      })
       .from(earningEvents)
       .where(
         and(
@@ -646,7 +650,8 @@ export async function recordCanaryResult(r: CanaryRecord): Promise<{ withheld: b
     withheld = withholdAmount(BigInt(sum?.n ?? '0'));
     if (withheld < 0n) {
       await tx.insert(earningEvents).values({
-        ts: new Date(),
+        // the earliest earning's time: a build then takes the withhold with the earnings it cancels
+        ts: new Date(sum?.first as string),
         nodeId: r.nodeId,
         owner: row.owner,
         jobId: r.jobId,

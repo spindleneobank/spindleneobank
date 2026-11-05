@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
@@ -142,6 +142,7 @@ contract SpindleRegistry is ISpindleRegistry, EIP712 {
         bytes32 digest = _hashTypedDataV4(
             keccak256(abi.encode(NODE_BINDING_TYPEHASH, owner, nodeKey, gpuClass, ccCapable, deadline))
         );
+        // slither-disable-next-line unused-return -- the third value only details the error we already check
         (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecoverCalldata(digest, sig);
         if (err != ECDSA.RecoverError.NoError || signer != nodeKey || nodeKey == address(0)) {
             revert BadNodeSignature();

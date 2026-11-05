@@ -24,6 +24,7 @@ export const cardSettings = {
   relayApiUrl: config.RELAY_API_URL,
   relayApiKey: secrets.RELAY_API_KEY,
   relayStubAddress: config.RELAY_STUB_ADDRESS as string | undefined,
+  relayAllowedTargets: config.RELAY_ALLOWED_TARGETS.split(',').map((a) => a.trim().toLowerCase()),
   usdgAddress: (config.USDG_ADDRESS ?? '0x5fc5360d0400a0fd4f2af552add042d716f1d168') as string,
   /** Real chain id for Relay quotes; independent of CHAIN_ID (31337 on the dev fork). */
   originChainId: config.RELAY_ORIGIN_CHAIN_ID,
@@ -48,7 +49,8 @@ export const liveWritesBlocked = () => cardSettings.mode === 'live' && !cardSett
 
 export const cardsEnabled = () =>
   Boolean(cardSettings.apiKey && cardSettings.apiSecret && cardSettings.encKey) &&
-  (cardSettings.mode === 'mock' || cardSettings.apiKey.startsWith('izpk_live_'));
+  // a live key only ever runs in live mode: mock mode must not be able to issue real cards
+  (cardSettings.mode === 'mock') !== cardSettings.apiKey.startsWith('izpk_live_');
 
 let modeLogged = false;
 /** One startup line per process (api and worker each initialise the card provider once). */
@@ -95,7 +97,7 @@ function key(): Buffer {
 /** AES-256-GCM, base64(iv | tag | ciphertext), bound to `context` through the associated data. */
 export function encryptCardData(plain: string, context: string): string {
   const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', key(), iv);
+  const cipher = createCipheriv('aes-256-gcm', key(), iv, { authTagLength: 16 });
   cipher.setAAD(Buffer.from(context));
   const ciphertext = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
   return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]).toString('base64');
@@ -105,7 +107,7 @@ export function decryptCardData(blob: string, context: string): string {
   try {
     const bytes = Buffer.from(blob, 'base64');
     if (bytes.length < 28 || bytes.toString('base64') !== blob) throw new Error('shape');
-    const decipher = createDecipheriv('aes-256-gcm', key(), bytes.subarray(0, 12));
+    const decipher = createDecipheriv('aes-256-gcm', key(), bytes.subarray(0, 12), { authTagLength: 16 });
     decipher.setAAD(Buffer.from(context));
     decipher.setAuthTag(bytes.subarray(12, 28));
     return Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]).toString('utf8');

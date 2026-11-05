@@ -67,17 +67,17 @@ export function slashingRoutes(app: Hono<Env>): void {
     return c.json(evidence as Record<string, unknown>);
   });
 
-  app.post('/v1/admin/slash-cases/:id/submitted', requireAdmin, async (c) => {
+  app.post('/v1/admin/slash-cases/:id/submitted', requireAdmin, requireFreshAuth, async (c) => {
     const { txHash } = await body(c, PostAdminSlashSubmittedReq);
     return c.json(await markSubmitted(c.req.param('id'), txHash, actor(c)));
   });
 
-  app.post('/v1/admin/slash-cases/:id/dismiss', requireAdmin, async (c) => {
+  app.post('/v1/admin/slash-cases/:id/dismiss', requireAdmin, requireFreshAuth, async (c) => {
     const { reason } = await body(c, PostAdminSlashDismissReq);
     return c.json(await dismissCase(c.req.param('id'), reason, actor(c)));
   });
 
-  app.post('/v1/admin/nodes/:id/suspend', requireAdmin, async (c) => {
+  app.post('/v1/admin/nodes/:id/suspend', requireAdmin, requireFreshAuth, async (c) => {
     const { reason } = await body(c, PostAdminNodeSuspendReq);
     await suspendNode(c.req.param('id'), reason ?? 'suspended by admin', { actor: actor(c) });
     return c.json({ ok: true });
@@ -88,7 +88,7 @@ export function slashingRoutes(app: Hono<Env>): void {
     return c.json(await banNode(c.req.param('id'), reason, actor(c)));
   });
 
-  app.post('/v1/admin/nodes/:id/unsuspend', requireAdmin, async (c) => {
+  app.post('/v1/admin/nodes/:id/unsuspend', requireAdmin, requireFreshAuth, async (c) => {
     await unsuspendNode(c.req.param('id'), actor(c));
     return c.json({ ok: true });
   });

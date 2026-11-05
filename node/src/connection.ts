@@ -1,3 +1,4 @@
+import { readFile, writeFile } from 'node:fs/promises';
 import { nodeBindingTypedData } from '@spindle/shared/binding';
 import {
   CLOSE_CODES,
@@ -27,10 +28,15 @@ export interface ConnectionHandlers {
   onConnected?(): void;
 }
 
+export const BINDING_PIN_FILE = 'binding-pin.json';
+type BindingPin = { owner: string; chainId: number; registry: string };
+
 export interface ConnectionOptions {
   url: string;
   key: NodeKey;
   log: Logger;
+  /** Where the first signed binding's owner, chain and registry are kept. Omit to sign whatever is asked (tests). */
+  bindingPinFile?: string;
   buildHello: () => Promise<HelloBody>;
   getStatus: () => Promise<Omit<StatusMsg, 'v' | 'type'>>;
   handlers?: ConnectionHandlers;
@@ -298,11 +304,47 @@ export class NodeConnection {
     this.eligibleTimer = setInterval(note, this.o.eligibilityLogMs ?? 5 * 60_000);
   }
 
+  /**
+   * The first binding this agent signs fixes its owner, chain and registry, which are logged for the operator to
+   * check. A compromised API must not be able to move the node key to another owner afterwards.
+   */
+  private async checkBindingPin(b: WelcomeMsg['binding']): Promise<boolean> {
+    const file = this.o.bindingPinFile;
+    if (!file) return true;
+    const want: BindingPin = {
+      owner: b.message.owner.toLowerCase(),
+      chainId: b.domain.chainId,
+      registry: b.domain.verifyingContract.toLowerCase(),
+    };
+    let pinned: BindingPin | null = null;
+    try {
+      pinned = JSON.parse(await readFile(file, 'utf8')) as BindingPin;
+    } catch {
+      // first run
+    }
+    if (!pinned) {
+      await writeFile(file, JSON.stringify(want), { mode: 0o600 });
+      this.o.log.info(
+        `binding pinned: owner ${want.owner}, chain ${want.chainId}, registry ${want.registry}. Check this is your wallet.`,
+      );
+      return true;
+    }
+    const same =
+      pinned.owner === want.owner && pinned.chainId === want.chainId && pinned.registry === want.registry;
+    if (!same) {
+      this.o.log.error(
+        `refusing to sign: the server asked for owner ${want.owner}, chain ${want.chainId}, registry ${want.registry}, but this node is pinned to owner ${pinned.owner}, chain ${pinned.chainId}, registry ${pinned.registry}. If you meant to change it, delete ${file} and restart.`,
+      );
+    }
+    return same;
+  }
+
   private async signBinding(b: WelcomeMsg['binding']): Promise<void> {
     if (b.message.nodeKey.toLowerCase() !== this.o.key.address.toLowerCase()) {
       this.o.log.error('server binding is for a different node key; refusing to sign');
       return;
     }
+    if (!(await this.checkBindingPin(b))) return;
     const td = nodeBindingTypedData(
       { chainId: b.domain.chainId, verifyingContract: b.domain.verifyingContract as `0x${string}` },
       {

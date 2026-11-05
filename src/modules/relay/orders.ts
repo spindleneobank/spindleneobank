@@ -1,4 +1,6 @@
+import { erc20Abi } from '@spindle/shared/abi';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { decodeFunctionData } from 'viem';
 import { cardOperations, relayOrders } from '../../db/schema';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
@@ -11,6 +13,7 @@ import { updateOperation } from '../cards/reconcile';
 import { invoiceOf } from '../cards/service';
 import { assertRelayModeSafe, cardSettings } from '../cards/settings';
 import * as relayClient from './client';
+import { isRelayPath, type RelayQuote } from './client';
 import { receiptHasStubDeposit, rewriteForStub, type ServedStep } from './stub';
 
 export const DEST = {
@@ -57,6 +60,54 @@ export async function createRelayQuote(userId: string, address: string, operatio
   return dbRef.db.transaction((tx) => quoteLocked(tx, userId, address, operationId));
 }
 
+/** Most a quote may ask from the user beyond what the invoice needs, as a share and a flat amount for fees. */
+const MAX_QUOTE_OVERHEAD = { bps: 1_000n, usdgMicros: 5_000_000n };
+
+/**
+ * The user signs what a live quote returns, so a compromised or wrong Relay response must not reach them: only
+ * `approve` on USDG for an allowed spender up to the quoted amount, and calls to allowed contracts, with no value,
+ * on our chain, for an amount in line with the invoice.
+ */
+export function assertQuoteIsSafe(quote: RelayQuote, destAmount: string, destDecimals: number): void {
+  const refuse = (why: string): never => {
+    logger.error({ why, requestId: quote.requestId }, 'relay quote refused');
+    throw new AppError(
+      'UPSTREAM_UNAVAILABLE',
+      'The bridge returned an invalid quote. Please try again later.',
+    );
+  };
+  const amountIn = BigInt(quote.details.currencyIn.amount);
+  const needed = (BigInt(destAmount) * 1_000_000n) / 10n ** BigInt(destDecimals);
+  const most = needed + (needed * MAX_QUOTE_OVERHEAD.bps) / 10_000n + MAX_QUOTE_OVERHEAD.usdgMicros;
+  if (amountIn > most) refuse('amount above the invoice');
+  const usdg = cardSettings.usdgAddress.toLowerCase();
+  const allowed = cardSettings.relayAllowedTargets;
+  for (const step of quote.steps) {
+    for (const { data: tx } of step.items) {
+      const to = tx.to.toLowerCase();
+      if (tx.chainId !== cardSettings.originChainId) refuse('wrong chain');
+      if (BigInt(tx.value || '0') !== 0n) refuse('sends native value');
+      if (to === usdg) {
+        const call = decodeApprove(tx.data);
+        if (!call) refuse('USDG call other than approve');
+        else if (!allowed.includes(call.spender)) refuse('approve for an unknown spender');
+        else if (call.amount > amountIn) refuse('approve above the quoted amount');
+      } else if (!allowed.includes(to)) refuse('call to an unknown contract');
+    }
+  }
+}
+
+function decodeApprove(data: string): { spender: string; amount: bigint } | null {
+  try {
+    const d = decodeFunctionData({ abi: erc20Abi, data: data as `0x${string}` });
+    if (d.functionName !== 'approve') return null;
+    const [spender, amount] = d.args as readonly [string, bigint];
+    return { spender: spender.toLowerCase(), amount };
+  } catch {
+    return null;
+  }
+}
+
 async function quoteLocked(dtx: DbTx, userId: string, address: string, operationId: string) {
   const [op] = await dtx
     .select()
@@ -86,6 +137,7 @@ async function quoteLocked(dtx: DbTx, userId: string, address: string, operation
     amount: destAmount,
   });
   const stub = cardSettings.relayMode === 'stub';
+  if (!stub) assertQuoteIsSafe(quote, destAmount, dest.decimals);
   const steps: ServedStep[] = stub
     ? rewriteForStub(quote)
     : quote.steps.map((s) => ({
@@ -107,7 +159,9 @@ async function quoteLocked(dtx: DbTx, userId: string, address: string, operation
     feesUsd: sumUsd(quote.fees),
     timeEstimateSec: Math.max(1, Math.round(quote.details.timeEstimate ?? 60)),
     expiresAt,
-    ...(deposit?.check?.endpoint ? { checkEndpoint: deposit.check.endpoint } : {}),
+    ...(deposit?.check?.endpoint && isRelayPath(deposit.check.endpoint)
+      ? { checkEndpoint: deposit.check.endpoint }
+      : {}),
     endpoint,
     stub,
     user: address.toLowerCase(),

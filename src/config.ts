@@ -70,6 +70,15 @@ const envSchema = z.object({
   RELAY_API_KEY: z.string().default(''),
   RELAY_MODE: z.enum(['live', 'stub']).default('live'),
   RELAY_STUB_ADDRESS: address,
+  /**
+   * Contracts a live Relay quote may have the user call or approve, besides USDG. Anything else is refused.
+   * Default: chain 4663's depository, ERC-20 routers and approval proxies from api.relay.link/chains (2026-11-04).
+   */
+  RELAY_ALLOWED_TARGETS: z
+    .string()
+    .default(
+      '0x4cd00e387622c35bddb9b4c962c136462338bc31,0x0729e2a4716d9f7dd17858d5d504426d228697f7,0x5567954cd026cebfe486062cb75848e0f1c12e58,0xb92fe925dc43a0ecde6c8b1a2709c170ec4fff4f,0xccc88a9d1b4ed6b0eaba998850414b24f1c315be',
+    ),
   IZIPAY_MODE: z.enum(['mock', 'live']).default('mock'),
   IZIPAY_LIVE_WRITES: boolean(false),
   IZIPAY_RATE_BUDGET_PER_MIN: positiveInt(30),
@@ -83,6 +92,12 @@ const envSchema = z.object({
 
   /** Largest gap between a pool's spot price and its 30-minute TWAP at which a swap is still quoted, in bps. */
   STOCK_MAX_TWAP_DEVIATION_BPS: positiveInt(500),
+  /** Believe cf-connecting-ip and x-forwarded-for from loopback or private peers. false: socket address only. */
+  TRUST_PROXY: boolean(true),
+  /** Webhook for push alerts (Slack or Discord style). Empty: alerts only go to the logs and admin overview. */
+  ALERT_WEBHOOK_URL: z.string().default(''),
+  /** A single claim above this raises an alert, in USDG micros. */
+  ALERT_LARGE_CLAIM_MICROS: intString('1000000000'),
   EPOCH_SECONDS: positiveInt(3600),
   CLAIM_MIN_USDG_MICROS: intString('10000000'),
   X402_ENABLED: boolean(true),
@@ -91,6 +106,11 @@ const envSchema = z.object({
   /** Unsettled x402 exposure across all payers: per-payer limits alone can be farmed with fresh addresses. */
   X402_MAX_GLOBAL_UNSETTLED_MICROS: intString('500000000'),
   X402_MAX_OPENS_PER_IP_DAY: positiveInt(500),
+  /** Unsettled credit for a wallet that has settled nothing yet. Enough for a first small job, and all it can default on. */
+  X402_NEW_PAYER_CREDIT_MICROS: intString('50000'),
+  /** Extra credit per settled micro, in bps. Must stay under 2000: see `creditPerSettledBps`. */
+  X402_CREDIT_PER_SETTLED_BPS: z.coerce.number().int().min(0).max(1999).default(1000),
+  X402_MAX_NEW_PAYERS_PER_IP_DAY: positiveInt(5),
   KEEPER_MIN_ETH_WEI: intString('3000000000000000'),
   KEEPER_CRITICAL_ETH_WEI: intString('1500000000000000'),
   TREES_DIR: z.string().default('data/trees'),

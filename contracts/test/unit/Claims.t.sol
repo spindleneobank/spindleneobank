@@ -113,6 +113,21 @@ contract ClaimsTest is Test {
         vm.stopPrank();
     }
 
+    // Found by mutation testing: solvency has to count what was already claimed, which left the pool.
+    function test_postRoot_solvencyCountsClaimedFunds() public {
+        _post(1, 100e6, 50e6);
+        vm.warp(block.timestamp + DELAY);
+        _claimAlice(1, 100e6, 50e6, 100e6);
+        deal(address(usdg), address(claims), 60e6); // the unclaimed 50 of the 150 root, plus a top-up of 10
+        uint256 covered = 60e6 + claims.totalClaimed();
+        vm.startPrank(poster);
+        vm.expectRevert(ISpindleClaims.Insolvent.selector);
+        claims.postRoot(2, bytes32(uint256(2)), covered + 1);
+        claims.postRoot(2, bytes32(uint256(2)), covered);
+        vm.stopPrank();
+        assertEq(claims.lastEpoch(), 2);
+    }
+
     // ---- claim ----
     function test_claim_afterDelay() public {
         _post(1, 100e6, 50e6);
