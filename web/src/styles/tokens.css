@@ -1,4 +1,4 @@
-/* Spindle design tokens, extracted from app/static/dist/*.css (brand-v2, spindle, paper-surfaces, dashboard-v4, bank)
+/* Spindle design tokens, extracted from the old frontend export's CSS (brand-v2, spindle, paper-surfaces, dashboard-v4, bank)
    and the rendered Framer DOM. Readable names replace the --sp-fg-token-<uuid> variables. */
 :root {
   /* ink (text on paper) */

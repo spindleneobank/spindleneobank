@@ -16,5 +16,5 @@
     "paths": { "@spindle/shared/*": ["./src/shared/*"] }
   },
   "include": ["src", "dev", "drizzle.config.ts"],
-  "exclude": ["static", "web", "node", "contracts", "node_modules"]
+  "exclude": ["web", "node", "contracts", "node_modules"]
 }

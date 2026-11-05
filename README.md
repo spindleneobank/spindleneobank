@@ -17,7 +17,6 @@ src/shared/             imported by node/ and web/
 contracts/              Foundry project (OZ, permit2, forge-std vendored in lib/)
 node/  web/             workspaces
 dev/                    mocks and seed scripts
-static/                 old frontend export (reference only)
 ```
 
 ## Dev stack

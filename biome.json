@@ -3,7 +3,6 @@
   "files": {
     "includes": [
       "**",
-      "!static",
       "!contracts/lib",
       "!**/dist",
       "!drizzle",
