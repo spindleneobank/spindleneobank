@@ -1,0 +1,30 @@
+{
+  "addresses": {
+    "claims": "0xbb51Cc9A45b9669329356E38a2d81B4436eA798b",
+    "erc8004Identity": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+    "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    "registry": "0xED53E157d8d48Fd951381ebD7E664f708070cE90",
+    "relayStub": "0x0000000000000000000000000000000000000000",
+    "spdl": "0x0000000000000000000000000000000000000000",
+    "staking": "0x0000000000000000000000000000000000000000",
+    "usdg": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+    "vault": "0x0F2D643BDdD6662ddB01991e6bF97eD2904932b3"
+  },
+  "args": {
+    "claimDelay": 3600,
+    "guardian": "0x0e23B29665D94BDFc8f161B749B7AE05c47643c5",
+    "keeper": "0x7F34c3548447Ad3A548767CeE7877897DE440A8e",
+    "maxEpochIncrease": 5000000000,
+    "minStake0": 0,
+    "minStake1": 0,
+    "minStake2": 0,
+    "minStake3": 0,
+    "minStake4": 0,
+    "slashRecipient": "0x0000000000000000000000000000000000000000",
+    "slasher": "0x0000000000000000000000000000000000000000",
+    "treasury": "0x147331906ee6eb2BaA0006CD6CE87fFB3eC37063"
+  },
+  "chainId": 4663,
+  "commit": "fb519c4c48707585aee8f8dd8983d99a5af6a034",
+  "deployBlock": 110759179
+}
