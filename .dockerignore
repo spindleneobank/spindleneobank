@@ -7,11 +7,17 @@ data
 *.log
 .env*
 .playwright-cli
-# frontend and node-agent sources are not part of the backend image (only their package.json is needed)
+# frontend sources are not part of the backend image (only its package.json is needed)
 web/*
 !web/package.json
+# node agent: the backend image builds the served node distribution from these (Dockerfile node-dist stage)
 node/*
 !node/package.json
+!node/tsconfig.json
+!node/src
+!node/docker
+!node/install.sh
+!node/install.ps1
 # foundry project: only the gas table and deployment records are read at runtime
 contracts/lib
 contracts/out
