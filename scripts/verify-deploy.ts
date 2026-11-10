@@ -159,7 +159,8 @@ async function main(): Promise<void> {
   for (const p of problems) console.error(`MISMATCH ${p}`);
   if (problems.length > 0) process.exit(1);
   console.log(`OK: ${manifestPath} matches this build on chain ${manifest.chainId}`);
-  if (stakingSkipped(manifest)) console.log('NOTE: deployed without SpindleStaking (NO_STAKING=1); staking not checked');
+  if (stakingSkipped(manifest))
+    console.log('NOTE: deployed without SpindleStaking (NO_STAKING=1); staking not checked');
 }
 
 if (import.meta.main) {
