@@ -4,6 +4,7 @@ import { billingClass, setStakingParamsForTest } from './service';
 describe('billingClass (M-5)', () => {
   beforeAll(() => {
     setStakingParamsForTest({
+      enabled: true,
       token: '0x00000000000000000000000000000000000000c3',
       minStakeByClass: { '0': '50', '1': '100', '2': '200', '3': '300', '4': '400' },
       unstakeDelay: 604800,
@@ -33,6 +34,7 @@ describe('billingClass (M-5)', () => {
     setStakingParamsForTest(null);
     expect(billingClass(2, 1000n, 'open')).toBe(0);
     setStakingParamsForTest({
+      enabled: true,
       token: '0x00000000000000000000000000000000000000c3',
       minStakeByClass: { '0': '50', '1': '100', '2': '200', '3': '300', '4': '400' },
       unstakeDelay: 604800,

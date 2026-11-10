@@ -24,13 +24,26 @@ export type ContractName = keyof typeof ENV_NAMES;
 
 export type AddressMap = Record<ContractName, Address | undefined>;
 
+/** Test seam: entries here replace the configured value (`undefined` unsets it). */
+export const addressOverrides: Partial<AddressMap> = {};
+
 /** Configured addresses (undefined where not configured). */
 export function addresses(): AddressMap {
   const out = {} as AddressMap;
   for (const name of Object.keys(ENV_NAMES) as ContractName[]) {
-    out[name] = config[ENV_NAMES[name]] as Address | undefined;
+    out[name] =
+      name in addressOverrides ? addressOverrides[name] : (config[ENV_NAMES[name]] as Address | undefined);
   }
   return out;
+}
+
+/**
+ * Staking is optional at deploy (`NO_STAKING=1`, no SPDL yet). Without it every node is unstaked: no priority
+ * tier, class-0 pricing, no floor and no slashing.
+ */
+export function stakingEnabled(): boolean {
+  const { staking, spdl } = addresses();
+  return Boolean(staking && spdl);
 }
 
 export function requireAddress(name: ContractName): Address {

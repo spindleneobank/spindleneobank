@@ -6,7 +6,7 @@ import { config } from '../../config';
 import { db as defaultDb } from '../../db/client';
 import { auditLog, claims, epochs, nodes, slashCases, x402Payments } from '../../db/schema';
 import type { Db } from '../../db/types';
-import { requireAddress } from '../../lib/contracts';
+import { addresses as configuredAddresses, requireAddress, stakingEnabled } from '../../lib/contracts';
 import { logger as defaultLogger } from '../../lib/logger';
 import { getRedis } from '../../lib/redis';
 import { logsClient } from '../../lib/viem';
@@ -55,6 +55,7 @@ export function viemIndexerClient(): IndexerClient {
     getLogs: ({ address, fromBlock, toBlock }) =>
       logsClient.getLogs({ address, fromBlock, toBlock }) as Promise<Log[]>,
     async readStake(nodeId, blockNumber) {
+      if (!stakingEnabled()) return { active: 0n, pending: 0n };
       const [active, pending] = await logsClient.readContract({
         address: requireAddress('staking'),
         abi: spindleStakingAbi,
@@ -87,7 +88,11 @@ export function defaultDeps(): IndexerDeps {
     db: defaultDb,
     redis: getRedis(),
     logger: defaultLogger,
-    addresses: (['registry', 'staking', 'claims', 'vault'] as const).map((n) => requireAddress(n)),
+    // staking is absent on a NO_STAKING deployment
+    addresses: [
+      ...(['registry', 'claims', 'vault'] as const).map((n) => requireAddress(n)),
+      ...(configuredAddresses().staking ? [configuredAddresses().staking as Address] : []),
+    ],
     deployBlock: config.DEPLOY_BLOCK,
     confirmations: CONFIRMATIONS,
     logChunk: config.LOG_CHUNK,

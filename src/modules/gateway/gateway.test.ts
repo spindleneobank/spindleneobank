@@ -164,6 +164,7 @@ beforeAll(async () => {
   base = `http://127.0.0.1:${server.port}`;
   nodeSettings.registry = '0x00000000000000000000000000000000000000b2';
   setStakingParamsForTest({
+    enabled: true,
     token: '0x00000000000000000000000000000000000000c3',
     minStakeByClass: { '0': '50', '1': '100', '2': '200', '3': '300', '4': '400' },
     unstakeDelay: 604800,

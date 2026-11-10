@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { setupTestDb, type TestDb } from '../../../test/db-setup';
 import { enrollments, nodes, users } from '../../db/schema';
+import { addressOverrides } from '../../lib/contracts';
 import { closeRedis, getRedis } from '../../lib/redis';
 import { dbRef, settings } from '../auth/constants';
 import { createTestSession } from '../auth/testing';
@@ -13,6 +14,13 @@ import { nodeHub } from './hub';
 import { installCommands } from './routes';
 import { nodeSettings, setStakingParamsForTest } from './service';
 import { type FakeNode, fakeNode, startTestServer } from './testing';
+
+const STAKING_FIXTURE = {
+  enabled: true,
+  token: '0x00000000000000000000000000000000000000c3',
+  minStakeByClass: { '0': '50', '1': '100', '2': '200' },
+  unstakeDelay: 604800,
+};
 
 const ORIGIN = 'http://localhost:7000';
 let t: TestDb;
@@ -29,11 +37,7 @@ beforeAll(async () => {
   nodeSettings.registry = '0x00000000000000000000000000000000000000b2';
   nodeSettings.appUrl = 'https://app.example';
   nodeSettings.apiUrl = 'https://api.example';
-  setStakingParamsForTest({
-    token: '0x00000000000000000000000000000000000000c3',
-    minStakeByClass: { '0': '50', '1': '100', '2': '200' },
-    unstakeDelay: 604800,
-  });
+  setStakingParamsForTest(STAKING_FIXTURE);
   await nodeHub.start({ redis: false });
 });
 afterAll(async () => {
@@ -310,6 +314,24 @@ describe('nodes routes', () => {
     const { nodeId } = await enrollNode(h);
     expect((await req(`/v1/app/nodes/${nodeId}/stake-call?amount=5`, { headers: h })).status).toBe(409);
     expect((await req(`/v1/app/nodes/${nodeId}/stake-call?amount=abc`, { headers: h })).status).toBe(400);
+  });
+
+  test('without a staking deployment, params say disabled and stake-call refuses', async () => {
+    const h = await as(alice);
+    const { nodeId } = await enrollNode(h);
+    addressOverrides.staking = undefined;
+    setStakingParamsForTest(null);
+    try {
+      const res = await req('/v1/app/staking/params', { headers: h });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ enabled: false, token: null, minStakeByClass: {}, unstakeDelay: 0 });
+      const call = await req(`/v1/app/nodes/${nodeId}/stake-call?amount=5`, { headers: h });
+      expect(call.status).toBe(409);
+      expect(JSON.stringify(await call.json())).toContain('Staking is not available yet');
+    } finally {
+      delete addressOverrides.staking;
+      setStakingParamsForTest(STAKING_FIXTURE);
+    }
   });
 
   test('staking params are served from the cache', async () => {

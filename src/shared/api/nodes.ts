@@ -87,7 +87,9 @@ export const GetNodeStakeCallRes = z.object({
 
 export const GetStakingParamsReq = z.void();
 export const GetStakingParamsRes = z.object({
-  token: Address,
+  /** False when the deployment has no SpindleStaking yet; token is then null and minStakeByClass empty. */
+  enabled: z.boolean(),
+  token: Address.nullable(),
   minStakeByClass: z.record(z.string(), z.string()),
   unstakeDelay: z.number().int(),
 });

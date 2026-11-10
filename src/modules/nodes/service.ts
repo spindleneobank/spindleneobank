@@ -8,7 +8,7 @@ import {
   nodes,
   probeResults,
 } from '../../db/schema';
-import { requireAddress } from '../../lib/contracts';
+import { requireAddress, stakingEnabled } from '../../lib/contracts';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import { getRedis } from '../../lib/redis';
@@ -138,7 +138,8 @@ export function toEnsure(models: { model: CatalogModel }[], engine: string, lane
 // ---- staking params / min stake cache ----------------------------------------------------------------
 
 export interface StakingParams {
-  token: string;
+  enabled: boolean;
+  token: string | null;
   minStakeByClass: Record<string, string>;
   unstakeDelay: number;
 }
@@ -155,18 +156,23 @@ export function setStakingParamsForTest(value: StakingParams | null): void {
 }
 
 const REDIS_KEY = 'staking:params';
+const STAKING_DISABLED: StakingParams = { enabled: false, token: null, minStakeByClass: {}, unstakeDelay: 0 };
 let lastAttempt = 0;
 
 /** Reads min stakes / token / delay: memory, then Redis (10 min), then chain. Usable from api and worker. */
 export async function stakingParams(force = false): Promise<StakingParams> {
   if (pinnedForTest) return pinnedForTest;
+  if (!stakingEnabled()) return STAKING_DISABLED;
   if (!force && paramsCache && Date.now() - paramsCache.at < PARAMS_TTL_MS) return paramsCache.value;
   try {
     const raw = await getRedis().get(REDIS_KEY);
     if (raw) {
       const value = JSON.parse(raw) as StakingParams;
-      paramsCache = { at: Date.now(), value };
-      return value;
+      if (value.enabled === true) {
+        // entries written before `enabled` existed are re-read from the chain
+        paramsCache = { at: Date.now(), value };
+        return value;
+      }
     }
   } catch {
     // Redis unavailable: fall through to the chain
@@ -189,7 +195,12 @@ export async function stakingParams(force = false): Promise<StakingParams> {
   classes.forEach((c, i) => {
     minStakeByClass[String(c)] = String(mins[i]);
   });
-  const value = { token: (token as string).toLowerCase(), minStakeByClass, unstakeDelay: Number(delay) };
+  const value = {
+    enabled: true,
+    token: (token as string).toLowerCase(),
+    minStakeByClass,
+    unstakeDelay: Number(delay),
+  };
   paramsCache = { at: Date.now(), value };
   await getRedis()
     .set(REDIS_KEY, JSON.stringify(value), 'EX', PARAMS_TTL_MS / 1000)

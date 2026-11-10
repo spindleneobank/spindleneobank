@@ -3,7 +3,7 @@ import type { Context, Hono } from 'hono';
 import { type Address, erc20Abi } from 'viem';
 import { z } from 'zod';
 import { nodes, users } from '../../db/schema';
-import { requireAddress } from '../../lib/contracts';
+import { requireAddress, stakingEnabled } from '../../lib/contracts';
 import { AppError } from '../../lib/errors';
 import type { Env } from '../../lib/http';
 import { clientIp, rateLimit } from '../../lib/ratelimit';
@@ -232,6 +232,9 @@ export default function nodesRoutes(app: Hono<Env>): void {
       throw new AppError('VALIDATION', 'amount must be a positive integer (SPDL wei).');
     }
     const amount = BigInt(parsed.data.amount);
+    if (!stakingEnabled()) {
+      throw new AppError('CHAIN_STATE', 'Staking is not available yet.', 409);
+    }
     if (!row.registered || row.onchainId == null) {
       throw new AppError('CHAIN_STATE', 'Register this node on-chain before staking.');
     }
