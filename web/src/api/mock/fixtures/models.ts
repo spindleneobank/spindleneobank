@@ -18,6 +18,7 @@ const MODELS = [
     lanes: ['open', 'sealed'],
     kind: 'chat',
     available: true,
+    sealed_available: true,
     context_length: 8192,
     pricing: { unitKind: 'tokens_1m', buyerMicrosPerUnit: '1800000' },
   },

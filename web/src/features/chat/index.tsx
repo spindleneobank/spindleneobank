@@ -88,7 +88,8 @@ export default function ChatTab() {
 
   const chatModels = (models.data?.data ?? []).filter((m) => m.kind === 'chat' && m.available);
   const selected = chatModels.find((m) => m.id === model);
-  const sealedOk = !!selected?.lanes.includes('sealed');
+  // live: the sealed lane is on, the model supports it and a registered sealed node serving it is online
+  const sealedOk = selected?.sealed_available === true;
   const balance = buyer.data ? BigInt(buyer.data.balanceMicros) : 0n;
   const x402On = buyer.data?.x402.enabled ?? false;
   const surcharge = buyer.data ? BigInt(buyer.data.x402.currentSurchargeMicros) : 0n;
@@ -215,10 +216,10 @@ export default function ChatTab() {
                     type="button"
                     aria-pressed={lane === 'sealed'}
                     disabled={!sealedOk}
-                    title={sealedOk ? undefined : 'Sealed lane is in testing'}
+                    title={sealedOk ? undefined : 'No sealed node is online for this model right now'}
                     onClick={() => setLane('sealed')}
                   >
-                    Sealed{sealedOk ? '' : ' (in testing)'}
+                    Sealed{sealedOk ? '' : ' (no node available)'}
                   </button>
                 </div>
               </div>
