@@ -203,17 +203,28 @@ function AmountField({
   );
 }
 
-export function StakeSection({
-  node,
-  pending,
-  done,
-  onSent,
-}: {
+type StakeSectionProps = {
   node: NodeView;
   pending: Pending | null;
   done: boolean;
   onSent: (p: Pending) => void;
-}) {
+};
+
+/** Hidden until SpindleStaking is deployed (`env.stakingEnabled`). */
+export function StakeSection(props: StakeSectionProps) {
+  const { staking, spdl } = env.addresses;
+  if (!staking || !spdl) return null;
+  return <StakeSectionLive {...props} staking={staking} spdl={spdl} />;
+}
+
+function StakeSectionLive({
+  node,
+  pending,
+  done,
+  onSent,
+  staking,
+  spdl,
+}: StakeSectionProps & { staking: `0x${string}`; spdl: `0x${string}` }) {
   const { block, note } = useWalletGate();
   const params = useStakingParams();
   const now = useNow(1000);
@@ -231,7 +242,7 @@ export function StakeSection({
   const onchainId = node.onchainId;
 
   const read = useReadContract({
-    address: env.addresses.staking,
+    address: staking,
     abi: spindleStakingAbi,
     functionName: 'stakeOf',
     args: [BigInt(onchainId ?? 0)],
@@ -253,8 +264,8 @@ export function StakeSection({
   };
   const sp = (kind: Pending['kind']) => (pending?.kind === kind ? pending : null);
   const stakeData = stakeCall.data;
-  const spdlOk = !stakeData?.approve || sameAddr(stakeData.approve.to, env.addresses.spdl);
-  const stakeOk = !stakeData || sameAddr(stakeData.stake.to, env.addresses.staking);
+  const spdlOk = !stakeData?.approve || sameAddr(stakeData.approve.to, spdl);
+  const stakeOk = !stakeData || sameAddr(stakeData.stake.to, staking);
   const targetsOk = spdlOk && stakeOk;
   const stakeStep = stakeData && targetsOk && (!stakeData.approve || approved);
   const afterUnstake = unAmount !== null && unAmount <= active ? active - unAmount : null;
@@ -332,10 +343,10 @@ export function StakeSection({
                   variant="secondary"
                   disabled={block !== null || approved}
                   request={{
-                    address: env.addresses.spdl,
+                    address: spdl,
                     abi: erc20Abi,
                     functionName: 'approve',
-                    args: [env.addresses.staking, amount],
+                    args: [staking, amount],
                   }}
                   onConfirmed={() => setApproved(true)}
                 />
@@ -350,7 +361,7 @@ export function StakeSection({
                 label="Stake"
                 disabled={block !== null || !stakeStep}
                 request={{
-                  address: env.addresses.staking,
+                  address: staking,
                   abi: spindleStakingAbi,
                   functionName: 'stake',
                   args: [BigInt(onchainId), amount],
@@ -398,7 +409,7 @@ export function StakeSection({
             variant="secondary"
             disabled={block !== null || unAmount === null || unAmount > active}
             request={{
-              address: env.addresses.staking,
+              address: staking,
               abi: spindleStakingAbi,
               functionName: 'beginUnstake',
               args: [BigInt(onchainId), unAmount ?? 0n],
@@ -426,7 +437,7 @@ export function StakeSection({
                 label="Withdraw unlocked SPDL"
                 disabled={block !== null || !unlocked}
                 request={{
-                  address: env.addresses.staking,
+                  address: staking,
                   abi: spindleStakingAbi,
                   functionName: 'completeUnstake',
                   args: [BigInt(onchainId)],

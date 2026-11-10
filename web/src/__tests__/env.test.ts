@@ -36,4 +36,14 @@ describe('parseEnv', () => {
     expect(() => parseEnv({ ...base, VITE_USDG_ADDRESS: 'nope' })).toThrow(/VITE_USDG_ADDRESS/);
     expect(() => parseEnv({ ...base, VITE_API_MOCK: 'yes' })).toThrow(/VITE_API_MOCK/);
   });
+  it('staking is optional: both addresses empty turns it off, one alone is refused', () => {
+    expect(parseEnv(base).stakingEnabled).toBe(true);
+    const off = parseEnv({ ...base, VITE_STAKING_ADDRESS: '', VITE_SPDL_ADDRESS: '' });
+    expect(off.stakingEnabled).toBe(false);
+    expect(off.addresses.staking).toBeUndefined();
+    const { VITE_STAKING_ADDRESS: _s, VITE_SPDL_ADDRESS: _p, ...unset } = base;
+    expect(parseEnv(unset).stakingEnabled).toBe(false);
+    expect(() => parseEnv({ ...base, VITE_SPDL_ADDRESS: '' })).toThrow(/or neither/);
+    expect(() => parseEnv({ ...base, VITE_STAKING_ADDRESS: 'nope' })).toThrow(/VITE_STAKING_ADDRESS/);
+  });
 });

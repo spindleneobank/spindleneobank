@@ -4,6 +4,7 @@ import { CTA } from '../../components/CTA';
 import { Money } from '../../components/Money';
 import { StatusPill } from '../../components/StatusPill';
 import { useToast } from '../../components/Toast';
+import { env } from '../../config';
 import { fmtTime, RowTable } from '../shell/ui';
 import { CLASS_LABEL, fmtSpdl, readCanary, readProbe, stakeState, statusTone } from './format';
 import { useRename } from './queries';
@@ -172,7 +173,9 @@ export function NodeTable({ nodes, onOpen }: { nodes: NodeView[]; onOpen: (id: s
               </span>
             ),
         },
-        { key: 'stake', header: 'Stake', render: (n) => <StakeCell node={n} /> },
+        ...(env.stakingEnabled
+          ? [{ key: 'stake', header: 'Stake', render: (n: NodeView) => <StakeCell node={n} /> }]
+          : []),
         { key: 'rep', header: 'Rep', render: (n) => n.reputation },
         { key: 'checks', header: 'Last checks', render: (n) => <Checks node={n} /> },
         {

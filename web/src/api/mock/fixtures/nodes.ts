@@ -279,6 +279,7 @@ export const nodeFixtures: MockFixtures = {
     need();
     const n = find(params.id as string);
     if (!n.registered) throw new ApiError('CHAIN_STATE', 'Register this node on-chain before staking.', 409);
+    if (!env.stakingEnabled) throw new ApiError('CHAIN_STATE', 'Staking is not available yet.', 409);
     const amount = query.get('amount') ?? '0';
     return {
       approve: { to: env.addresses.spdl, functionName: 'approve', args: [env.addresses.staking, amount] },
@@ -287,7 +288,9 @@ export const nodeFixtures: MockFixtures = {
   },
   'GET /v1/app/staking/params': () => {
     need();
+    if (!env.stakingEnabled) return { enabled: false, token: null, minStakeByClass: {}, unstakeDelay: 0 };
     return {
+      enabled: true,
       token: env.addresses.spdl,
       minStakeByClass: MIN,
       unstakeDelay: 7 * 24 * 3600,

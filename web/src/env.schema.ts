@@ -2,6 +2,11 @@ import { z } from 'zod';
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/, 'must be a 0x address');
 const url = z.string().url();
+/** Empty or unset = not deployed. */
+const optionalAddress = z
+  .union([address, z.literal('')])
+  .optional()
+  .transform((v) => (v ? v : undefined));
 
 /** Zod-validated `import.meta.env`. Also imported by vite.config.ts so an invalid build fails early. */
 export const envSchema = z.object({
@@ -17,10 +22,11 @@ export const envSchema = z.object({
   VITE_USDG_ADDRESS: address,
   VITE_PERMIT2_ADDRESS: address,
   VITE_REGISTRY_ADDRESS: address,
-  VITE_STAKING_ADDRESS: address,
+  /** Staking is optional at launch (contracts deployed with NO_STAKING=1): leave both staking vars empty. */
+  VITE_STAKING_ADDRESS: optionalAddress,
   VITE_CLAIMS_ADDRESS: address,
   VITE_VAULT_ADDRESS: address,
-  VITE_SPDL_ADDRESS: address,
+  VITE_SPDL_ADDRESS: optionalAddress,
   VITE_API_MOCK: z.enum(['0', '1']).default('0'),
 });
 
@@ -33,6 +39,11 @@ export function parseEnv(raw: Record<string, unknown>) {
     throw new Error(`Invalid frontend environment:\n${issues}`);
   }
   const e = parsed.data;
+  if (Boolean(e.VITE_STAKING_ADDRESS) !== Boolean(e.VITE_SPDL_ADDRESS)) {
+    throw new Error(
+      'Invalid frontend environment:\n  set both VITE_STAKING_ADDRESS and VITE_SPDL_ADDRESS, or neither (staking off)',
+    );
+  }
   return {
     apiUrl: e.VITE_API_URL.replace(/\/$/, ''),
     publicApiUrl: (e.VITE_PUBLIC_API_URL ?? e.VITE_API_URL).replace(/\/$/, ''),
@@ -45,11 +56,13 @@ export function parseEnv(raw: Record<string, unknown>) {
       usdg: e.VITE_USDG_ADDRESS.toLowerCase() as `0x${string}`,
       permit2: e.VITE_PERMIT2_ADDRESS.toLowerCase() as `0x${string}`,
       registry: e.VITE_REGISTRY_ADDRESS.toLowerCase() as `0x${string}`,
-      staking: e.VITE_STAKING_ADDRESS.toLowerCase() as `0x${string}`,
+      staking: e.VITE_STAKING_ADDRESS?.toLowerCase() as `0x${string}` | undefined,
       claims: e.VITE_CLAIMS_ADDRESS.toLowerCase() as `0x${string}`,
       vault: e.VITE_VAULT_ADDRESS.toLowerCase() as `0x${string}`,
-      spdl: e.VITE_SPDL_ADDRESS.toLowerCase() as `0x${string}`,
+      spdl: e.VITE_SPDL_ADDRESS?.toLowerCase() as `0x${string}` | undefined,
     },
+    /** False until SpindleStaking is deployed: the dashboard hides staking. */
+    stakingEnabled: Boolean(e.VITE_STAKING_ADDRESS),
     mock: e.VITE_API_MOCK === '1',
   };
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { Skeleton } from '../../components/Skeleton';
+import { env } from '../../config';
 import { PageHead } from '../shell/ui';
 import './compute.css';
 import { isPairCode, normalizePairCode } from './format';
@@ -37,8 +38,13 @@ export default function ComputeTab() {
   return (
     <div className="sd-overview cp-tab">
       <PageHead eyebrow="COMPUTE SUPPLY" line1="Your machines." line2="A bonded identity.">
-        Install the node, approve it, register it on-chain. <br />
-        Staking is optional and lifts it to the priority tier.
+        Install the node, approve it, register it on-chain.
+        {env.stakingEnabled ? (
+          <>
+            <br />
+            Staking is optional and lifts it to the priority tier.
+          </>
+        ) : null}
       </PageHead>
 
       {unregistered.length > 0 ? (
@@ -90,7 +96,7 @@ export default function ComputeTab() {
           </EmptyState>
         ) : null}
         {list.length > 0 ? <NodeTable nodes={list} onOpen={setOpenId} /> : null}
-        {nodes.data ? <StakeTiers nodes={list} /> : null}
+        {nodes.data && env.stakingEnabled ? <StakeTiers nodes={list} /> : null}
       </section>
 
       <PairDialog
