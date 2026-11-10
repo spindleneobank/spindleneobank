@@ -47,6 +47,13 @@ const sameValue = (a: unknown, b: unknown) =>
     ? String(b).toLowerCase() === a.toLowerCase()
     : String(a) === String(b);
 
+const ZERO = '0x0000000000000000000000000000000000000000';
+
+/** True when the manifest records a deploy made with NO_STAKING=1 (staking and spdl are the zero address). */
+export function stakingSkipped(manifest: Manifest): boolean {
+  return (manifest.addresses.staking ?? '').toLowerCase() === ZERO;
+}
+
 /** Returns what is wrong; empty means the deployment matches. */
 export async function verifyDeployment(
   manifest: Manifest,
@@ -57,8 +64,10 @@ export async function verifyDeployment(
   const { addresses: a, args } = manifest;
   const live = await chain.chainId();
   if (live !== manifest.chainId) problems.push(`chain id is ${live}, manifest says ${manifest.chainId}`);
+  const noStaking = stakingSkipped(manifest);
 
   for (const [key, name] of Object.entries(CONTRACTS)) {
+    if (noStaking && key === 'staking') continue;
     const address = a[key];
     const artifact = artifacts[name];
     if (!address || !artifact) {
@@ -102,6 +111,7 @@ export async function verifyDeployment(
     ),
   ];
   for (const [key, signature, want, callArgs] of checks) {
+    if (noStaking && key === 'staking') continue;
     const label = `${key}.${signature.split(' ')[1]}${callArgs ? `[${callArgs}]` : ''}`;
     if (want === undefined) {
       problems.push(`${label}: not in the manifest`);
@@ -149,6 +159,7 @@ async function main(): Promise<void> {
   for (const p of problems) console.error(`MISMATCH ${p}`);
   if (problems.length > 0) process.exit(1);
   console.log(`OK: ${manifestPath} matches this build on chain ${manifest.chainId}`);
+  if (stakingSkipped(manifest)) console.log('NOTE: deployed without SpindleStaking (NO_STAKING=1); staking not checked');
 }
 
 if (import.meta.main) {

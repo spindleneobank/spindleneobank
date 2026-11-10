@@ -117,3 +117,29 @@ test('a getter that cannot be read fails rather than passes', async () => {
   };
   expect((await verifyDeployment(manifest, artifacts, chain)).length).toBeGreaterThan(0);
 });
+
+test('a NO_STAKING deploy skips staking and still checks the rest', async () => {
+  const zero = addr(0);
+  const noStaking: Manifest = {
+    ...manifest,
+    addresses: { ...manifest.addresses, staking: zero, spdl: zero },
+  };
+  const touched: string[] = [];
+  const chain = honest();
+  const spy: Chain = {
+    ...chain,
+    code: async (a) => {
+      touched.push(a);
+      return chain.code(a);
+    },
+    read: async (a, s, args) => {
+      touched.push(a);
+      return chain.read(a, s, args);
+    },
+  };
+  expect(await verifyDeployment(noStaking, artifacts, spy)).toEqual([]);
+  expect(touched).not.toContain(zero);
+  expect(await verifyDeployment(noStaking, artifacts, honest({ [`${addr(7)}.poster`]: addr(99) }))).toEqual([
+    `claims.poster() is ${addr(99)}, manifest says ${addr(10)}`,
+  ]);
+});
