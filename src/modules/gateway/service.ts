@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, lt, sql } from 'drizzle-orm';
+import { config } from '../../config';
 import { buyerBalances, jobs, rateCard } from '../../db/schema';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
@@ -646,6 +647,20 @@ export interface ModelListing {
   buyerMicrosPerUnit: bigint;
   /** Largest context (tokens) served by an online node for this model. */
   contextLength: number;
+  /** A sealed job for this model would find a node right now. */
+  sealedAvailable: boolean;
+}
+
+/**
+ * Sealed is usable only when the lane is switched on, the model supports it and a registered sealed node
+ * serving the model is online. Unregistered nodes never receive jobs, so they do not count.
+ */
+export function sealedAvailableFor(
+  model: Pick<CatalogModel, 'lanes'>,
+  sealedCandidates: { registered: boolean }[],
+  laneEnabled: boolean,
+): boolean {
+  return laneEnabled && model.lanes.includes('sealed') && sealedCandidates.some((c) => c.registered);
 }
 
 export async function listModels(): Promise<ModelListing[]> {
@@ -666,13 +681,16 @@ export async function listModels(): Promise<ModelListing[]> {
     let available = false;
     let ctxAll = 0;
     let ctxRegistered = 0;
+    let sealedCandidates: { registered: boolean }[] = [];
     for (const lane of model.lanes) {
-      for (const c of nodeHub.candidates({
+      const candidates = nodeHub.candidates({
         model: model.id,
         lane,
         kind: model.kind,
         includeUnregistered: true,
-      })) {
+      });
+      if (lane === 'sealed') sealedCandidates = candidates;
+      for (const c of candidates) {
         serving = true;
         ctxAll = Math.max(ctxAll, c.contextTokens);
         if (c.registered) {
@@ -686,7 +704,13 @@ export async function listModels(): Promise<ModelListing[]> {
       .filter((m) => model.lanes.includes(m.lane as Lane) && m.unitKind === unitKindFor(model.kind))
       .map((m) => BigInt(m.min));
     const min = prices.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0] ?? 0n;
-    out.push({ model, available, buyerMicrosPerUnit: min, contextLength: ctxRegistered || ctxAll });
+    out.push({
+      model,
+      available,
+      buyerMicrosPerUnit: min,
+      contextLength: ctxRegistered || ctxAll,
+      sealedAvailable: sealedAvailableFor(model, sealedCandidates, config.SEALED_LANE_ENABLED),
+    });
   }
   return out;
 }

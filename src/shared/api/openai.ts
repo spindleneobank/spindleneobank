@@ -32,6 +32,8 @@ export const ModelListItem = z.object({
   available: z.boolean(),
   /** Largest context window (tokens) served by an online node for this model; absent in older replies. */
   context_length: z.number().int().nonnegative().optional(),
+  /** A sealed-lane request for this model would find a node right now; absent in older replies. */
+  sealed_available: z.boolean().optional(),
   pricing: z.object({ unitKind: z.enum(UnitKind), buyerMicrosPerUnit: MicrosString }),
 });
 export const GetModelsRes = z.object({ object: z.literal('list'), data: z.array(ModelListItem) });

@@ -468,7 +468,7 @@ export default function gatewayRoutes(app: Hono<Env>): void {
       const rows = await listModels();
       return c.json({
         object: 'list',
-        data: rows.map(({ model, available, buyerMicrosPerUnit, contextLength }) => ({
+        data: rows.map(({ model, available, buyerMicrosPerUnit, contextLength, sealedAvailable }) => ({
           id: model.id,
           object: 'model',
           owned_by: 'spindle',
@@ -476,6 +476,7 @@ export default function gatewayRoutes(app: Hono<Env>): void {
           kind: model.kind,
           available,
           context_length: contextLength,
+          sealed_available: sealedAvailable,
           pricing: { unitKind: model.unitKind, buyerMicrosPerUnit: buyerMicrosPerUnit.toString() },
         })),
       });
