@@ -24,7 +24,7 @@ export function AboutPage() {
             <Badge tone="black">The idea</Badge>
             <RevealText paragraphs={ABOUT_IDEA} />
           </div>
-          <Tag n="02" label="Compute lanes" left="23%" top="41%" speed={0.1} />
+          <Tag n="02" label="Compute lanes" left="35%" top="20%" speed={0.1} />
           <Tag n="03" label="Payout routes" left="75%" top="20%" speed={0.05} />
           <Tag n="M1" label="Specification build order" left="75%" top="80%" speed={0.05} />
         </div>
