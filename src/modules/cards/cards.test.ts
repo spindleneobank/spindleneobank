@@ -127,6 +127,14 @@ describe('issue flow', () => {
     await provider.sandboxConfirm(inv?.paymentId as string);
     await settle();
     expect((await opRow(operation.id)).status).toBe('completed');
+    // The event only schedules a balance read: the list says so until the next sync lands it.
+    const before = await body(await u.call('GET', '/v1/app/cards'));
+    expect(before.find((c: { id: string }) => c.id === cardId).balanceRefreshPending).toBe(true);
+    await syncOneCard();
+    const after = await body(await u.call('GET', '/v1/app/cards'));
+    const synced = after.find((c: { id: string }) => c.id === cardId);
+    expect(synced.balanceRefreshPending).toBe(false);
+    expect((await cardRow(cardId)).syncedAt).not.toBeNull();
   });
 });
 

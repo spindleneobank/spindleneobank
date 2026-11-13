@@ -88,6 +88,13 @@ export function serializeOperation(op: OpRow): CardOperation {
 
 const OPEN_STATUSES = ['created', 'submitting', 'awaiting_payment', 'processing', 'review'] as const;
 
+/** Mirrors syncOneCard's first pick: a cleared synced_at on a provider card that is not failed. */
+export function balanceRefreshPending(
+  card: Pick<CardRow, 'syncedAt' | 'providerCardId' | 'status'>,
+): boolean {
+  return card.syncedAt === null && card.providerCardId !== null && card.status !== 'failed';
+}
+
 export function serializeCard(card: CardRow, pending?: OpRow): CardView {
   return {
     id: card.id,
@@ -98,6 +105,7 @@ export function serializeCard(card: CardRow, pending?: OpRow): CardView {
     finish: card.finish,
     createdAt: card.createdAt.toISOString(),
     ...(pending ? { pendingOperation: serializeOperation(pending) } : {}),
+    balanceRefreshPending: balanceRefreshPending(card),
   };
 }
 

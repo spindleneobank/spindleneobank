@@ -44,6 +44,11 @@ export const CardView = z.object({
   finish: z.string().nullable(),
   createdAt: IsoTime,
   pendingOperation: CardOperation.optional(),
+  /**
+   * A provider event (e.g. a completed top-up) scheduled a fresh balance read that has not landed yet.
+   * Clients keep polling while it is true; the card sync loop clears it within seconds.
+   */
+  balanceRefreshPending: z.boolean(),
 });
 export type CardView = z.infer<typeof CardView>;
 
