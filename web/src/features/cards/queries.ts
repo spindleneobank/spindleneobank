@@ -32,7 +32,7 @@ export function useCardList() {
 export function useCreateCard() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { product: string; email: string; alias?: string; finish?: string }) =>
+    mutationFn: (body: { product: string; email: string; cardholderName: string; finish?: string }) =>
       apiFetch('/v1/app/cards', { schema: api.PostCardsRes, method: 'POST', body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: dk.cards }),
   });

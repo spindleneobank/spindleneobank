@@ -41,20 +41,22 @@ function CreateForm({
   const pricing = useCardPricing();
   const create = useCreateCard();
   const [email, setEmail] = useState('');
-  const [alias, setAlias] = useState('');
+  const [holderName, setHolderName] = useState('');
   const [finish, setFinish] = useState(defaultFinish);
   const [product, setProduct] = useState('');
   const [touched, setTouched] = useState(false);
   const products = pricing.data?.products.filter((p) => p.available) ?? [];
   const chosen = products.find((p) => p.id === product) ?? products[0];
   const emailBad = !EMAIL_RE.test(email.trim());
+  const holder = holderName.trim();
+  const holderBad = holder.length < 2 || !/\p{L}/u.test(holder);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setTouched(true);
-    if (emailBad || !chosen) return;
+    if (emailBad || holderBad || !chosen) return;
     create.mutate(
-      { product: chosen.id, email: email.trim(), alias: alias.trim() || undefined, finish },
+      { product: chosen.id, email: email.trim(), cardholderName: holder, finish },
       {
         onSuccess: (r) => {
           onClose();
@@ -110,13 +112,23 @@ function CreateForm({
         </small>
       </label>
       <label className="cd-field">
-        <span>Alias (optional)</span>
+        <span>Cardholder name</span>
         <input
+          required
           maxLength={64}
-          value={alias}
-          onChange={(e) => setAlias(e.target.value)}
-          placeholder="e.g. Cloud bills"
+          autoComplete="name"
+          value={holderName}
+          onChange={(e) => setHolderName(e.target.value)}
+          onBlur={() => setTouched(true)}
+          aria-invalid={touched && holderBad}
+          aria-describedby="cd-holder-help"
+          placeholder="e.g. Alex Morgan"
         />
+        <small id="cd-holder-help" className={touched && holderBad ? 'cd-bad' : ''}>
+          {touched && holderBad
+            ? 'Enter the cardholder name.'
+            : 'The name izipay shows for this card; stored encrypted.'}
+        </small>
       </label>
       <div className="cd-field">
         <span>Finish</span>
