@@ -14,3 +14,4 @@ contracts/broadcast/*/4663-fork/
 data/
 contracts/deployments/*-fork.json
 contracts/broadcast/
+.vercel
