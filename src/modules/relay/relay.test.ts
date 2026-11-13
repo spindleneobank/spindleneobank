@@ -110,7 +110,11 @@ async function waitingIssue() {
   const addr = kit.newUser();
   const u = await kit.as(addr);
   const { operation } = (await (
-    await u.call('POST', '/v1/app/cards', { product: 'mastercard', email: 'r@example.com' })
+    await u.call('POST', '/v1/app/cards', {
+      product: 'mastercard',
+      email: 'r@example.com',
+      cardholderName: 'Test Holder',
+    })
   ).json()) as any;
   await submitOne();
   const [op] = await dbRef.db.select().from(cardOperations).where(eq(cardOperations.id, operation.id));
@@ -225,7 +229,11 @@ describe('relay orders', () => {
     const addr = kit.newUser();
     const u = await kit.as(addr);
     const { card, operation } = (await (
-      await u.call('POST', '/v1/app/cards', { product: 'mastercard', email: 't@example.com' })
+      await u.call('POST', '/v1/app/cards', {
+        product: 'mastercard',
+        email: 't@example.com',
+        cardholderName: 'Test Holder',
+      })
     ).json()) as any;
     await submitOne();
     const [first] = await dbRef.db.select().from(cardOperations).where(eq(cardOperations.id, operation.id));

@@ -53,7 +53,8 @@ export const GetCardsRes = z.array(CardView);
 export const PostCardsReq = z.object({
   product: z.string(),
   email: z.string().email(),
-  alias: z.string().max(64).optional(),
+  /** Sent to izipay as `cardholder_alias`, its only name field (shown as the card's display name). */
+  cardholderName: z.string().min(2).max(64),
   finish: z.string().optional(),
 });
 export const PostCardsRes = z.object({ card: CardView, operation: CardOperation });

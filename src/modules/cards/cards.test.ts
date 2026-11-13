@@ -54,7 +54,11 @@ const cardRow = async (id: string) => (await dbRef.db.select().from(cards).where
 
 async function issued(addr: `0x${string}` = kit.newUser(), email = 'holder@example.com') {
   const u = await kit.as(addr);
-  const res = await u.call('POST', '/v1/app/cards', { product: 'mastercard', email, alias: 'Ada L' });
+  const res = await u.call('POST', '/v1/app/cards', {
+    product: 'mastercard',
+    email,
+    cardholderName: 'Ada L',
+  });
   expect(res.status).toBe(200);
   const { card, operation } = await body(res);
   await submitOne();
@@ -73,7 +77,7 @@ describe('issue flow', () => {
     const res = await u.call('POST', '/v1/app/cards', {
       product: 'mastercard',
       email: 'secret.person@example.com',
-      alias: 'Ada L',
+      cardholderName: 'Ada L',
     });
     const { card, operation } = await body(res);
     expect(operation.status).toBe('created');
@@ -187,7 +191,11 @@ describe('provider outcomes and the never-resend rule', () => {
     const u = await kit.as(kit.newUser());
     kit.mock.state.stickyFaults = new Set(['no-invoice']);
     const { card, operation } = await body(
-      await u.call('POST', '/v1/app/cards', { product: 'mastercard', email: 'a@example.com' }),
+      await u.call('POST', '/v1/app/cards', {
+        product: 'mastercard',
+        email: 'a@example.com',
+        cardholderName: 'Test Holder',
+      }),
     );
     await submitOne();
     expect((await opRow(operation.id)).status).toBe('review');
@@ -218,7 +226,11 @@ describe('limits and guards', () => {
         60,
       );
       calls.length = 0;
-      const res = await u.call('POST', '/v1/app/cards', { product: 'mastercard', email: 'live@example.com' });
+      const res = await u.call('POST', '/v1/app/cards', {
+        product: 'mastercard',
+        email: 'live@example.com',
+        cardholderName: 'Test Holder',
+      });
       expect(res.status).toBe(409);
       expect((await body(res)).error.code).toBe('LIVE_WRITES_DISABLED');
       expect(calls).toHaveLength(0);
@@ -294,7 +306,13 @@ describe('limits and guards', () => {
       Object.assign(cardSettings, { mode: 'live', apiKey: 'izpk_test_x' });
       const u = await kit.as(kit.newUser());
       expect(
-        (await u.call('POST', '/v1/app/cards', { product: 'mastercard', email: 'k@example.com' })).status,
+        (
+          await u.call('POST', '/v1/app/cards', {
+            product: 'mastercard',
+            email: 'k@example.com',
+            cardholderName: 'Test Holder',
+          })
+        ).status,
       ).toBe(503);
     } finally {
       Object.assign(cardSettings, prev);
@@ -303,9 +321,17 @@ describe('limits and guards', () => {
 
   test('velocity: one unpaid invoice, 3 ops/day, $2,000/day', async () => {
     const u = await kit.as(kit.newUser());
-    const first = await u.call('POST', '/v1/app/cards', { product: 'mastercard', email: 'v@example.com' });
+    const first = await u.call('POST', '/v1/app/cards', {
+      product: 'mastercard',
+      email: 'v@example.com',
+      cardholderName: 'Test Holder',
+    });
     expect(first.status).toBe(200);
-    const second = await u.call('POST', '/v1/app/cards', { product: 'mastercard', email: 'v@example.com' });
+    const second = await u.call('POST', '/v1/app/cards', {
+      product: 'mastercard',
+      email: 'v@example.com',
+      cardholderName: 'Test Holder',
+    });
     expect(second.status).toBe(409);
     // daily count
     const w = await kit.as(kit.newUser());
@@ -354,7 +380,11 @@ describe('limits and guards', () => {
   test('expired invoice -> expired (nothing paid)', async () => {
     const u = await kit.as(kit.newUser());
     const { card, operation } = await body(
-      await u.call('POST', '/v1/app/cards', { product: 'mastercard', email: 'e@example.com' }),
+      await u.call('POST', '/v1/app/cards', {
+        product: 'mastercard',
+        email: 'e@example.com',
+        cardholderName: 'Test Holder',
+      }),
     );
     await submitOne();
     const op = await opRow(operation.id);
@@ -638,13 +668,23 @@ describe('review-gate fixes', () => {
     expect((await opRow(op2.id)).status).toBe('processing');
   });
 
-  test('input validation: email, alias, finish, product', async () => {
+  test('input validation: email, cardholder name, finish, product', async () => {
     const u = await kit.as(kit.newUser());
     const bad = (b: object) =>
-      u.call('POST', '/v1/app/cards', { product: 'mastercard', email: 'v@example.com', ...b });
+      u.call('POST', '/v1/app/cards', {
+        product: 'mastercard',
+        email: 'v@example.com',
+        cardholderName: 'Val Holder',
+        ...b,
+      });
     expect((await bad({ email: `${'a'.repeat(250)}@example.com` })).status).toBe(400);
     expect((await bad({ email: 'not-an-email' })).status).toBe(400);
-    expect((await bad({ alias: 'x'.repeat(65) })).status).toBe(400);
+    expect((await bad({ cardholderName: 'x'.repeat(65) })).status).toBe(400);
+    // the cardholder name is required and must look like a name
+    expect((await bad({ cardholderName: undefined })).status).toBe(400);
+    expect((await bad({ cardholderName: '   ' })).status).toBe(400);
+    expect((await bad({ cardholderName: 'A' })).status).toBe(400);
+    expect((await bad({ cardholderName: '12345' })).status).toBe(400);
     expect((await bad({ finish: 'bad finish!' })).status).toBe(400);
     expect((await bad({ product: 'visa' })).status).toBe(400);
   });

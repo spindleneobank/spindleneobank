@@ -25,19 +25,21 @@ import {
 } from './service';
 import { assertProductionSafe } from './settings';
 
-// Stricter than the shared schema: issuable products only, bounded email/alias/finish.
+// Stricter than the shared schema: issuable products only, bounded email/cardholder name/finish.
 const PostCardsReq = BaseCardsReq.extend({
   product: z.enum(ISSUABLE_PRODUCTS),
   email: z.string().trim().max(254).email(),
-  alias: z
+  // izipay's only name field is `cardholder_alias` (display name)
+  cardholderName: z
     .string()
     .trim()
+    .min(2, 'Enter the cardholder name.')
     .max(64)
     .refine(
       (v) => ![...v].some((ch) => ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127),
       'no control characters',
     )
-    .optional(),
+    .refine((v) => /\p{L}/u.test(v), 'The cardholder name must contain letters.'),
   finish: z
     .string()
     .max(32)

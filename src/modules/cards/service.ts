@@ -235,7 +235,7 @@ export type CreateCtx = { userId: string; address: string; ipHash: string | null
 
 export async function createCard(
   ctx: CreateCtx,
-  input: { product: string; email: string; alias?: string | undefined; finish?: string | undefined },
+  input: { product: string; email: string; cardholderName: string; finish?: string | undefined },
 ): Promise<{ card: CardView; operation: CardOperation }> {
   requireCards();
   if (!(ISSUABLE_PRODUCTS as readonly string[]).includes(input.product)) {
@@ -269,7 +269,7 @@ export async function createCard(
         .values({
           userId: ctx.userId,
           emailEnc: encryptCardData(email, profileContext(ctx.userId)),
-          aliasEnc: input.alias ? encryptCardData(input.alias, profileContext(ctx.userId)) : null,
+          cardholderNameEnc: encryptCardData(input.cardholderName.trim(), profileContext(ctx.userId)),
         })
         .returning({ id: cardProfiles.id });
       const [card] = await tx
@@ -503,12 +503,13 @@ export async function revealCard(userId: string, id: string) {
     let holder = str(data.cardholder_alias, 100) ?? '';
     if (!holder) {
       const [profile] = await dbRef.db
-        .select({ aliasEnc: cardProfiles.aliasEnc })
+        .select({ cardholderNameEnc: cardProfiles.cardholderNameEnc })
         .from(cardProfiles)
         .where(eq(cardProfiles.userId, userId))
         .orderBy(desc(cardProfiles.createdAt))
         .limit(1);
-      if (profile?.aliasEnc) holder = decryptCardData(profile.aliasEnc, profileContext(userId));
+      if (profile?.cardholderNameEnc)
+        holder = decryptCardData(profile.cardholderNameEnc, profileContext(userId));
     }
     return { number, exp, cvv, holder };
   } catch {

@@ -161,11 +161,11 @@ async function buildRequest(op: OpRow): Promise<{ body: string; providerCardId?:
       .limit(1);
     if (!profile?.emailEnc) throw new ProviderError('not_sent', 'invalid_response');
     const ctx = profileContext(op.userId);
-    const alias = profile.aliasEnc ? decryptCardData(profile.aliasEnc, ctx) : null;
+    const holderName = profile.cardholderNameEnc ? decryptCardData(profile.cardholderNameEnc, ctx) : null;
     return {
       body: JSON.stringify({
         cardholder_email: decryptCardData(profile.emailEnc, ctx),
-        ...(alias ? { cardholder_alias: alias } : {}),
+        ...(holderName ? { cardholder_alias: holderName } : {}),
         client_card_ref: card.clientCardRef,
         card_type: card.product,
         pay_currency: PAY_CURRENCY.bsc,

@@ -136,7 +136,7 @@ describe.skipIf(!healthy)('card flows end to end (mock izipay + real Relay quote
       await u.call('POST', '/v1/app/cards', {
         product: 'mastercard',
         email: 'int@example.com',
-        alias: 'Int Test',
+        cardholderName: 'Int Test',
       }),
     );
     await submitOne();

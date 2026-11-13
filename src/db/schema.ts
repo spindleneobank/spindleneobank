@@ -435,7 +435,8 @@ export const cardProfiles = pgTable('card_profiles', {
     .notNull()
     .references(() => users.id),
   emailEnc: text('email_enc'),
-  aliasEnc: text('alias_enc'),
+  /** Cardholder name (izipay `cardholder_alias`). The column keeps its original name. */
+  cardholderNameEnc: text('alias_enc'),
   createdAt: createdAt(),
 });
 
