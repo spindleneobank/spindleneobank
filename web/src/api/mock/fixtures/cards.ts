@@ -1,6 +1,7 @@
 import { env } from '../../../env';
 import { ApiError } from '../../errors';
 import type { MockFixtures } from '../mock';
+import { topupEffect } from './card-operations';
 import { readMockSession } from './auth';
 
 /**
@@ -225,7 +226,13 @@ const cardView = (c: Card) => {
       o.cardId === c.id &&
       ['created', 'submitting', 'awaiting_payment', 'processing', 'review'].includes(tick(o).status),
   );
-  return { ...c, ...(pending ? { pendingOperation: opView(pending) } : {}) };
+  const topups = topupEffect(c.id);
+  return {
+    ...c,
+    balanceUsdCents: String(BigInt(c.balanceUsdCents) + topups.creditedCents),
+    ...(pending ? { pendingOperation: opView(pending) } : {}),
+    balanceRefreshPending: topups.refreshPending,
+  };
 };
 
 const TXS = [

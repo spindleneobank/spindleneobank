@@ -19,13 +19,17 @@ export function useCardPricing() {
   });
 }
 
-/** Card list; polls while any card is not in a settled state. Shares its key with the Overview card panel. */
+/**
+ * Card list; polls while any card has an open operation or a balance read still pending (a completed top-up
+ * shows its new balance only after the next provider sync). Shares its key with the Overview card panel.
+ */
 export function useCardList() {
   return useQuery({
     queryKey: dk.cards,
     retry: false,
     queryFn: () => apiFetch('/v1/app/cards', { schema: api.GetCardsRes }),
-    refetchInterval: (q) => (q.state.data?.some((c) => c.pendingOperation) ? 5_000 : false),
+    refetchInterval: (q) =>
+      q.state.data?.some((c) => c.pendingOperation || c.balanceRefreshPending) ? 3_000 : false,
   });
 }
 

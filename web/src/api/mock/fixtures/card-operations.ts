@@ -8,6 +8,8 @@ import { readMockSession } from './auth';
  */
 type Rec = {
   id: string;
+  /** Card the top-up is for (absent on records saved before this field existed). */
+  cardId?: string;
   cents: string;
   createdAt: number;
   relayOrderId?: string;
@@ -99,8 +101,27 @@ function view(r: Rec) {
   if (sc === 'failed')
     return { operation: op('failed', 'izipay rejected the payment (mock)'), relay: rel('success') };
   if (sc === 'review') return { operation: op('review'), relay: rel('success') };
-  if (dt < 11_000) return { operation: op('processing'), relay: rel('success') };
+  if (dt < COMPLETED_AFTER_MS) return { operation: op('processing'), relay: rel('success') };
   return { operation: op('completed'), relay: rel('success') };
+}
+
+const COMPLETED_AFTER_MS = 11_000;
+/** Like production: the new balance arrives with the next provider sync, a few seconds after completion. */
+const BALANCE_SYNC_AFTER_MS = 15_000;
+
+/** What completed mock top-ups did to a card: cents already in its balance, and whether a sync is pending. */
+export function topupEffect(cardId: string): { creditedCents: bigint; refreshPending: boolean } {
+  if (scenario()) return { creditedCents: 0n, refreshPending: false };
+  const now = Date.now();
+  let creditedCents = 0n;
+  let refreshPending = false;
+  for (const r of Object.values(load())) {
+    if (r.cardId !== cardId || !r.depositAt) continue;
+    const dt = now - r.depositAt;
+    if (dt >= BALANCE_SYNC_AFTER_MS) creditedCents += BigInt(r.cents);
+    else if (dt >= COMPLETED_AFTER_MS) refreshPending = true;
+  }
+  return { creditedCents, refreshPending };
 }
 
 export const cardOperationFixtures: MockFixtures = {
@@ -115,12 +136,12 @@ export const cardOperationFixtures: MockFixtures = {
       maxTopupCents: '1000000',
     };
   },
-  'POST /v1/app/cards/:id/topups': ({ body }) => {
+  'POST /v1/app/cards/:id/topups': ({ params, body }) => {
     need();
     const cents = (body as { amountUsdCents: string }).amountUsdCents;
     const id = `op_${Math.random().toString(36).slice(2, 10)}`;
     const m = load();
-    m[id] = { id, cents, createdAt: Date.now() };
+    m[id] = { id, cardId: params.id as string, cents, createdAt: Date.now() };
     save(m);
     return {
       operation: { id, kind: 'topup', status: 'created', amountUsdCents: cents, invoice: null, error: null },
