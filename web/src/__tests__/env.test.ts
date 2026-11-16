@@ -36,14 +36,18 @@ describe('parseEnv', () => {
     expect(() => parseEnv({ ...base, VITE_USDG_ADDRESS: 'nope' })).toThrow(/VITE_USDG_ADDRESS/);
     expect(() => parseEnv({ ...base, VITE_API_MOCK: 'yes' })).toThrow(/VITE_API_MOCK/);
   });
-  it('staking is optional: both addresses empty turns it off, one alone is refused', () => {
+  it('staking is optional: both addresses empty turns it off, staking without the token is refused', () => {
     expect(parseEnv(base).stakingEnabled).toBe(true);
     const off = parseEnv({ ...base, VITE_STAKING_ADDRESS: '', VITE_SPDL_ADDRESS: '' });
     expect(off.stakingEnabled).toBe(false);
     expect(off.addresses.staking).toBeUndefined();
     const { VITE_STAKING_ADDRESS: _s, VITE_SPDL_ADDRESS: _p, ...unset } = base;
     expect(parseEnv(unset).stakingEnabled).toBe(false);
-    expect(() => parseEnv({ ...base, VITE_SPDL_ADDRESS: '' })).toThrow(/or neither/);
+    expect(() => parseEnv({ ...base, VITE_SPDL_ADDRESS: '' })).toThrow(/needs VITE_SPDL_ADDRESS/);
+    // the token alone is fine (homepage contract address before staking exists)
+    const tokenOnly = parseEnv({ ...base, VITE_STAKING_ADDRESS: '' });
+    expect(tokenOnly.stakingEnabled).toBe(false);
+    expect(tokenOnly.addresses.spdl).toBe('0x0000000000000000000000000000000000000007');
     expect(() => parseEnv({ ...base, VITE_STAKING_ADDRESS: 'nope' })).toThrow(/VITE_STAKING_ADDRESS/);
   });
 });

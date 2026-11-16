@@ -1,5 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { env } from '../../../env';
 import { type Breakpoint, initRollSpring, useBreakpoint } from '../../../components/marketing/motion';
 import { type GroupStates, initGroups, initVideos } from './behaviors';
 import { type ChatState, initChat } from './chat';
@@ -24,6 +26,7 @@ import {
   initTypewriter,
 } from './motion';
 import { initShaders } from './shaders';
+import { SpdlContract } from './SpdlContract';
 import { initWorkflow } from './workflow';
 import './home.generated.css';
 import './home.css';
@@ -47,6 +50,24 @@ export function HomePage() {
   const navigate = useNavigate();
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => setLive(true), []);
+
+  // $SPDL contract address: a mount node right after the hero buttons of the tree on screen (only when set).
+  const [caHost, setCaHost] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!live || !env.addresses.spdl) return;
+    const buttons = rootRef.current?.querySelector<HTMLElement>(
+      `[data-hm-tree="${bp}"] [data-framer-name="Hero Section"] [data-framer-name="Button"]`,
+    );
+    if (!buttons) return;
+    const host = document.createElement('div');
+    host.className = 'hm-ca-host';
+    buttons.after(host);
+    setCaHost(host);
+    return () => {
+      host.remove();
+      setCaHost(null);
+    };
+  }, [live, bp]);
 
   // Internal links go through the router (no full reload), everything else behaves as a normal link.
   useEffect(() => {
@@ -148,6 +169,7 @@ export function HomePage() {
         // biome-ignore lint/security/noDangerouslySetInnerHtml: static icon sprites copied from the old page
         dangerouslySetInnerHTML={{ __html: svgTemplates }}
       />
+      {caHost ? createPortal(<SpdlContract />, caHost) : null}
       {ORDER.filter((k) => !live || k === bp).map((k) => (
         <div
           key={k}

@@ -228,3 +228,93 @@ img[alt*="stone retro computer" i],
 video[src*="stone-retro-computer"] {
   display: none !important;
 }
+
+/* $SPDL contract address under the hero buttons (SpdlContract.tsx); styled after the hero badge */
+.hm-ca {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  max-width: 100%;
+  padding: 8px 10px 8px 12px;
+  border: 1px solid rgb(203, 184, 194);
+  border-radius: 6px;
+  background: rgba(244, 232, 225, 0.72);
+  backdrop-filter: blur(6px);
+  color: rgb(105, 80, 97);
+  font-family: "Spindle Sans", Inter, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+.hm-ca-label {
+  text-transform: uppercase;
+  letter-spacing: -0.18px;
+  white-space: nowrap;
+}
+.hm-ca-addr {
+  font-family: var(--sp-font-mono, "IBM Plex Mono", ui-monospace, monospace);
+  font-size: 13px;
+  color: rgb(43, 35, 41);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.hm-ca-short {
+  display: none;
+}
+.hm-ca-btn {
+  appearance: none;
+  border: 1px solid rgb(203, 184, 194);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.55);
+  color: rgb(105, 80, 97);
+  font: inherit;
+  text-transform: uppercase;
+  letter-spacing: -0.18px;
+  padding: 4px 8px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.hm-ca-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: rgb(43, 35, 41);
+}
+.hm-ca-btn:focus-visible {
+  outline: 2px solid rgb(105, 80, 97);
+  outline-offset: 2px;
+}
+.hm-ca-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .hm-ca {
+    width: 100%;
+  }
+  .hm-ca-label {
+    flex-basis: 100%;
+  }
+  .hm-ca-addr {
+    margin-right: auto;
+  }
+  .hm-ca-full {
+    display: none;
+  }
+  .hm-ca-short {
+    display: inline;
+  }
+}
+.hm-ca-host {
+  max-width: 100%;
+}
+@media (max-width: 640px) {
+  .hm-ca-host {
+    width: 100%;
+  }
+}

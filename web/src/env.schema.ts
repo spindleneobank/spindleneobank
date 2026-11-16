@@ -22,10 +22,11 @@ export const envSchema = z.object({
   VITE_USDG_ADDRESS: address,
   VITE_PERMIT2_ADDRESS: address,
   VITE_REGISTRY_ADDRESS: address,
-  /** Staking is optional at launch (contracts deployed with NO_STAKING=1): leave both staking vars empty. */
+  /** Staking is optional at launch (contracts deployed with NO_STAKING=1): leave it empty. Needs VITE_SPDL_ADDRESS. */
   VITE_STAKING_ADDRESS: optionalAddress,
   VITE_CLAIMS_ADDRESS: address,
   VITE_VAULT_ADDRESS: address,
+  /** $SPDL token. On its own it only shows the contract address on the homepage; staking also needs VITE_STAKING_ADDRESS. */
   VITE_SPDL_ADDRESS: optionalAddress,
   VITE_API_MOCK: z.enum(['0', '1']).default('0'),
 });
@@ -39,10 +40,8 @@ export function parseEnv(raw: Record<string, unknown>) {
     throw new Error(`Invalid frontend environment:\n${issues}`);
   }
   const e = parsed.data;
-  if (Boolean(e.VITE_STAKING_ADDRESS) !== Boolean(e.VITE_SPDL_ADDRESS)) {
-    throw new Error(
-      'Invalid frontend environment:\n  set both VITE_STAKING_ADDRESS and VITE_SPDL_ADDRESS, or neither (staking off)',
-    );
+  if (e.VITE_STAKING_ADDRESS && !e.VITE_SPDL_ADDRESS) {
+    throw new Error('Invalid frontend environment:\n  VITE_STAKING_ADDRESS needs VITE_SPDL_ADDRESS (the staked token)');
   }
   return {
     apiUrl: e.VITE_API_URL.replace(/\/$/, ''),
@@ -62,7 +61,7 @@ export function parseEnv(raw: Record<string, unknown>) {
       spdl: e.VITE_SPDL_ADDRESS?.toLowerCase() as `0x${string}` | undefined,
     },
     /** False until SpindleStaking is deployed: the dashboard hides staking. */
-    stakingEnabled: Boolean(e.VITE_STAKING_ADDRESS),
+    stakingEnabled: Boolean(e.VITE_STAKING_ADDRESS && e.VITE_SPDL_ADDRESS),
     mock: e.VITE_API_MOCK === '1',
   };
 }
