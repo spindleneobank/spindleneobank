@@ -234,7 +234,7 @@ video[src*="stone-retro-computer"] {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 10px;
+  gap: 8px 12px;
   max-width: 100%;
   padding: 8px 10px 8px 12px;
   border: 1px solid rgb(203, 184, 194);
@@ -296,9 +296,6 @@ video[src*="stone-retro-computer"] {
 @media (max-width: 640px) {
   .hm-ca {
     width: 100%;
-  }
-  .hm-ca-label {
-    flex-basis: 100%;
   }
   .hm-ca-addr {
     margin-right: auto;

@@ -24,7 +24,7 @@ export function SpdlContract() {
 
   return (
     <div className="hm-ca" data-spdl-ca="">
-      <span className="hm-ca-label">$SPDL contract</span>
+      <span className="hm-ca-label" title="$SPDL contract address">CA</span>
       <code className="hm-ca-addr" title={address}>
         <span className="hm-ca-full">{address}</span>
         <span className="hm-ca-short" aria-hidden="true">
@@ -39,15 +39,6 @@ export function SpdlContract() {
       >
         {copied ? 'Copied' : 'Copy'}
       </button>
-      <a
-        className="hm-ca-btn"
-        href={`${env.explorerUrl}/token/${address}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="View the $SPDL contract on the explorer"
-      >
-        Explorer
-      </a>
       <span className="hm-ca-live" aria-live="polite">
         {copied ? 'Contract address copied' : ''}
       </span>
