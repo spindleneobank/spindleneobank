@@ -1,5 +1,7 @@
 import Lenis from 'lenis';
+import 'lenis/dist/lenis.css';
 import { type ReactNode, useEffect, useState } from 'react';
+import { afterIntro } from '../../Preloader';
 import { initRollSpring } from '../motion/roll';
 import { Footer } from './Footer';
 import { Header } from './Header';
@@ -33,23 +35,36 @@ function PageLines() {
   );
 }
 
-/** Same settings as the old Framer Lenis (intensity 6 -> duration 0.6s). Skipped for reduced motion. */
+/**
+ * Same settings as the old Framer Lenis (intensity 6 -> duration 0.6s). Skipped for reduced motion.
+ *
+ * autoToggle stops Lenis while <html> has overflow hidden/clip (the intro, the mobile menu), and a stopped Lenis
+ * swallows wheel events. It notices the overflow changing back only through the transition in lenis.css, which not
+ * every browser runs for `overflow`, so Lenis is also created only after the intro has unlocked the page. Otherwise
+ * the first visit could not be scrolled with a mouse wheel or trackpad until a reload.
+ */
 function useSmoothScroll() {
   useEffect(() => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const l = new Lenis({
-      smoothWheel: true,
-      duration: 0.6,
-      autoRaf: true,
-      autoToggle: true,
-      anchors: true,
-      allowNestedScroll: true,
-      syncTouch: false,
-      stopInertiaOnNavigate: true,
-      orientation: 'vertical',
-      gestureOrientation: 'vertical',
+    let l: Lenis | undefined;
+    const cancel = afterIntro(() => {
+      l = new Lenis({
+        smoothWheel: true,
+        duration: 0.6,
+        autoRaf: true,
+        autoToggle: true,
+        anchors: true,
+        allowNestedScroll: true,
+        syncTouch: false,
+        stopInertiaOnNavigate: true,
+        orientation: 'vertical',
+        gestureOrientation: 'vertical',
+      });
     });
-    return () => l.destroy();
+    return () => {
+      cancel();
+      l?.destroy();
+    };
   }, []);
 }
 

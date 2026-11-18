@@ -2,6 +2,24 @@ import { useEffect, useState } from 'react';
 
 const RAMP = ['#62539b', '#8e5691', '#b86a92', '#cc6c78', '#d37f59', '#ce9755'];
 const KEY = 'spindle-intro-v2';
+/** Fired on window once #sp-preloader has left the DOM. */
+const INTRO_DONE = 'spindle:intro-done';
+
+/**
+ * Runs `run` once the page is no longer locked by the intro: right away when no intro is playing, otherwise when the
+ * preloader is removed. Returns a cancel function.
+ */
+export function afterIntro(run: () => void): () => void {
+  const playing =
+    document.documentElement.classList.contains('sp-intro') &&
+    document.getElementById('sp-preloader') !== null;
+  if (!playing) {
+    run();
+    return () => {};
+  }
+  addEventListener(INTRO_DONE, run, { once: true });
+  return () => removeEventListener(INTRO_DONE, run);
+}
 
 /**
  * Port of preloader.js. Prerendered visible; hides once fonts are ready (max 5s). Skipped after the first view in
@@ -34,6 +52,9 @@ export function Preloader() {
       clearTimeout(cap);
     };
   }, []);
+  useEffect(() => {
+    if (gone) dispatchEvent(new Event(INTRO_DONE));
+  }, [gone]);
   if (gone) return null;
   return (
     <div
