@@ -1,3 +1,5 @@
+// Must stay first: WalletConnect needs the Buffer global (see buffer-polyfill.ts).
+import './buffer-polyfill';
 import { createAppKit } from '@reown/appkit/react';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { createSIWEConfig } from '@reown/appkit-siwe';
