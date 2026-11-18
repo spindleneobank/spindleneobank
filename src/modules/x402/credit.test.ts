@@ -267,7 +267,10 @@ test('model: whatever a wallet does in any order, its credit in use stays within
             const job = held.shift();
             if (job) await settleSessionUse(job.id, job.amount, o.charge);
           }
-          const rows = await t.db.select().from(x402Payments);
+          // a session closed unused expires: nothing to settle and no surcharge charged, so it holds no credit
+          const rows = (await t.db.select().from(x402Payments)).filter((p) =>
+            ['open', 'closing', 'settling'].includes(p.status),
+          );
           const inUse = rows.reduce(
             (a, p) => a + p.usedMicros + p.reservedMicros + (p.surchargeMicros ?? 0n),
             0n,
@@ -276,6 +279,35 @@ test('model: whatever a wallet does in any order, its credit in use stays within
         }
       },
     ),
-    { numRuns: 25 },
+    {
+      numRuns: 25,
+      // found by the gate: a session closed unused must not keep its surcharge counted against the wallet
+      examples: [
+        [
+          [
+            { op: 'open' },
+            { op: 'reserve', amount: 7_027n },
+            { op: 'reserve', amount: 39_974n },
+            { op: 'open' },
+            { op: 'close' },
+            { op: 'open' },
+          ],
+        ],
+      ],
+    },
   );
 }, 60_000);
+
+test('a session closed unused frees its surcharge for the next session', async () => {
+  const payer = fresh();
+  const busy = await open(payer, { scheme: 'session', cap: 5n * USD, surcharge: 1_000n });
+  const [row] = await t.db.select().from(x402Payments).where(sqlId(busy.id));
+  expect('remaining' in (await reserveSession(row as never, 48_000n, 60_000))).toBe(true);
+  // 1_000 + 48_000 + 1_000 fills the 50_000 limit exactly
+  const idle = await open(payer, { scheme: 'session', cap: 5n * USD, surcharge: 1_000n });
+  expect(await refusal(open(payer, { scheme: 'session', cap: 5n * USD, surcharge: 1_000n }))).toContain(
+    'credit limit',
+  );
+  expect(await closeSession(idle.id)).toBe('expired');
+  expect(await refusal(open(payer, { scheme: 'session', cap: 5n * USD, surcharge: 1_000n }))).toBeNull();
+});
