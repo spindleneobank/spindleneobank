@@ -243,7 +243,7 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
       },
       {
         heading: 'Your choices',
-        body: 'You can explore this preview without registering a live GPU node or submitting a payout transaction. Community channels on Telegram and X are coming soon. Browser controls can manage local site storage and embedded media behavior.',
+        body: 'You can explore this preview without registering a live GPU node or submitting a payout transaction. Community channels are on Telegram and X. Browser controls can manage local site storage and embedded media behavior.',
       },
       {
         heading: 'Compute privacy boundaries',
@@ -259,8 +259,8 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
       },
       {
         heading: 'View verification',
-        body: 'Spindle community channels are Telegram and X coming soon',
-        html: 'Spindle community channels are <a href="/community#telegram">Telegram and X coming soon</a>',
+        body: 'Spindle community channels are Telegram and X',
+        html: 'Spindle community channels are <a href="https://t.me/spindleneobank" target="_blank" rel="noopener noreferrer">Telegram</a> and <a href="https://x.com/spindleneobank" target="_blank" rel="noopener noreferrer">X</a>',
       },
     ],
   },
@@ -275,7 +275,7 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
       },
       {
         heading: 'Current website features',
-        body: 'The visible preview includes navigation, animation and local interface controls. Community links are marked coming soon. It does not provide a production node account, live claims or a working payout program.',
+        body: 'The visible preview includes navigation, animation and local interface controls. Community links open Spindle’s Telegram, X and GitHub pages, which have their own terms and privacy policies. It does not provide a production node account, live claims or a working payout program.',
       },
       {
         heading: 'Site storage',

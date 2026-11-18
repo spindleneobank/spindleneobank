@@ -1,86 +1,19 @@
 import { Link } from '@tanstack/react-router';
 import { motion } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
 import { PixelIcon } from '../../PixelIcon';
 import { ButtonPrimary, ButtonSecondary } from './Buttons';
 import { NavLink } from './Header';
 import { LogoSpotlight } from './LogoSpotlight';
-import { CTA_LABEL, FOOTER_COLS, SOCIALS } from './nav-data';
+import { CTA_LABEL, EXTERNAL, FOOTER_COLS, SOCIALS, type Social } from './nav-data';
 
-/** Port of spindle.js coming(): native <dialog>, closes on backdrop / close button / Esc, restores focus. */
-export function ComingDialog({
-  what,
-  onClose,
-}: {
-  what: (typeof SOCIALS)[number] | null;
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const last = useRef<Element | null>(null);
-  useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (what && !d.open) {
-      last.current = document.activeElement;
-      d.showModal();
-    } else if (!what && d.open) d.close();
-  }, [what]);
-  const close = () => {
-    ref.current?.close();
-    onClose();
-    (last.current as HTMLElement | null)?.focus?.();
-  };
-  return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click only; Esc is handled by onCancel
-    <dialog
-      ref={ref}
-      className="sx-dialog"
-      aria-label="Coming soon"
-      onClick={(e) => e.target === ref.current && close()}
-      onCancel={(e) => {
-        e.preventDefault();
-        close();
-      }}
-    >
-      <button type="button" className="sx-dialog-x" aria-label="Close dialog" onClick={close}>
-        <PixelIcon name="close" size={18} />
-      </button>
-      {what ? (
-        <div className="sx-coming">
-          <span className="sx-coming-sym">
-            <PixelIcon name={what.key} size={34} />
-          </span>
-          <span className="sp-eyebrow">SPINDLE / {what.name.toUpperCase()}</span>
-          <h2>Coming soon.</h2>
-          <p>Our next connection is taking shape.</p>
-          <button type="button" className="sx-coming-b" onClick={close}>
-            Keep exploring <PixelIcon name="arrow" size={18} />
-          </button>
-        </div>
-      ) : null}
-    </dialog>
-  );
-}
-
-export function SocialButton({
-  s,
-  box,
-  onOpen,
-}: {
-  s: (typeof SOCIALS)[number];
-  box?: boolean;
-  onOpen: (s: (typeof SOCIALS)[number]) => void;
-}) {
+export function SocialButton({ s, box }: { s: Social; box?: boolean }) {
   return (
     <a
-      href={`#${s.key}`}
+      href={s.href}
+      {...EXTERNAL}
       className={box ? 'sx-sbox' : 'sx-sico'}
       data-sp-social={s.key}
-      aria-label={s.label}
-      onClick={(e) => {
-        e.preventDefault();
-        onOpen(s);
-      }}
+      aria-label={`Spindle on ${s.label}`}
     >
       <PixelIcon name={s.key} size={18} />
     </a>
@@ -115,7 +48,6 @@ function Edge({ at }: { at: 't' | 'b' }) {
 }
 
 export function Footer() {
-  const [what, setWhat] = useState<(typeof SOCIALS)[number] | null>(null);
   const year = new Date().getUTCFullYear();
   return (
     <footer className="sx-footer">
@@ -155,7 +87,7 @@ export function Footer() {
               <span>Connect</span>
               <div className="sx-soc">
                 {SOCIALS.map((s) => (
-                  <SocialButton key={s.key} s={s} box onOpen={setWhat} />
+                  <SocialButton key={s.key} s={s} box />
                 ))}
               </div>
             </div>
@@ -190,12 +122,11 @@ export function Footer() {
           </p>
           <div className="sx-legal-s">
             {[SOCIALS[2], SOCIALS[0], SOCIALS[1]].map((s) => (
-              <SocialButton key={s.key} s={s} onOpen={setWhat} />
+              <SocialButton key={s.key} s={s} />
             ))}
           </div>
         </div>
       </div>
-      <ComingDialog what={what} onClose={() => setWhat(null)} />
     </footer>
   );
 }

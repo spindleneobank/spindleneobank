@@ -1223,7 +1223,7 @@
   flex-wrap: wrap;
   gap: 12px;
 }
-.ab-soc button {
+.ab-soc a {
   flex: 1 1 0;
   display: flex;
   flex-direction: row;
@@ -1233,6 +1233,7 @@
   background: #3c2935;
   border: 1px solid #705061;
   color: #fbd9c8;
+  text-decoration: none;
   line-height: normal;
   font-family: inherit;
   font-size: 12px;
@@ -1243,13 +1244,13 @@
     background 0.25s,
     color 0.25s;
 }
-.ab-soc button + button {
+.ab-soc a + a {
   background: #292036;
 }
-.ab-soc button:hover {
+.ab-soc a:hover {
   background: #68414e;
 }
-.ab-soc button + button:hover {
+.ab-soc a + a:hover {
   background: #493053;
 }
 .ab-soc svg {
@@ -1277,7 +1278,7 @@
   .ab-soc {
     gap: 10px;
   }
-  .ab-soc button {
+  .ab-soc a {
     display: grid;
     grid-template-columns: 21px auto;
     grid-template-rows: 21px auto;
@@ -1287,10 +1288,10 @@
     align-items: center;
     justify-items: start;
   }
-  .ab-soc button svg {
+  .ab-soc a svg {
     grid-row: 1;
   }
-  .ab-soc button small {
+  .ab-soc a small {
     grid-column: 2;
     grid-row: 2;
   }

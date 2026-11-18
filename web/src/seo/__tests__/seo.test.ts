@@ -30,6 +30,13 @@ describe('buildHead', () => {
     expect(h.meta).toContainEqual({ name: 'robots', content: 'noindex' });
     expect(h.meta.some((m) => 'script:ld+json' in m)).toBe(true);
   });
+  it('lists the official channels as sameAs', () => {
+    expect(organizationJsonLd(base).sameAs).toEqual([
+      'https://github.com/spindleneobank/spindleneobank',
+      'https://t.me/spindleneobank',
+      'https://x.com/spindleneobank',
+    ]);
+  });
 });
 
 describe('sitemap and robots', () => {

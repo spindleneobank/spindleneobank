@@ -1,26 +1,18 @@
-import { useState } from 'react';
 import { FOOTER_NAV } from '../content/nav';
-import { ComingSoonDialog } from './ComingSoonDialog';
+import { EXTERNAL, SOCIALS } from './marketing/shell/nav-data';
 import { PixelIcon } from './PixelIcon';
 
-const SOCIALS = [
-  { icon: 'github', label: 'GitHub' },
-  { icon: 'telegram', label: 'Telegram' },
-  { icon: 'x', label: 'X' },
-];
-
 export function SiteFooter() {
-  const [what, setWhat] = useState<string | null>(null);
   const socials = SOCIALS.map((s) => (
-    <button
-      key={s.label}
-      type="button"
+    <a
+      key={s.key}
+      href={s.href}
+      {...EXTERNAL}
       className="sp-footer-social"
-      aria-label={`${s.label} (coming soon)`}
-      onClick={() => setWhat(`The ${s.label} link`)}
+      aria-label={`Spindle on ${s.label}`}
     >
-      <PixelIcon name={s.icon} size={16} />
-    </button>
+      <PixelIcon name={s.key} size={16} />
+    </a>
   ));
   return (
     <footer className="sp-footer">
@@ -60,7 +52,6 @@ export function SiteFooter() {
           <div className="sp-footer-social-row">{socials}</div>
         </div>
       </div>
-      <ComingSoonDialog open={what !== null} onClose={() => setWhat(null)} what={what ?? 'This'} />
     </footer>
   );
 }

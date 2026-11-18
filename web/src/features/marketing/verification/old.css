@@ -321,7 +321,7 @@ html #main [data-sp-social] .framer-text {
   gap: 12px;
   flex-wrap: wrap;
 }
-.sp-doc-socials button {
+.sp-doc-socials a {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -331,6 +331,7 @@ html #main [data-sp-social] .framer-text {
   border: 1px solid rgb(112, 80, 97);
   background: rgb(60, 41, 53);
   color: rgb(237, 192, 173);
+  text-decoration: none;
   cursor: pointer;
   font:
     12px Inter,
@@ -340,7 +341,7 @@ html #main [data-sp-social] .framer-text {
     background 0.25s,
     color 0.25s;
 }
-.sp-doc-socials button:hover {
+.sp-doc-socials a:hover {
   background: rgb(104, 65, 78);
   color: rgb(255, 225, 202);
 }
@@ -354,11 +355,11 @@ html #main [data-sp-social] .framer-text {
   margin-left: auto;
   color: rgb(187, 150, 169);
 }
-.sp-doc-socials button:last-child {
+.sp-doc-socials a:last-child {
   background: rgb(41, 32, 54);
   color: rgb(190, 164, 216);
 }
-.sp-doc-socials button:last-child:hover {
+.sp-doc-socials a:last-child:hover {
   background: rgb(73, 48, 83);
   color: rgb(238, 210, 235);
 }
@@ -392,7 +393,7 @@ html #main [data-sp-social] .framer-text {
     grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
-  .sp-doc-socials button {
+  .sp-doc-socials a {
     min-width: 0px;
     flex-wrap: wrap;
     padding: 13px;

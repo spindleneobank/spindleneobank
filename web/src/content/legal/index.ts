@@ -28,7 +28,7 @@ export const LEGAL: LegalDoc[] = [
       },
       {
         heading: 'Your choices',
-        body: 'You can explore the marketing pages without registering a node or submitting a transaction. Community channels on Telegram and X are coming soon. Browser controls can manage local site storage and embedded media behavior.',
+        body: 'You can explore the marketing pages without registering a node or submitting a transaction. Community channels are on Telegram and X. Browser controls can manage local site storage and embedded media behavior.',
       },
       {
         heading: 'Compute privacy boundaries',
@@ -57,7 +57,7 @@ export const LEGAL: LegalDoc[] = [
       },
       {
         heading: 'Current website features',
-        body: 'The marketing pages include navigation, animation and local interface controls. Community links are marked coming soon. The dashboard uses a session cookie after you sign in with a wallet.',
+        body: 'The marketing pages include navigation, animation and local interface controls. Community links open Spindle’s Telegram, X and GitHub pages, which have their own terms and privacy policies. The dashboard uses a session cookie after you sign in with a wallet.',
       },
       {
         heading: 'Site storage',

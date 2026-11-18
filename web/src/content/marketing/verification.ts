@@ -77,8 +77,8 @@ export const limits = {
 
 export const community = {
   items: [
-    { icon: 'telegram', label: 'Telegram' },
-    { icon: 'x', label: 'X' },
+    { icon: 'telegram', label: 'Telegram', href: 'https://t.me/spindleneobank' },
+    { icon: 'x', label: 'X', href: 'https://x.com/spindleneobank' },
   ],
-  note: 'Coming soon',
+  note: '@spindleneobank',
 };

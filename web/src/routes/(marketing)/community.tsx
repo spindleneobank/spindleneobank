@@ -6,7 +6,7 @@ export const Route = createFileRoute('/(marketing)/community')({
   head: () =>
     pageHead(
       'Community',
-      'Follow Spindle’s compute and payout design. Community channels on Telegram and X are coming soon.',
+      'Follow Spindle’s compute and payout design. Join the community on Telegram and X.',
       '/community',
     ),
   component: CommunityPage,

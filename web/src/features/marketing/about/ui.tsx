@@ -3,8 +3,7 @@ import { motion } from 'motion/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { LiquidMetal } from '../../../components/marketing/motion';
 import { SPRING } from '../../../components/marketing/motion/framer';
-import { ComingDialog } from '../../../components/marketing/shell/Footer';
-import { SOCIALS } from '../../../components/marketing/shell/nav-data';
+import { EXTERNAL, SOCIAL_HANDLE, SOCIALS, type Social } from '../../../components/marketing/shell/nav-data';
 import './about.css';
 
 export function Badge({ tone, children }: { tone: 'black' | 'white'; children: ReactNode }) {
@@ -287,34 +286,31 @@ const PIXEL = {
   ),
 };
 
-/** Old `sp-document-panel` community card with the Telegram / X "coming soon" buttons. */
+/** Old `sp-document-panel` community card, linking to the Telegram and X channels. */
 export function CommunityCard() {
-  const [what, setWhat] = useState<(typeof SOCIALS)[number] | null>(null);
-  const tg = SOCIALS.find((s) => s.key === 'telegram') ?? SOCIALS[1];
-  const x = SOCIALS.find((s) => s.key === 'x') ?? SOCIALS[2];
+  const channels = SOCIALS.filter((s): s is Extract<Social, { key: keyof typeof PIXEL }> => s.key in PIXEL);
   return (
     <div className="ab-card">
       <div className="ab-card-h">
         <span>SPINDLE / COMMUNITY</span>
         <h2>Follow what takes shape.</h2>
-        <p>
-          Compute lanes. Signed receipts. Network design. Find Spindle on Telegram and X when the channels
-          open.
-        </p>
+        <p>Compute lanes. Signed receipts. Network design. Follow Spindle on Telegram and X.</p>
       </div>
       <div className="ab-soc">
-        <button type="button" data-sp-social="telegram" onClick={() => setWhat(tg)}>
-          {PIXEL.telegram}
-          <span>Telegram</span>
-          <small>COMING SOON</small>
-        </button>
-        <button type="button" data-sp-social="x" onClick={() => setWhat(x)}>
-          {PIXEL.x}
-          <span>X</span>
-          <small>COMING SOON</small>
-        </button>
+        {channels.map((s) => (
+          <a
+            key={s.key}
+            href={s.href}
+            {...EXTERNAL}
+            data-sp-social={s.key}
+            aria-label={`Spindle on ${s.label}`}
+          >
+            {PIXEL[s.key]}
+            <span>{s.label}</span>
+            <small>{SOCIAL_HANDLE.toUpperCase()}</small>
+          </a>
+        ))}
       </div>
-      <ComingDialog what={what} onClose={() => setWhat(null)} />
     </div>
   );
 }

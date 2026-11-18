@@ -20,8 +20,8 @@ export function CommunityPage() {
               <Badge tone="black">SPECIFICATION PREVIEW</Badge>
               <h1 className="ab-ch1">Follow the network</h1>
               <p>
-                Explore Spindle’s compute and payout design. Community links and launch details are coming
-                soon.
+                Explore Spindle’s compute and payout design. Join the community on Telegram and X, and follow
+                development on GitHub.
               </p>
             </div>
             <div className="ab-cnt">

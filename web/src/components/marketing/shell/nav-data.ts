@@ -59,8 +59,18 @@ export const FOOTER_COLS: { title: string; items: { label: string; to: string }[
     ],
   },
 ];
+/** Official Spindle channels. Every social link on the site comes from here. */
+export const SOCIAL_HANDLE = '@spindleneobank';
 export const SOCIALS = [
-  { key: 'github', label: 'GitHub', name: 'GitHub' },
-  { key: 'telegram', label: 'Telegram', name: 'Telegram' },
-  { key: 'x', label: 'X', name: 'X' },
+  {
+    key: 'github',
+    label: 'GitHub',
+    name: 'GitHub',
+    href: 'https://github.com/spindleneobank/spindleneobank',
+  },
+  { key: 'telegram', label: 'Telegram', name: 'Telegram', href: 'https://t.me/spindleneobank' },
+  { key: 'x', label: 'X', name: 'X', href: 'https://x.com/spindleneobank' },
 ] as const;
+export type Social = (typeof SOCIALS)[number];
+/** Attributes for a link that leaves the site. */
+export const EXTERNAL = { target: '_blank', rel: 'noopener noreferrer' } as const;

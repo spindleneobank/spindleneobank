@@ -1,4 +1,6 @@
 /** Single source for per-route <head>: title template, description, canonical, OG/Twitter, JSON-LD. */
+import { SOCIALS } from '../components/marketing/shell/nav-data';
+
 export const SITE_NAME = 'Spindle';
 export const OG_IMAGE_PATH = '/assets/brand/banner.webp';
 
@@ -34,6 +36,7 @@ export function organizationJsonLd(base: string): Record<string, unknown> {
     logo: `${b}/assets/brand/mark.svg`,
     description:
       'Spindle connects GPU supply to AI demand, records verified work, and pays providers in USDG.',
+    sameAs: SOCIALS.map((s) => s.href),
   };
 }
 
