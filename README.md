@@ -16,7 +16,6 @@
 Spindle connects GPU supply to AI demand, records verified work, and pays providers in USDG. Buyers call an
 OpenAI-compatible API. Independent nodes serve the jobs and sign a receipt for each one. Verified work is
 committed on-chain each epoch, and providers claim their earnings from an owner-less contract.
-
 - **OpenAI-compatible API**: chat completions, streaming and embeddings. Pay with an API key and a USDG balance,
   or per call with [x402](https://www.x402.org/).
 - **Signed receipts**: every job carries a COSE-signed receipt that anyone can verify and prove against the epoch's
@@ -28,21 +27,21 @@ committed on-chain each epoch, and providers claim their earnings from an owner-
 
 ## Links
 
-| Channel  | URL                                                                                                    |
-| -------- | ------------------------------------------------------------------------------------------------------ |
-| Website  | [spindleneobank.com](https://spindleneobank.com)                                                       |
-| API      | [api.spindleneobank.com](https://api.spindleneobank.com/v1/health)                                     |
-| X        | [@spindleneobank](https://x.com/spindleneobank)                                                        |
-| Telegram | [t.me/spindleneobank](https://t.me/spindleneobank)                                                     |
-| GitHub   | [github.com/spindleneobank/spindleneobank](https://github.com/spindleneobank/spindleneobank)           |
+| Channel  | URL                                                                                          |
+| -------- | -------------------------------------------------------------------------------------------- |
+| Website  | [spindleneobank.com](https://spindleneobank.com)                                             |
+| API      | [api.spindleneobank.com](https://api.spindleneobank.com/v1/health)                           |
+| X        | [@spindleneobank](https://x.com/spindleneobank)                                              |
+| Telegram | [t.me/spindleneobank](https://t.me/spindleneobank)                                           |
+| GitHub   | [github.com/spindleneobank/spindleneobank](https://github.com/spindleneobank/spindleneobank) |
 
 ## Deployed contracts
 
 Robinhood Chain mainnet (chain ID `4663`), deployed at block `110759179` from commit `fb519c4`. The full record,
 including constructor arguments, is in [`contracts/deployments/4663.json`](contracts/deployments/4663.json).
 
-| Contract          | Address                                                                                                                                       | Role                                                                                     |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Contract          | Address                                                                                                                                  | Role                                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `SpindleRegistry` | [`0xED53E157d8d48Fd951381ebD7E664f708070cE90`](https://robinhoodchain.blockscout.com/address/0xED53E157d8d48Fd951381ebD7E664f708070cE90) | Binds each node key to its owner wallet; the node key consents with an EIP-712 signature |
 | `SpindleClaims`   | [`0xbb51Cc9A45b9669329356e38a2d81B4436eA798b`](https://robinhoodchain.blockscout.com/address/0xbb51Cc9A45b9669329356e38a2d81B4436eA798b) | Cumulative Merkle payouts: epoch roots, guardian veto window, USDG claims                |
 | `BuyerVault`      | [`0x0F2D643BDdD6662ddB01991e6bF97eD2904932b3`](https://robinhoodchain.blockscout.com/address/0x0F2D643BDdD6662ddB01991e6bF97eD2904932b3) | Takes buyer deposits and x402 settlements, splits them 80/20 to claims and treasury      |
@@ -53,19 +52,19 @@ including constructor arguments, is in [`contracts/deployments/4663.json`](contr
 
 **Role holders**, fixed at deploy (what each role can and can't do is in [`SECURITY.md`](SECURITY.md#privileged-roles)):
 
-| Role                                       | Address                                                                                                                                       |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Guardian (`SpindleClaims`)                 | [`0x0e23B29665D94BDFc8f161B749B7AE05c47643c5`](https://robinhoodchain.blockscout.com/address/0x0e23B29665D94BDFc8f161B749B7AE05c47643c5) |
-| Keeper (root poster and x402 settler)      | [`0x7F34c3548447Ad3A548767CeE7877897DE440A8e`](https://robinhoodchain.blockscout.com/address/0x7F34c3548447Ad3A548767CeE7877897DE440A8e) |
-| Treasury                                   | [`0x147331906ee6eb2BaA0006CD6CE87fFB3eC37063`](https://robinhoodchain.blockscout.com/address/0x147331906ee6eb2BaA0006CD6CE87fFB3eC37063) |
+| Role                                  | Address                                                                                                                                  |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Guardian (`SpindleClaims`)            | [`0x0e23B29665D94BDFc8f161B749B7AE05c47643c5`](https://robinhoodchain.blockscout.com/address/0x0e23B29665D94BDFc8f161B749B7AE05c47643c5) |
+| Keeper (root poster and x402 settler) | [`0x7F34c3548447Ad3A548767CeE7877897DE440A8e`](https://robinhoodchain.blockscout.com/address/0x7F34c3548447Ad3A548767CeE7877897DE440A8e) |
+| Treasury                              | [`0x147331906ee6eb2BaA0006CD6CE87fFB3eC37063`](https://robinhoodchain.blockscout.com/address/0x147331906ee6eb2BaA0006CD6CE87fFB3eC37063) |
 
 **External contracts used**:
 
-| Contract                 | Address                                                                                                                                       |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| USDG                     | [`0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`](https://robinhoodchain.blockscout.com/address/0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168) |
-| Permit2                  | [`0x000000000022D473030F116dDEE9F6B43aC78BA3`](https://robinhoodchain.blockscout.com/address/0x000000000022D473030F116dDEE9F6B43aC78BA3) |
-| ERC-8004 Identity        | [`0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`](https://robinhoodchain.blockscout.com/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) |
+| Contract          | Address                                                                                                                                  |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| USDG              | [`0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`](https://robinhoodchain.blockscout.com/address/0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168) |
+| Permit2           | [`0x000000000022D473030F116dDEE9F6B43aC78BA3`](https://robinhoodchain.blockscout.com/address/0x000000000022D473030F116dDEE9F6B43aC78BA3) |
+| ERC-8004 Identity | [`0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`](https://robinhoodchain.blockscout.com/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) |
 
 To check the deployed bytecode, roles and parameters against this repository:
 
