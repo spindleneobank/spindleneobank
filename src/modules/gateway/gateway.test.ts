@@ -21,6 +21,7 @@ import { nodeHub } from '../nodes/hub';
 import nodesRoutes from '../nodes/routes';
 import { nodeSettings, setStakingParamsForTest } from '../nodes/service';
 import { type FakeNode, fakeNode } from '../nodes/testing';
+import { unregisterPaymentProvider } from './payment';
 import { utcDay } from './pricing';
 import gatewayRoutes from './routes';
 import { resetTtft } from './scheduler';
@@ -152,6 +153,8 @@ const lastJob = async () => (await t.db.select().from(jobs))[0];
 const settled = async () => (await balance()).reserved === 0n;
 
 beforeAll(async () => {
+  // A suite that ran earlier in this process may have imported x402/provider; these tests expect balance only.
+  unregisterPaymentProvider('x402');
   t = await setupTestDb();
   dbRef.db = t.db;
   const app = new Hono<Env>();

@@ -10,6 +10,7 @@ import { routeModules } from './lib/modules';
 import { closeRedis } from './lib/redis';
 import { dbRef, settings } from './modules/auth/constants';
 import { createTestSession } from './modules/auth/testing';
+import { unregisterPaymentProvider } from './modules/gateway/payment';
 
 const app = buildApp(routeModules);
 const ID = '00000000-0000-0000-0000-000000000000';
@@ -43,6 +44,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   Object.assign(settings, saved);
+  unregisterPaymentProvider('x402'); // routeModules imports x402/provider, which registers it process-wide; other suites expect none
   await t.close();
   await closeRedis();
 });
