@@ -44,7 +44,16 @@ export async function setupTestDb(): Promise<TestDb> {
         select tablename from pg_tables where schemaname = 'public'`;
       if (tables.length === 0) return;
       const list = tables.map((t) => `"${t.tablename}"`).join(', ');
-      await sql.unsafe(`truncate ${list} restart identity cascade`);
+      // work a previous test started in the background can still hold row locks: retry a deadlocked truncate
+      for (let attempt = 1; ; attempt++) {
+        try {
+          await sql.unsafe(`truncate ${list} restart identity cascade`);
+          return;
+        } catch (err) {
+          if ((err as { code?: string }).code !== '40P01' || attempt >= 5) throw err;
+          await new Promise((r) => setTimeout(r, 50 * attempt));
+        }
+      }
     },
     close: () => sql.end(),
   };
