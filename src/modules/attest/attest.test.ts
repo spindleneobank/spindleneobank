@@ -220,9 +220,14 @@ describe('transient outages and uniqueness', () => {
     try {
       await onNodeAttestation(nodeId, nodeKey, bundle);
       for (let i = 0; i < 100 && calls < 2; i++) await Bun.sleep(20);
-      await Bun.sleep(100);
+      // the retry writes its row after the (mocked) verification call: wait for the row, not a fixed time
+      let row = await latestAttestation(nodeId);
+      for (let i = 0; i < 150 && row === null; i++) {
+        await Bun.sleep(20);
+        row = await latestAttestation(nodeId);
+      }
       expect(calls).toBe(2);
-      expect(await latestAttestation(nodeId)).not.toBeNull();
+      expect(row).not.toBeNull();
     } finally {
       retryDelaysMs.value = savedDelays;
       hookDeps.enabled = () => false;
