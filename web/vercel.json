@@ -96,8 +96,8 @@
     }
   ],
   "rewrites": [
-    { "source": "/dashboard", "destination": "/_shell.html" },
-    { "source": "/dashboard/:path*", "destination": "/_shell.html" }
+    { "source": "/dashboard", "destination": "/_shell" },
+    { "source": "/dashboard/:path*", "destination": "/_shell" }
   ],
   "headers": [
     {
